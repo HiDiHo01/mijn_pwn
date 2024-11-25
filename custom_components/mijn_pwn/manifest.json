@@ -2,8 +2,8 @@
     "domain": "mijn_pwn",
     "name": "Mijn PWN",
     "iot_class": "cloud_polling",
-    "documentation": "https://github.com/HiDiHo01/home-assistant-mijn-pwn",
-    "issue_tracker": "https://github.com/bajansen/home-assistant-mijn-pwn/issues",
+    "documentation": "https://github.com/HiDiHo01/mijn_pwn",
+    "issue_tracker": "https://github.com/HiDiHo01/mijn_pwn/issues",
     "requirements": [],
     "dependencies": [],
     "codeowners": [
