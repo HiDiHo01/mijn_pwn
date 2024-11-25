@@ -1,0 +1,70 @@
+# .github/labeler.yml
+
+# Labels for specific directories or file types
+frontend:
+  - "frontend/**"
+  - "*.html"
+  - "*.css"
+  - "*.js"
+  - "*.ts"
+
+backend:
+  - "backend/**"
+  - "*.py"
+  - "*.java"
+  - "*.go"
+
+docs:
+  - "docs/**"
+  - "*.md"
+  - "*.rst"
+
+tests:
+  - "tests/**"
+  - "*.test.js"
+  - "*.test.py"
+  - "test_*.py"
+
+config:
+  - ".github/**"
+  - "*.yml"
+  - "*.yaml"
+  - "config/**"
+
+# Labels based on file patterns
+dependencies:
+  - "requirements.txt"
+  - "package.json"
+  - "yarn.lock"
+  - "Pipfile"
+
+ci-cd:
+  - ".github/workflows/**"
+
+# Custom labels for specific purposes
+refactor:
+  - "**/*.refactor.*"
+  - "refactor/**"
+
+bugfix:
+  - "**/*.bugfix.*"
+  - "bugfix/**"
+
+feature:
+  - "**/*.feature.*"
+  - "feature/**"
+
+# Example labels for environment-specific changes
+docker:
+  - "Dockerfile"
+  - "docker-compose.yml"
+
+kubernetes:
+  - "*.k8s.yml"
+  - "k8s/**"
+
+# Miscellaneous
+misc:
+  - "misc/**"
+  - "*.txt"
+  - "*.log"
