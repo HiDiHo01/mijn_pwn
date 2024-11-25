@@ -1,0 +1,98 @@
+{
+    "title": "Mijn PWN",
+    "config": {
+        "abort": {
+            "already_configured": "Account is al toegevoegd",
+            "reauth_successful": "Opnieuw inloggen gelukt"
+        },
+        "error": {
+            "invalid_auth": "Inloggegevens niet geaccepteerd, controleer de gegevens en probeer het opnieuw."
+        },
+        "step": {
+            "login": {
+                "title": "Inloggen bij Mijn PWN",
+                "data": {
+                    "username": "Emailadres",
+                    "password": "Wachtwoord"
+                }
+            },
+            "user": {
+                "title": "Inloggen bij Mijn PWN",
+                "description": "Log in met de accountgegevens van mijn.pwn.nl",
+                "data": {
+                    "authentication": "Gebruik Mijn PWN-accountgegevens",
+                    "username": "Emailadres",
+                    "password": "Wachtwoord"
+                }
+            }
+        }
+    },
+    "device": {
+        "Mijn PWN - Consumption": {
+            "name": "Mijn PWN - Verbruik",
+            "model": {
+                "consumption": "Verbruik"
+            }
+        },
+        "Mijn PWN - Invoices": {
+            "name": "Mijn PWN - Kosten",
+            "model": {
+                "invoices": "Kosten"
+            }
+        },
+        "Mijn PWN - User": {
+            "name": "Mijn PWN - Gebruiker",
+            "model": {
+                "user": "Gebruiker"
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "Mijn PWN - Invoices Total costs": {
+                "name": "Totaal kosten"
+            },
+            "Mijn PWN - Kosten Total costs": {
+                "name": "Totaal kosten"
+            },
+            "Mijn_PWN_-_Invoices_Total_costs": {
+                "name": "Totaal kosten"
+            },
+            "Mijn_PWN_-_Kosten_Total_costs": {
+                "name": "Totaal kosten"
+            },
+            "Mijn PWN - Invoices total_cost": {
+                "name": "Totaal kosten"
+            },
+            "Mijn PWN - Kosten total_cost": {
+                "name": "Totaal kosten"
+            },
+            "total_cost": {
+                "name": "Totaal kosten"
+            },
+            "total_costs": {
+                "name": "Totaal kosten"
+            },
+            "mijn_pwn_kosten_total_costs": {
+                "name": "Totaal kosten"
+            },
+            "mijn_pwn_costs_total_costs": {
+                "name": "Totaal kosten"
+            },
+            "mijn_pwn_invoices_total_costs": {
+                "name": "Totaal kosten"
+            },
+            "total_costs_previous_year": {
+                "name": "Kosten vorig jaar"
+            },
+            "open_invoices": {
+                "name": "Open invoices"
+            }
+        },
+        "binary_sensor": {
+            "open_invoices": {
+                "name": "Open invoices"
+            }
+        }
+    }
+}
