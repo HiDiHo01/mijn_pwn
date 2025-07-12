@@ -9,7 +9,7 @@
     "codeowners": [
         "@HiDiHo01"
     ],
-    "version": "1.0.0",
+    "version": "2025.7.13",
     "config_flow": true,
     "image": "icons/logo.svg",
     "loggers": [
