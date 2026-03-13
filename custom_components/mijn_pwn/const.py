@@ -105,6 +105,20 @@ API_ENDPOINTS: Final[dict[str, str]] = {
 }
 """Dictionary containing API endpoints for various PWN services."""
 
+# Map all ENDPOINTS for easier access in the API class
+AUTH_ENDPOINT = API_ENDPOINTS["login"]
+DATA_ENDPOINTS = {
+    "contact_preferences": API_ENDPOINTS["contact_preferences"],
+    "settings": API_ENDPOINTS["settings"],
+    "takeover": API_ENDPOINTS["takeover"],
+    "invoices_summary": API_ENDPOINTS["invoices_summary"],
+    "relation_data": API_ENDPOINTS["relation_data"],
+    "payment_info": API_ENDPOINTS["payment_info"],
+    "advance": API_ENDPOINTS["advance"],
+    "notifications": API_ENDPOINTS["notifications"],
+    "consumption_history": API_ENDPOINTS["consumption_history"]
+}
+
 # Configuration Constants
 CONFIG_CONSTANTS: Final[dict[str, str]] = {
     "COORDINATOR": "coordinator",

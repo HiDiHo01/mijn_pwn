@@ -1,234 +1,328 @@
 import asyncio
 import logging
-from typing import Any, Optional
+from typing import Optional
 
-import async_timeout
-from aiohttp import ClientError, ClientSession
+from aiohttp import ClientError, ClientResponse, ClientSession
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from .const import API_ENDPOINTS, API_TIMEOUT, API_URL
+from .const import API_TIMEOUT, AUTH_ENDPOINT, DATA_ENDPOINTS
 
 _LOGGER = logging.getLogger(__name__)
 
 
+# ------------------------------------------------------------------ #
+# Exceptions
+# ------------------------------------------------------------------ #
 class PWNAPIError(Exception):
-    """Exception to indicate a general API error."""
+    """Base exception for PWN API errors."""
+
+
+class PWNAPIServerError(PWNAPIError):
+    """Server-side API error."""
 
 
 class PWNAPICommunicationError(PWNAPIError):
-    """Exception to indicate a communication error."""
+    """Communication failure with the API."""
 
 
 class PWNAPIAuthenticationError(PWNAPIError):
-    """Exception to indicate an authentication error."""
+    """Authentication error."""
 
 
+# ------------------------------------------------------------------ #
+# Authentication
+# ------------------------------------------------------------------ #
 class PWNAuth:
-    """Handles the authentication for Mijn PWN"""
+    """Handles Mijn PWN authentication."""
 
-    def __init__(self, username: str, password: str):
-        """
-        Initialize the PWNAuth class with username and password.
-
-        Args:
-            username (str): The username for authentication.
-            password (str): The password for authentication.
-        """
+    def __init__(self, username: str, password: str) -> None:
         self.username = username
         self.password = password
         self.access_token: Optional[str] = None
         self.refresh_token: Optional[str] = None
 
     async def login(self, session: ClientSession) -> bool:
-        """
-        Perform login and retrieve access and refresh tokens.
-
-        Args:
-            session (ClientSession): The aiohttp session for making requests.
-
-        Returns:
-            bool: True if login was successful, False otherwise.
-        """
-        payload = {
-            'user': self.username,
-            'password': self.password
-        }
+        """Authenticate and retrieve access/refresh tokens."""
+        payload = {"user": self.username, "password": self.password}
 
         try:
-            with async_timeout.timeout(API_TIMEOUT):
-                async with session.post(API_ENDPOINTS['login'], json=payload) as response:
-                    if response.status == 200:
-                        tokens = await response.json()
-                        self.access_token = tokens.get('accessToken')
-                        self.refresh_token = tokens.get('refreshToken')
-                        _LOGGER.info("Auth login successful")
+            # Native asyncio.timeout
+            async with asyncio.timeout(API_TIMEOUT):
+                async with session.post(AUTH_ENDPOINT["login"], json=payload) as resp:
+                    if resp.status == 200:
+                        tokens = await resp.json()
+                        self.access_token = tokens.get("accessToken")
+                        self.refresh_token = tokens.get("refreshToken")
+                        _LOGGER.info("PWN login successful")
                         return True
-                    elif response.status in (401, 403):
+                    if resp.status in (401, 403):
                         _LOGGER.error("Invalid credentials")
                     else:
-                        _LOGGER.error(
-                            "Failed to login. Status code: %s", response.status)
+                        _LOGGER.error("Login failed. Status: %s", resp.status)
                     return False
+
         except asyncio.TimeoutError:
-            _LOGGER.error("Timeout occurred during login")
+            _LOGGER.error("Timeout during login")
             return False
-        except ClientError as e:
-            _LOGGER.error("Client error occurred during login: %s", e)
+        except ClientError as err:
+            _LOGGER.error("Client error during login: %s", err)
             return False
-        except Exception as e:
-            _LOGGER.error("Unexpected error occurred during login: %s", e)
+        except Exception as err:
+            _LOGGER.exception("Unexpected error during login: %s", err)
             return False
 
-    async def refresh_tokens(self, session: ClientSession):
-        """
-        Refresh the access and refresh tokens using the refresh token.
-
-        Args:
-            session (ClientSession): The aiohttp session for making requests.
-        """
+    async def refresh_tokens(self, session: ClientSession) -> None:
+        """Refresh access/refresh tokens."""
         if not self.refresh_token:
-            _LOGGER.error("No refresh token available. Need to login first.")
+            _LOGGER.error("No refresh token available. Login first.")
             return
 
         payload = {
-            'user': self.username,
-            'password': self.password,
-            'refresh_token': self.refresh_token
+            "user": self.username,
+            "password": self.password,
+            "refresh_token": self.refresh_token,
         }
 
         try:
-            with async_timeout.timeout(API_TIMEOUT):
-                async with session.post(API_ENDPOINTS['login'], json=payload) as response:
-                    if response.status == 200:
-                        tokens = await response.json()
-                        self.access_token = tokens.get('accessToken')
-                        self.refresh_token = tokens.get('refreshToken')
-                        _LOGGER.info("Auth token refresh successful")
-                    elif response.status in (401, 403):
-                        _LOGGER.error(
-                            "Refresh token expired or invalid, re-login required.")
+            async with asyncio.timeout(API_TIMEOUT):
+                async with session.post(AUTH_ENDPOINT["login"], json=payload) as resp:
+                    if resp.status == 200:
+                        tokens = await resp.json()
+                        self.access_token = tokens.get("accessToken")
+                        self.refresh_token = tokens.get("refreshToken")
+                        _LOGGER.info("Token refresh successful")
+                    elif resp.status in (401, 403):
+                        _LOGGER.error("Refresh token expired or invalid")
+                        raise ConfigEntryAuthFailed
                     else:
                         _LOGGER.error(
-                            "Failed to refresh tokens. Status code: %s", response.status)
-        except PWNAPIAuthenticationError as ex:
-            _LOGGER.error(
-                "Failed to renew token: %s. Starting user reauth flow", ex)
-            raise ConfigEntryAuthFailed from ex
+                            "Failed to refresh tokens. Status: %s", resp.status)
+
         except asyncio.TimeoutError:
-            _LOGGER.error("Timeout occurred during token refresh")
-        except ClientError as e:
-            _LOGGER.error("Client error occurred during token refresh: %s", e)
-        except Exception as e:
-            _LOGGER.error(
-                "Unexpected error occurred during token refresh: %s", e)
+            _LOGGER.error("Timeout during token refresh")
+        except ClientError as err:
+            _LOGGER.error("Client error during token refresh: %s", err)
+        except ConfigEntryAuthFailed:
+            raise
+        except Exception as err:
+            _LOGGER.exception("Unexpected error during token refresh: %s", err)
 
     def is_authenticated(self) -> bool:
-        """
-        Check if the user is authenticated.
+        """Return True if a valid access token is available."""
+        return self.access_token is not None
 
-        Returns:
-            bool: True if the user is authenticated, False otherwise.
-        """
-        authenticated = bool(self.access_token)
-        if authenticated:
-            _LOGGER.debug("User is authenticated")
-        return authenticated
-
-    def logout(self):
-        """
-        Perform logout by clearing the tokens.
-        """
+    def logout(self) -> None:
+        """Clear authentication tokens."""
         self.access_token = None
         self.refresh_token = None
         _LOGGER.info("Logout successful")
 
 
+# ------------------------------------------------------------------ #
+# API Client
+# ------------------------------------------------------------------ #
 class PWNAPI:
-    """Class to interact with the PWN API."""
+    """Interact with Mijn PWN API."""
 
-    def __init__(self, auth: PWNAuth, session: ClientSession):
-        """Initialize the API client."""
-        self.auth = auth
-        self.session = session
+    def __init__(
+        self,
+        username: str,
+        password: str,
+        session: ClientSession,
+    ) -> None:
+        self._username = username
+        self._password = password
+        self._session = session
+        self._access_token: str | None = None
+        self._refresh_token: str | None = None
+        self._auth_lock = asyncio.Lock()
 
-    async def async_get_data(self, endpoint: str) -> Optional[dict]:
-        """Fetch data from API endpoint"""
-        url = API_ENDPOINTS.get(endpoint)
-        if not url:
-            _LOGGER.error("Invalid endpoint: %s", endpoint)
-            return None
-        return await self.fetch_data_from_api(url)
+    def is_authenticated(self) -> bool:
+        """Return True if a valid access token is available."""
+        return self._access_token is not None
 
-    async def async_get_settings(self) -> Optional[dict]:
-        """Retrieve settings from the API."""
-        return await self.async_get_data(API_ENDPOINTS['settings'])
+    def _url(self, endpoint: str) -> str:
+        """Return full API URL."""
+        return endpoint
 
-    async def fetch_data(self):
-        """Fetch data from the API."""
-        if not self.auth.is_authenticated():
-            await self.auth.login(self.session)
+    # ------------------------------------------------------------------
+    # Authentication
+    # ------------------------------------------------------------------
 
-        headers = {"Authorization": f"Bearer {self.auth.access_token}"}
-        async with self.session.get(API_URL, headers=headers) as response:
-            if response.status != 200:
-                raise Exception(f"Error fetching data: {response.status}")
-            return await response.json()
+    async def _login(self) -> None:
+        """Authenticate and obtain tokens."""
+        payload = {
+            "user": self._username,
+            "password": self._password
+        }
 
-    async def fetch_data_from_api(self, url: str) -> dict[str, Any]:
-        """Fetch data from API endpoint."""
+        _LOGGER.debug("Attempting login to PWN API")
+        _LOGGER.debug("Login endpoint: %s", self._url(AUTH_ENDPOINT))
+        _LOGGER.debug("Payload user: %s", self._username)
+
         try:
-            # Check if authenticated, if not, try to login
-            if not self.auth.is_authenticated():
-                await self.auth.login(self.session)
+            async with asyncio.timeout(API_TIMEOUT):
+                async with self._session.post(
+                    self._url(AUTH_ENDPOINT),
+                    json=payload
+                ) as resp:
+                    await self._raise_for_status(resp)
 
-            # Set headers with the current access token
-            headers = {"Authorization": f"Bearer {self.auth.access_token}"}
+                    data: dict[str, object] = await resp.json()
+                    access_token = data.get("accessToken")
+                    refresh_token = data.get("refreshToken")
 
-            # Fetch data from the API with a timeout
-            with async_timeout.timeout(API_TIMEOUT):
-                async with self.session.get(url, headers=headers, timeout=API_TIMEOUT) as response:
-                    # Handle unauthorized access, attempt token refresh
-                    if response.status in (401, 403):
-                        _LOGGER.warning(
-                            "Unauthorized access to %s. Refreshing token and retrying.", url)
-                        await self.auth.refresh_tokens(self.session)
+                    _LOGGER.debug("Received access token: %s",
+                                  "SET" if access_token else "NONE")
+                    _LOGGER.debug("Received refresh token: %s",
+                                  "SET" if refresh_token else "NONE")
 
-                        # Retry fetching the data with the refreshed token
-                        headers = {"Authorization": f"Bearer {
-                            self.auth.access_token}"}
+                    if not isinstance(access_token, str):
+                        raise ConfigEntryAuthFailed("Authentication failed")
 
-                        with async_timeout.timeout(API_TIMEOUT):
-                            async with self.session.get(url, headers=headers, timeout=API_TIMEOUT) as retry_response:
-                                if retry_response.status != 200:
-                                    _LOGGER.error(
-                                        "Failed to fetch data from %s after token refresh. Status code: %s", url, retry_response.status)
-                                    raise UpdateFailed(f"Error communicating with API: {
-                                                       retry_response.status}")
-                                data = await retry_response.json()
-                                # _LOGGER.debug(
-                                #     "Fetched data from %s after token refresh: %s", url, data)
-                                _LOGGER.debug(
-                                    "Fetched data from %s after token refresh", url)
-                                return data
+                    self._access_token = access_token
+                    self._refresh_token = refresh_token if isinstance(
+                        refresh_token, str) else None
 
-                    # Handle other response statuses
-                    if response.status != 200:
-                        _LOGGER.error(
-                            "Failed to fetch data from %s. Status code: %s", url, response.status)
-                        raise UpdateFailed(f"Error communicating with API: {
-                                           response.status}")
+                    _LOGGER.info("Login successful for user %s",
+                                 self._username)
 
-                    # Successful response
-                    data = await response.json()
-                    # _LOGGER.debug("Fetched data from %s: %s", url, data)
-                    _LOGGER.debug("Fetched data from %s: Successful", url)
-                    return data
-        except asyncio.TimeoutError as exception:
-            raise PWNAPICommunicationError(
-                "Timeout error fetching information") from exception
-        except Exception as exception:
-            _LOGGER.error(
-                "Unexpected error fetching data from %s: %s", url, exception)
-            raise PWNAPIError(
-                "Something really wrong happened!") from exception
+        except asyncio.TimeoutError as exc:
+            raise UpdateFailed("Login timeout") from exc
+        except ClientError as exc:
+            raise UpdateFailed("Login communication error") from exc
+
+    async def _refresh_tokens(self) -> None:
+        """Refresh authentication tokens."""
+        payload = {
+            "user": self._username,
+            "password": self._password,
+            "refresh_token": self._refresh_token,
+        }
+
+        async with asyncio.timeout(API_TIMEOUT):
+            async with self._session.post(
+                self._url(AUTH_ENDPOINT),
+                json=payload,
+            ) as resp:
+                if resp.status in (401, 403):
+                    raise ConfigEntryAuthFailed("Authentication expired")
+
+                await self._raise_for_status(resp)
+
+                data = await resp.json()
+
+                access_token = data.get("accessToken")
+                refresh_token = data.get("refreshToken")
+
+                if not isinstance(access_token, str):
+                    raise ConfigEntryAuthFailed("Token refresh failed")
+
+                self._access_token = access_token
+                self._refresh_token = refresh_token if isinstance(
+                    refresh_token, str) else None
+
+    async def _request(self, method: str, endpoint: str, **kwargs) -> dict[str, object]:
+        """Perform authenticated HTTP request."""
+        if self._access_token is None:
+            async with self._auth_lock:
+                if self._access_token is None:
+                    await self._login()
+
+        headers = dict(kwargs.pop("headers", {}))
+        headers["Authorization"] = f"Bearer {self._access_token}"
+
+        try:
+            async with asyncio.timeout(API_TIMEOUT):
+                async with self._session.request(
+                    method,
+                    self._url(endpoint),
+                    headers=headers,
+                    **kwargs,
+                ) as resp:
+
+                    if resp.status in (401, 403):
+                        _LOGGER.debug("Token expired, refreshing")
+                        async with self._auth_lock:
+                            # await self._login()
+                            await self._refresh_tokens()
+
+                        headers["Authorization"] = f"Bearer {self._access_token}"
+
+                        async with self._session.request(
+                            method,
+                            self._url(endpoint),
+                            headers=headers,
+                            **kwargs,
+                        ) as retry_resp:
+                            await self._raise_for_status(retry_resp)
+                            return await retry_resp.json()
+
+                    await self._raise_for_status(resp)
+                    return await resp.json()
+
+        except asyncio.TimeoutError as exc:
+            raise UpdateFailed("Timeout communicating with API") from exc
+        except ClientError as exc:
+            raise UpdateFailed("Network error communicating with API") from exc
+
+    # ------------------------------------------------------------------
+    # Public API methods
+    # ------------------------------------------------------------------
+    async def get_invoices(self) -> dict[str, object]:
+        """Return invoices summary."""
+        return await self._request("GET", DATA_ENDPOINTS["invoices_summary"])
+
+    async def get_relation_data(self) -> dict[str, object]:
+        """Return user relation data."""
+        return await self._request("GET", DATA_ENDPOINTS["relation_data"])
+
+    async def get_consumption_history(self) -> dict[str, object]:
+        """Return consumption history."""
+        return await self._request("GET", DATA_ENDPOINTS["consumption_history"])
+
+    async def get_payment_info(self) -> dict[str, object]:
+        """Return payment information."""
+        return await self._request("GET", DATA_ENDPOINTS["payment_info"])
+
+    async def get_advance(self) -> dict[str, object]:
+        """Return advance information."""
+        return await self._request("GET", DATA_ENDPOINTS["advance"])
+
+    async def get_notifications(self) -> dict[str, object]:
+        """Return notifications."""
+        return await self._request("GET", DATA_ENDPOINTS["notifications"])
+
+    async def get_contact_preferences(self, customer_id: str) -> dict[str, object]:
+        """Return contact preferences for a given customer ID."""
+        url = f"{DATA_ENDPOINTS['contact_preferences']}/{customer_id}"
+        return await self._request("GET", url)
+
+    async def get_settings(self) -> dict[str, object]:
+        """Return settings."""
+        return await self._request("GET", DATA_ENDPOINTS["settings"])
+
+    async def get_takeover(self) -> dict[str, object]:
+        """Return takeover information."""
+        return await self._request("GET", DATA_ENDPOINTS["takeover"])
+
+    # ------------------------------------------------------------------
+    # Response helper
+    # ------------------------------------------------------------------
+
+    async def _raise_for_status(self, resp: ClientResponse) -> None:
+        """Map HTTP status codes to HA exceptions."""
+        if resp.status < 400:
+            return
+
+        if resp.status in (401, 403):
+            raise ConfigEntryAuthFailed("Authentication expired")
+
+        if 400 <= resp.status < 500:
+            text = await resp.text()
+            raise UpdateFailed(f"Client error {resp.status}: {text}")
+
+        if resp.status >= 500:
+            text = await resp.text()
+            raise UpdateFailed(f"Server error {resp.status}: {text}")

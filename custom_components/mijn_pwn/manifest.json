@@ -1,18 +1,20 @@
 {
     "domain": "mijn_pwn",
     "name": "Mijn PWN",
-    "iot_class": "cloud_polling",
-    "documentation": "https://github.com/HiDiHo01/mijn_pwn",
-    "issue_tracker": "https://github.com/HiDiHo01/mijn_pwn/issues",
-    "requirements": [],
-    "dependencies": [],
     "codeowners": [
         "@HiDiHo01"
     ],
-    "version": "2025.7.13",
     "config_flow": true,
+    "dependencies": [],
+    "documentation": "https://github.com/HiDiHo01/mijn_pwn",
     "image": "icons/logo.svg",
+    "integration_type": "service",
+    "iot_class": "cloud_polling",
+    "issue_tracker": "https://github.com/HiDiHo01/mijn_pwn/issues",
     "loggers": [
         "mijn_pwn"
-    ]
+    ],
+    "quality_scale": "silver",
+    "requirements": [],
+    "version": "2025.7.13"
 }

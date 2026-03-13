@@ -6,20 +6,31 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, DefaultDict, Optional, Union
+from typing import Callable, DefaultDict, Mapping, Optional
 
-from homeassistant.components.sensor import (SensorEntity,
-                                             SensorEntityDescription)
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNKNOWN
-from homeassistant.helpers.device_registry import DeviceEntryType
-from homeassistant.helpers.entity import DeviceInfo, EntityCategory
+from homeassistant.const import STATE_UNKNOWN, EntityCategory
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import (API_URL, ATTRIBUTION, COMPONENT_TITLE, DATA_INVOICES,
-                    DATA_USER, DOMAIN, ICON, MANUFACTURER,
-                    SERVICE_NAME_INVOICES, VERSION)
+from .const import (
+    API_URL,
+    ATTRIBUTION,
+    COMPONENT_TITLE,
+    DATA_INVOICES,
+    DATA_USER,
+    DOMAIN,
+    ICON,
+    MANUFACTURER,
+    SERVICE_NAME_INVOICES,
+    VERSION,
+)
 from .coordinator import PWNDataUpdateCoordinator
 from .exceptions import PWNAPIAuthenticationError
 
@@ -33,11 +44,9 @@ class PWNEntityDescription(SensorEntityDescription):
     """Representation of a Sensor Entity Description."""
 
     authenticated: bool = False
-    service_name: Optional[str] = SERVICE_NAME_INVOICES
-    # value_fn: Optional[Callable[[dict], StateType]] = None
-    value_fn: Optional[Callable[[dict[str, Any]], Any]] = None
-    # attr_fn: Callable[[dict], dict[str, Union[StateType, list]]] = field(
-    attr_fn: Callable[[dict[str, Any]], dict[str, Union[Any, list]]] = field(
+    service_name: str | None = SERVICE_NAME_INVOICES
+    value_fn: Callable[[dict[str, object]], object] | None = None
+    attr_fn: Callable[[dict[str, object]], dict[str, object | list]] = field(
         default_factory=lambda: {}  # type: ignore
     )
 
@@ -45,20 +54,21 @@ class PWNEntityDescription(SensorEntityDescription):
         self,
         key: str,
         name: str,
-        device_class: Optional[str] = None,
-        state_class: Optional[str] = None,
-        native_unit_of_measurement: Optional[str] = None,
-        suggested_display_precision: Optional[int] = None,
+        device_class: SensorDeviceClass | None = None,
+        state_class: str | None = None,
+        native_unit_of_measurement: str | None = None,
+        suggested_display_precision: int | None = None,
         authenticated: bool = False,
-        service_name: Optional[str] = None,
-        value_fn: Callable[[dict[str, Any]],
-                           Optional[Any]] = lambda data: None,
-        attr_fn: Callable[[dict[str, Any]], dict[str, Any]] = lambda data: {},
+        service_name: str | None = None,
+        value_fn: Callable[[dict[str, object]],
+                           object | None] = lambda data: None,
+        attr_fn: Callable[[dict[str, object]],
+                          dict[str, object]] | list = lambda data: {},
         entity_registry_enabled_default: bool = True,
         entity_registry_visible_default: bool = True,
-        entity_category: Optional[Union[str, EntityCategory]] = None,
-        translation_key: Optional[str] = None,
-        icon: Optional[str] = None,
+        entity_category: EntityCategory | None = None,
+        translation_key: str | None = None,
+        icon: str | None = None,
     ):
         super().__init__(
             key=key,
@@ -81,7 +91,7 @@ class PWNEntityDescription(SensorEntityDescription):
         self.entity_registry_visible_default = entity_registry_visible_default
         self.icon = icon
 
-    def get_state(self, data: dict[str, Any]) -> StateType:
+    def get_state(self, data: dict[str, object]) -> dict[str, object] | object | str | int | float | StateType | None:
         """Get the state value from the provided data.
 
         Args:
@@ -90,9 +100,13 @@ class PWNEntityDescription(SensorEntityDescription):
         Returns:
             Any: The state value.
         """
-        return self.value_fn(data) if self.value_fn else STATE_UNKNOWN
+        # return self.value_fn(data) if self.value_fn else STATE_UNKNOWN
+        if self.value_fn:
+            return self.value_fn(data)
 
-    def get_attributes(self, data: dict[str, Any]) -> dict[str, Union[StateType, list]]:
+    # def get_attributes(self, data: dict[str, object]) -> dict[str, Union[StateType, list]]:
+    # def get_attributes(self, data: dict[str, object]) -> Mapping[str, StateType | list[StateType]]:
+    def get_attributes(self) -> Mapping[str, StateType | list[StateType]]:
         """Get the additional attributes from the provided data.
 
         Args:
@@ -144,6 +158,8 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         # Logging to verify initialization
         # _LOGGER.debug("Initializing PWNSensor: %s", self._attr_unique_id)
 
+        # identifiers moet een 2-tuple zijn:
+        # identifiers: set[tuple[str, str]] = {(DOMAIN, f"{config_entry.entry_id}_{description.key}")}
         device_info_identifiers: set[tuple[str, str, Optional[str]]] = (
             {(DOMAIN, f"{config_entry.entry_id}", None)}
             if description.service_name is SERVICE_NAME_INVOICES
@@ -324,7 +340,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
                 "An unexpected error occurred while refreshing coordinator data: %s", e)
 
     @staticmethod
-    def get_all_invoices(data: dict[str, Any]) -> dict:
+    def get_all_invoices(data: dict[str, object]) -> dict:
         """Get all invoices from the data."""
         return {
             "invoices": [
@@ -334,7 +350,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         } if data and DATA_INVOICES in data else {}
 
     @staticmethod
-    def get_all_invoices_as_dict(data: dict[str, Any]) -> dict:
+    def get_all_invoices_as_dict(data: dict[str, object]) -> dict:
         """Get all invoices from the data as a dictionary."""
         all_invoices = [
             invoice for account in data[DATA_INVOICES].get('contractAccounts', [])
@@ -344,7 +360,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return {"invoices": [PWNSensor.as_dict(invoice) for invoice in all_invoices]}
 
     @staticmethod
-    def as_dict(invoice: dict[str, Any]) -> dict:
+    def as_dict(invoice: dict[str, object]) -> dict:
         """Convert an invoice to a dictionary format."""
         return {
             "invoiceNumber": invoice.get("invoiceNumber"),
@@ -360,7 +376,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         }
 
     @staticmethod
-    def calculate_total_invoice_amount(data: dict[str, Any]) -> float:
+    def calculate_total_invoice_amount(data: dict[str, object]) -> float:
         """Calculate and return the total invoice amount."""
         total_invoice_amount = 0.00
         if not data or DATA_INVOICES not in data:
@@ -379,7 +395,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return total_invoice_amount
 
     @staticmethod
-    def get_total_number_of_invoices(data: dict[str, Any]) -> int:
+    def get_total_number_of_invoices(data: dict[str, object]) -> int:
         """Return the total number of invoices."""
         total_invoices = 0
         try:
@@ -395,7 +411,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return total_invoices
 
     @staticmethod
-    def calculate_average_invoice_amount(data: dict[str, Any]) -> float:
+    def calculate_average_invoice_amount(data: dict[str, object]) -> float:
         """Calculate and return the average amount of all invoices."""
         total_invoice_amount = PWNSensor.calculate_total_invoice_amount(data)
         total_number_of_invoices = PWNSensor.get_total_number_of_invoices(data)
@@ -408,7 +424,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return average_invoice_amount
 
     @staticmethod
-    def calculate_total_amount_per_year(data: dict[str, Any]) -> dict[int, float]:
+    def calculate_total_amount_per_year(data: dict[str, object]) -> dict[int, float]:
         """Calculate and return the total amount for each year."""
         # total_amount_per_year = defaultdict(float)
         total_amount_per_year: DefaultDict[int, float] = defaultdict(float)
@@ -435,7 +451,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return dict(total_amount_per_year)
 
     @staticmethod
-    def calculate_total_amount_current_year(data: dict[str, Any]) -> float:
+    def calculate_total_amount_current_year(data: dict[str, object]) -> float:
         """Calculate and return the total amount for the current year."""
         current_year = datetime.now().year
         total_amount_current_year = 0.0
@@ -462,7 +478,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return total_amount_current_year
 
     @staticmethod
-    def calculate_total_amount_previous_year(data: dict[str, Any]) -> float:
+    def calculate_total_amount_previous_year(data: dict[str, object]) -> float:
         """Calculate and return the total amount for the previous year."""
         previous_year = datetime.now().year - 1
         total_amount_previous_year = 0.0
@@ -489,7 +505,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return total_amount_previous_year
 
     @staticmethod
-    def calculate_expected_costs_current_year(data: dict[str, Any]) -> float:
+    def calculate_expected_costs_current_year(data: dict[str, object]) -> float:
         """Calculate and return the expected costs for the current year."""
         current_year = datetime.now().year
         total_amount_current_year = 0.00
@@ -524,7 +540,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return expected_costs_current_year
 
     @staticmethod
-    def calculate_amount_per_month_per_year(data: dict[str, Any], year: int) -> Optional[float]:
+    def calculate_amount_per_month_per_year(data: dict[str, object], year: int) -> Optional[float]:
         """Calculate the total amount for a given year."""
         total_amount_for_year = 0.00
         number_of_months = 0
@@ -553,7 +569,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return None
 
     @staticmethod
-    def calculate_amount_per_month_per_year_as_dict(data: dict[str, Any]) -> dict[str, Any]:
+    def calculate_amount_per_month_per_year_as_dict(data: dict[str, object]) -> dict[str, object]:
         """Calculate and return the amount per month for each year with string keys."""
         amount_per_month_per_year = defaultdict(lambda: defaultdict(float))
 
@@ -586,16 +602,16 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return {year: dict(months) for year, months in amount_per_month_per_year.items()}
 
     @staticmethod
-    def get_costs_per_month_current_year(data: dict[str, Any]) -> float:
+    def get_costs_per_month_current_year(data: dict[str, object]) -> float | None:
         current_year = datetime.now().year
         return PWNSensor.calculate_amount_per_month_per_year(data, current_year)
 
     @staticmethod
-    def get_current_year_as_dict(data: dict[str, Any]) -> dict[str, Any]:
+    def get_current_year_as_dict(data: dict[str, object]) -> dict[str, object]:
         return PWNSensor.calculate_amount_per_month_per_year_as_dict(data)
 
     @staticmethod
-    def _calculate_invoice_amount(invoice: dict[str, Any]) -> float:
+    def _calculate_invoice_amount(invoice: dict[str, object]) -> float:
         """Helper function to calculate the amount for a single invoice."""
         payment_status = invoice.get("paymentStatus")
         total_amount = invoice.get("totalAmount", 0.00)
@@ -606,7 +622,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return 0.00
 
     @staticmethod
-    def calculate_total_costs_per_year_asdict(data: dict[str, Any]) -> dict[int, float]:
+    def calculate_total_costs_per_year_asdict(data: dict[str, object]) -> dict[int, float]:
         """Calculate and return the total costs per year as a dictionary."""
         total_costs_per_year = defaultdict(float)
         try:
@@ -630,9 +646,10 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return dict(total_costs_per_year)
 
     @staticmethod
-    def calculate_bills_per_year(data: dict[str, Any]) -> dict[str, Any]:
+    def calculate_bills_per_year(data: dict[str, object]) -> dict[str, object]:
         """Calculate and return the bills per year in the specified format."""
-        bills_per_year = []
+        bills_per_year: list = []
+        invoice_quarter: float = 0.00
 
         try:
             if data and DATA_INVOICES in data:
@@ -656,7 +673,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
                             year = invoice_date.year
                             total_amount = PWNSensor._calculate_invoice_amount(
                                 invoice)
-                            open_amount = invoice.get("openAmount", 0.0)
+                            open_amount: float = invoice.get("openAmount", 0.0)
                             invoice_type = invoice.get(
                                 "invoiceType", 'Unknown')
 
@@ -695,7 +712,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return {'costs_per_year': bills_per_year}
 
     @staticmethod
-    def calculate_invoice_quarter_current_year(data: dict[str, Any]) -> Optional[float]:
+    def calculate_invoice_quarter_current_year(data: dict[str, object]) -> float | None:
         """Calculate and return the total amount for each quarter of the current year."""
         current_year = int(datetime.now().year)
         quarters = defaultdict(float)
@@ -728,7 +745,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return quarter_amount
 
     @staticmethod
-    def calculate_invoice_quarters_current_year_asdict(data: dict[str, Any]) -> dict[str, float]:
+    def calculate_invoice_quarters_current_year_asdict(data: dict[str, object]) -> dict[str, float]:
         """Calculate and return the total amount for each quarter of the current year."""
         current_year = str(datetime.now().year)
         quarters = defaultdict(float)
@@ -755,7 +772,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         # return dict(quarters)
 
     @staticmethod
-    def get_full_name(data: dict[str, Any]) -> Optional[str]:
+    def get_full_name(data: dict[str, object]) -> str | None:
         """Get the full name by combining initials and last name."""
         if data and DATA_USER in data:
             private_client = data[DATA_USER].get('privateClient', {})
@@ -767,7 +784,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return None
 
     @staticmethod
-    def get_correspondence_address(data: dict[str, Any]) -> Optional[str]:
+    def get_correspondence_address(data: dict[str, object]) -> Optional[str]:
         """Get the full name by combining initials and last name."""
         if data and DATA_USER in data:
             correspondence_address = data[DATA_USER].get(
@@ -805,14 +822,31 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
     #     return self.entity_description.value_fn(self.coordinator.data)
 
     @property
-    def unique_id(self):
+    def unique_id(self) -> str:
         """Return the unique ID of the sensor."""
         return self._unique_id
 
     @property
-    def extra_state_attributes(self) -> Optional[dict]:
-        """Return the state attributes."""
-        return self.entity_description.attr_fn(self.coordinator.data)
+    def extra_state_attributes(self) -> Mapping[str, StateType | list[StateType]]:
+        """Return extra state attributes."""
+        # start with attributes from the entity description
+        attributes: dict[str, StateType | list[StateType]] = dict(
+            self.entity_description.attr_fn(self.coordinator.data)
+        )
+
+        # add fixed attributes
+        if getattr(self.coordinator, "last_update_error", None):
+            attributes.update({
+                "last_update_error": getattr(self.coordinator, "last_update_error", None),
+            })
+        if getattr(self.coordinator, "last_update_exception", None):
+            attributes.update({
+                "last_update_exception": getattr(self.coordinator, "last_update_exception", None),
+            })
+        attributes.update({
+            "attribution": ATTRIBUTION,
+        })
+        return attributes
 
     @property
     def available(self) -> bool:
@@ -820,7 +854,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return super().available and self.native_value is not None
 
     @property
-    def native_value(self) -> Optional[Any]:
+    def native_value(self) -> Optional[object]:
         """Return the state of the sensor."""
         if self.entity_description is None:
             _LOGGER.error("Entity description is None.")
@@ -848,7 +882,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
             _LOGGER.error("Failed to retrieve sensor state: %s", str(e))
             return None
 
-    async def async_added_to_hass(self) -> None:
+    async def old_async_added_to_hass(self) -> None:
         """When entity is added to hass."""
         await super().async_added_to_hass()
         self.async_on_remove(
@@ -860,7 +894,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         if invoices:
             self._attr_state = invoices.get('some_value', 'default_value')
         else:
-            self._attr_state = 'No data'
+            self._attr_state = None  # 'No data'
         _LOGGER.debug("Updated invoice sensor state to: %s", self._attr_state)
 
 
@@ -927,7 +961,7 @@ async def async_update(self):
         self._set_state(None, {})
 
 
-def _set_state(self, native_value: Any, extra_attributes: dict[str, Any]) -> None:
+def _set_state(self, native_value: object, extra_attributes: dict[str, object]) -> None:
     """Helper method to set the sensor state and attributes.
 
     Args:

@@ -6,9 +6,13 @@ from datetime import datetime, timedelta
 import homeassistant.util.dt as dt
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CURRENCY_EURO, STATE_UNKNOWN, UnitOfVolume
+from homeassistant.const import (
+    CURRENCY_EURO,
+    STATE_UNKNOWN,
+    EntityCategory,
+    UnitOfVolume,
+)
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
@@ -25,7 +29,6 @@ from .sensor_helper import PWNEntityDescription, PWNSensor
 _LOGGER = logging.getLogger(__name__)
 INVOICE_DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%f0Z'  # Format for invoice dates
 MONTHS_COVERED_BY_INVOICE = 3
-# DATA_INVOICES = DATA_KEYS['DATA_INVOICES']
 
 SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     PWNEntityDescription(
@@ -391,7 +394,7 @@ async def async_setup_entry(
 
 def _should_add_sensor(description: PWNEntityDescription, coordinator: PWNDataUpdateCoordinator) -> bool:
     """Determine if a sensor should be added based on the description and authentication status."""
-    if not description.authenticated or coordinator.api.auth.is_authenticated():
+    if not description.authenticated or coordinator.api.is_authenticated():
         return True
     _LOGGER.debug(
         "Skipping sensor %s because authentication is required and not fulfilled.", description.key)

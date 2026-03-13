@@ -3,43 +3,60 @@ import asyncio
 import logging
 from typing import Any, Optional, Tuple
 
-from aiohttp import ClientError
+from aiohttp import ClientError, ClientSession
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import PWNAPI, PWNAuth
+from .api import PWNAPI
 from .const import CONFIG_CONSTANTS, DOMAIN, PLATFORMS
 from .coordinator import PWNDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def _get_credentials(config_entry: ConfigEntry) -> Optional[Tuple[str, str, Optional[str]]]:
+def _get_credentials(config_entry: ConfigEntry) -> Optional[Tuple[str, str]]:
     """Extract username, password, and auth_token from the config entry."""
     username = config_entry.data.get(CONF_USERNAME)
     password = config_entry.data.get(CONF_PASSWORD)
-    auth_token = config_entry.data.get(CONFIG_CONSTANTS.get("AUTH_TOKEN"))
 
     if not username or not password:
         _LOGGER.error("Username or password not provided in config entry.")
         return None
 
-    return username, password, auth_token
+    return username, password
 
 
-async def _create_api_and_coordinator(
-    hass: HomeAssistant, username: str, password: str
+async def _create_coordinator(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
 ) -> PWNDataUpdateCoordinator:
-    """Helper function to create API and Data Update Coordinator."""
-    _LOGGER.debug(
-        "Creating API and Data Update Coordinator for user: %s", username)
+    """Create API client and coordinator."""
+
+    # _LOGGER.debug("Creating API and coordinator for user: %s", username)
+
+    credentials = _get_credentials(config_entry)
+    if credentials is None:
+        raise ConfigEntryNotReady("Missing credentials")
+
+    username, password = credentials
+
     session = async_get_clientsession(hass)
-    auth = PWNAuth(username, password)
-    api = PWNAPI(auth, session)
-    coordinator = PWNDataUpdateCoordinator(hass, api)
+
+    api = PWNAPI(
+        username=username,
+        password=password,
+        session=session,
+    )
+
+    coordinator = PWNDataUpdateCoordinator(
+        hass=hass,
+        api=api,
+        config_entry=config_entry,
+    )
+
     return coordinator
 
 
@@ -58,27 +75,32 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     _LOGGER.debug("Setting up PWN entry unique_id: %s", config_entry.unique_id)
     _LOGGER.debug("Setting up PWN entry options: %s", config_entry.options)
 
-    # Check if an instance already exists
-    # if DOMAIN in hass.data:
-    #     _LOGGER.error("An instance of the PWN integration already exists.")
-    #     return False
-
     # Ensure the config entry has a unique_id
     if not config_entry.unique_id:
         _LOGGER.error("ConfigEntry unique_id is not set for %s",
                       config_entry.data)
         return False
     _LOGGER.info("ConfigEntry unique_id: %s", config_entry.unique_id)
+    _LOGGER.debug("Setting up config entry %s", config_entry.entry_id)
 
     # Store coordinator in hass.data
     hass.data.setdefault(DOMAIN, {})
     try:
-        credentials = _get_credentials(config_entry)
-        if not credentials:
-            return False
+        # session = async_get_clientsession(hass)
 
-        username, password, auth_token = credentials
-        coordinator = await _create_api_and_coordinator(hass, username, password)
+        # credentials = _get_credentials(config_entry)
+        # if not credentials:
+        #     return False
+
+        # username, password = credentials
+        # api = PWNAPI(
+        #     username=username,
+        #     password=password,
+        #     session=session,
+        # )
+        # coordinator = await _create_api_and_coordinator(hass, config_entry, username, password)
+
+        coordinator = await _create_coordinator(hass, config_entry)
         hass.data[DOMAIN][config_entry.entry_id] = coordinator
 
         _LOGGER.debug("Calling config_entry_first_refresh")
@@ -129,9 +151,9 @@ async def authenticate(hass: HomeAssistant, config_entry: ConfigEntry) -> Option
     if not credentials:
         return None
 
-    username, password, _ = credentials
+    username, password = credentials
     try:
-        coordinator = await _create_api_and_coordinator(hass, username, password)
+        coordinator = await _create_coordinator(hass, config_entry)
         auth = coordinator.api.auth
 
         success = await asyncio.wait_for(auth.login(coordinator.api.session), timeout=10)
