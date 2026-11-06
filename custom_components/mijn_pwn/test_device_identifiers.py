@@ -142,14 +142,12 @@ class TestDeviceIdentifiers(unittest.TestCase):
         registry = _FakeDeviceRegistry(devices)
 
         self.assertEqual(self._migrate(registry), 3)
-        self.assertEqual(registry.updated_ids, [
-            "invoice-id", "user-id", "consumption-id"
-        ])
+        self.assertEqual(
+            registry.updated_ids, ["invoice-id", "user-id", "consumption-id"]
+        )
         self.assertEqual(devices[0].identifiers, {(DOMAIN, "entry-123")})
         self.assertEqual(devices[1].identifiers, {(DOMAIN, "entry-123_User")})
-        self.assertEqual(
-            devices[2].identifiers, {(DOMAIN, "entry-123_Consumption")}
-        )
+        self.assertEqual(devices[2].identifiers, {(DOMAIN, "entry-123_Consumption")})
 
         # Repeated startup must not create or update devices again.
         self.assertEqual(self._migrate(registry), 0)
@@ -176,12 +174,8 @@ class TestDeviceIdentifiers(unittest.TestCase):
 
     def test_skips_collision_without_orphaning_device(self) -> None:
         """Never overwrite another device already using the target identifier."""
-        old = _RegistryDevice(
-            "old-id", "entry-123", {(DOMAIN, "entry-123", None)}
-        )
-        current = _RegistryDevice(
-            "current-id", "entry-123", {(DOMAIN, "entry-123")}
-        )
+        old = _RegistryDevice("old-id", "entry-123", {(DOMAIN, "entry-123", None)})
+        current = _RegistryDevice("current-id", "entry-123", {(DOMAIN, "entry-123")})
         registry = _FakeDeviceRegistry([old, current])
 
         self.assertEqual(self._migrate(registry), 0)
@@ -196,9 +190,7 @@ class TestDeviceIdentifiers(unittest.TestCase):
         registry = _FakeDeviceRegistry([legacy])
 
         self.assertEqual(self._migrate(registry), 0)
-        self.assertEqual(
-            legacy.identifiers, {(DOMAIN, "entry-123", "Unknown")}
-        )
+        self.assertEqual(legacy.identifiers, {(DOMAIN, "entry-123", "Unknown")})
         self.assertEqual(registry.updated_ids, [])
 
 
