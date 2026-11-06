@@ -81,7 +81,7 @@ SENSOR_TYPES: tuple[PWNEntityDescription, ...] = (
     PWNEntityDescription(
         key="open_invoices",
         translation_key="open_invoices",
-        icon="mdi:alert",
+        icon="mdi:file-document-alert-outline",
         value_fn=lambda data: (
             data.get(DATA_INVOICES, {}).get("numberOfOpenItems", 0) > 0
             if data
