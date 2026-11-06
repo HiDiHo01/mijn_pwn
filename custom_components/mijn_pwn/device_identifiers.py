@@ -43,9 +43,7 @@ def get_device_identifiers(
 
 def get_device_translation_key(service_name: str | None) -> str:
     """Return the stable translation key for a supported PWN service device."""
-    normalized_service = (
-        SERVICE_NAME_INVOICES if service_name is None else service_name
-    )
+    normalized_service = SERVICE_NAME_INVOICES if service_name is None else service_name
     try:
         return _DEVICE_TRANSLATION_KEYS[normalized_service]
     except KeyError as err:

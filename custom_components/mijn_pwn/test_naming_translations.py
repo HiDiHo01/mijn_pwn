@@ -80,9 +80,7 @@ class TestNamingTranslations(unittest.TestCase):
                 )
                 self.assertEqual(set(catalog["device"]), _DEVICE_KEYS)
                 self.assertEqual(set(catalog["entity"]["sensor"]), sensor_keys)
-                self.assertEqual(
-                    set(catalog["entity"]["binary_sensor"]), binary_keys
-                )
+                self.assertEqual(set(catalog["entity"]["binary_sensor"]), binary_keys)
                 for device in catalog["device"].values():
                     self.assertTrue(device["name"])
                 for sensor in catalog["entity"]["sensor"].values():
@@ -125,9 +123,7 @@ class TestNamingTranslations(unittest.TestCase):
                     entity._attr_device_info["identifiers"],
                     get_device_identifiers(entry.entry_id, service_name),
                 )
-                self.assertEqual(
-                    entity.unique_id, f"account-123_{description.key}"
-                )
+                self.assertEqual(entity.unique_id, f"account-123_{description.key}")
 
         binary_description = SENSOR_TYPES[0]
         binary_entity = PWNBinarySensor(coordinator, binary_description, entry)
