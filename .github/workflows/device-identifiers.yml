@@ -22,12 +22,13 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Install Home Assistant wheel and dependency inspector
-        run: |
-          python -m pip install --only-binary :all: --no-deps homeassistant==2026.10.3
-          python -m pip install --only-binary :all: packaging==25.0
+      - name: Install Home Assistant wheel
+        run: "python -m pip install --only-binary :all: --no-deps homeassistant==2026.10.3"
 
-      - name: Install wheel-only runtime test dependencies
+      - name: Install dependency inspector
+        run: "python -m pip install --only-binary :all: packaging==25.0"
+
+      - name: Resolve registry test dependencies
         run: |
           # Bluetooth functionality is unrelated to these device registry tests.
           # Its optional dependency graph contains a source-only package.
@@ -51,7 +52,9 @@ jobs:
               "\n".join(requirements) + "\n", encoding="utf-8"
           )
           PY
-          python -m pip install --only-binary :all: -r /tmp/homeassistant-test-requirements.txt
+
+      - name: Install wheel-only runtime test dependencies
+        run: "python -m pip install --only-binary :all: -r /tmp/homeassistant-test-requirements.txt"
 
       - name: Run device identifier and migration regression tests
         run: python -m unittest -v custom_components.mijn_pwn.test_device_identifiers
