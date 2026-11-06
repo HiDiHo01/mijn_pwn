@@ -9,11 +9,13 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import device_registry
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import PWNAPI
 from .const import DOMAIN, PLATFORMS
 from .coordinator import PWNDataUpdateCoordinator
+from .device_identifiers import migrate_legacy_device_identifiers
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -105,6 +107,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
         _LOGGER.debug("Calling config_entry_first_refresh")
         await coordinator.async_config_entry_first_refresh()
+        migrate_legacy_device_identifiers(
+            device_registry.async_get(hass), config_entry.entry_id
+        )
     except ClientError as e:
         _LOGGER.error("Network error setting up PWN entry: %s", e, exc_info=True)
         raise ConfigEntryNotReady from e
