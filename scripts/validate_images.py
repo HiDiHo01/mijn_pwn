@@ -1,7 +1,7 @@
 """Validate the committed PNG and SVG assets for the Mijn PWN integration."""
 
-import sys
 from pathlib import Path
+import sys
 
 from defusedxml import ElementTree
 from PIL import Image, UnidentifiedImageError
@@ -43,7 +43,8 @@ def main() -> int:
         return 1
 
     images = sorted(
-        path for path in IMAGE_ROOT.rglob("*")
+        path
+        for path in IMAGE_ROOT.rglob("*")
         if path.suffix.lower() in {".png", ".svg"}
     )
     if not images:

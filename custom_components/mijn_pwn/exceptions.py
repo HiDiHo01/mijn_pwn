@@ -3,6 +3,7 @@
 
 class PWNAPIAuthenticationError(Exception):
     """Exception raised for errors in the authentication with the PWN API."""
+
     pass
 
 
@@ -24,29 +25,35 @@ class NoSuitableSitesFoundError(Exception):
 
 class FrankEnergieError(Exception):
     """Base class for all FrankEnergie-related errors."""
+
     pass
 
 
 class LoginError(FrankEnergieError):
     """Raised when login to FrankEnergie fails."""
+
     pass
 
 
 class NetworkError(FrankEnergieError):
     """Raised for network-related errors in FrankEnergie."""
+
     pass
 
 
 class RequestException(Exception):
     """Custom exception for request errors."""
+
     pass
 
 
 class SmartTradingNotEnabledException(Exception):
     """Exception raised when smart trading is not enabled for the user."""
+
     pass
 
 
 class ConnectionException(FrankEnergieError):
     """Raised for network-related errors in FrankEnergie."""
+
     pass

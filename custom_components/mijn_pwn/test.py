@@ -32,6 +32,7 @@ async def main():
     else:
         _LOGGER.error("Failed to fetch invoices data")
 
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     asyncio.run(main())

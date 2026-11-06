@@ -5,6 +5,7 @@ import logging
 
 import aiohttp
 import voluptuous as vol
+
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -13,14 +14,16 @@ from .const import COMPONENT_TITLE, DOMAIN, NETWORK_CONFIG
 
 _LOGGER = logging.getLogger(__name__)
 AUTH_URL = f"{NETWORK_CONFIG['API_URL']}/api/auth/login"
-TIMEOUT = NETWORK_CONFIG['API_TIMEOUT']
+TIMEOUT = NETWORK_CONFIG["API_TIMEOUT"]
 
 
 @callback
 def configured_instances(hass):
     """Return a set of configured PWN instances."""
-    return set(entry.data['username']
-               for entry in hass.config_entries.async_entries(DOMAIN))
+    return set(
+        entry.data["username"] for entry in hass.config_entries.async_entries(DOMAIN)
+    )
+
 
 # Register the config flow handler for the domain
 
@@ -40,10 +43,12 @@ class PWNConfigFlow(config_entries.ConfigFlow):
         # if self._async_current_entries():
         #     return self.async_abort(reason="single_instance_allowed")
 
-        data_schema = vol.Schema({
-            vol.Required("username"): str,
-            vol.Required("password"): str,
-        })
+        data_schema = vol.Schema(
+            {
+                vol.Required("username"): str,
+                vol.Required("password"): str,
+            }
+        )
 
         if user_input is not None:
             username = user_input.get("username")
@@ -59,26 +64,23 @@ class PWNConfigFlow(config_entries.ConfigFlow):
             self._abort_if_unique_id_configured()
 
             if await self._validate_user_input(user_input):
-                return self.async_create_entry(
-                    title=COMPONENT_TITLE,
-                    data=user_input
-                )
+                return self.async_create_entry(title=COMPONENT_TITLE, data=user_input)
             errors["base"] = "invalid_auth"
 
         return self.async_show_form(
-            step_id="user",
-            data_schema=data_schema,
-            errors=errors
+            step_id="user", data_schema=data_schema, errors=errors
         )
 
     async def async_step_reconfigure(self, user_input=None):
         """Handle the reconfiguration step."""
         errors = {}
 
-        data_schema = vol.Schema({
-            vol.Required("username"): str,
-            vol.Required("password"): str,
-        })
+        data_schema = vol.Schema(
+            {
+                vol.Required("username"): str,
+                vol.Required("password"): str,
+            }
+        )
 
         if user_input:
             username = user_input.get("username")
@@ -87,22 +89,14 @@ class PWNConfigFlow(config_entries.ConfigFlow):
             if await self._validate_user_input(user_input):
                 # Update the existing entry with new credentials
                 entry = self._async_current_entries()[0]
-                self.hass.config_entries.async_update_entry(
-                    entry, data=user_input
-                )
-                _LOGGER.info(
-                    "Reconfiguration successful for user: %s", username)
+                self.hass.config_entries.async_update_entry(entry, data=user_input)
+                _LOGGER.info("Reconfiguration successful for user: %s", username)
                 await self.async_set_unique_id(username)
-                return self.async_create_entry(
-                    title=COMPONENT_TITLE,
-                    data=user_input
-                )
+                return self.async_create_entry(title=COMPONENT_TITLE, data=user_input)
             errors["base"] = "invalid_auth"
 
         return self.async_show_form(
-            step_id="reconfigure",
-            data_schema=data_schema,
-            errors=errors
+            step_id="reconfigure", data_schema=data_schema, errors=errors
         )
 
     async def _validate_user_input(self, user_input):
@@ -116,41 +110,46 @@ class PWNConfigFlow(config_entries.ConfigFlow):
 
         try:
             session = async_get_clientsession(self.hass)
-            payload = {
-                "user": username,
-                "password": password
-            }
-            async with session.post(AUTH_URL,
-                                    json=payload,
-                                    timeout=TIMEOUT
-                                    ) as response:
+            payload = {"user": username, "password": password}
+            async with session.post(
+                AUTH_URL, json=payload, timeout=TIMEOUT
+            ) as response:
                 if response.status == 200:
                     data = await response.json()
                     if data.get("accessToken") is not None:
-                        _LOGGER.info(
-                            "Authentication successful for user: %s", username)
+                        _LOGGER.info("Authentication successful for user: %s", username)
                         return True
-                    _LOGGER.error(
-                        "No access token received for user: %s", username)
+                    _LOGGER.error("No access token received for user: %s", username)
                 elif response.status == 401:
                     _LOGGER.error(
-                        "Authentication failed for user: %s, invalid credentials", username)
+                        "Authentication failed for user: %s, invalid credentials",
+                        username,
+                    )
                 else:
                     _LOGGER.error(
                         "Authentication failed for user: %s, status code: %s",
                         username,
-                        response.status
+                        response.status,
                     )
                 return False
         except aiohttp.ClientResponseError as error:
             _LOGGER.error(
-                "HTTP error occurred during authentication for user: %s, error: %s", username, error)
+                "HTTP error occurred during authentication for user: %s, error: %s",
+                username,
+                error,
+            )
             return False
         except aiohttp.ClientError as error:
             _LOGGER.error(
-                "Network error occurred during authentication for user: %s, error: %s", username, error)
+                "Network error occurred during authentication for user: %s, error: %s",
+                username,
+                error,
+            )
             return False
         except Exception as error:
             _LOGGER.error(
-                "Unexpected error occurred during authentication for user: %s, error: %s", username, error)
+                "Unexpected error occurred during authentication for user: %s, error: %s",
+                username,
+                error,
+            )
             return False
