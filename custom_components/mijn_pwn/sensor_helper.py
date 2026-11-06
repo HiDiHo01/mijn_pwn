@@ -186,17 +186,6 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         # self._attr_native_value = None
         super().__init__(coordinator)
 
-    @property
-    def available(self) -> bool:
-        """Return availability for optional account features and coordinator data."""
-        if not super().available:
-            return False
-        available_fn = self.entity_description.available_fn
-        if available_fn is None:
-            return True
-        data = self.coordinator.data
-        return available_fn(data if isinstance(data, dict) else {})
-
     async def async_added_to_hass(self) -> None:
         """Handle when the sensor is added to Home Assistant."""
         if self.coordinator is None:
@@ -925,8 +914,16 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def available(self) -> bool:
-        """Return True if entity is available."""
-        return super().available and self.native_value is not None
+        """Return availability for the coordinator and supported account data."""
+        if not super().available or self.native_value is None:
+            return False
+
+        available_fn = self.entity_description.available_fn
+        if available_fn is None:
+            return True
+
+        data = self.coordinator.data
+        return available_fn(data if isinstance(data, dict) else {})
 
     @property
     def native_value(self) -> Optional[object]:
