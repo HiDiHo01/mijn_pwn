@@ -64,7 +64,6 @@ class TestOptionalSensors(unittest.TestCase):
         self.assertTrue(_should_add_sensor(date_sensor, coordinator))
         self.assertTrue(_should_add_sensor(status_sensor, coordinator))
 
-
     def test_contextual_icons_cover_all_entities(self) -> None:
         """Use explicit MDI icons rather than the generic currency fallback."""
         sensor_icons = {
@@ -74,7 +73,9 @@ class TestOptionalSensors(unittest.TestCase):
             description.key: description.icon for description in SENSOR_TYPES
         }
         self.assertEqual(len(sensor_icons), 23)
-        self.assertEqual(binary_icons, {"open_invoices": "mdi:file-document-alert-outline"})
+        self.assertEqual(
+            binary_icons, {"open_invoices": "mdi:file-document-alert-outline"}
+        )
         for key, icon in (sensor_icons | binary_icons).items():
             with self.subTest(entity=key):
                 self.assertIsInstance(icon, str)
