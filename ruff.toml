@@ -12,3 +12,7 @@ force-sort-within-sections = true
 combine-as-imports = true
 split-on-trailing-comma = false
 known-first-party = ["homeassistant", "custom_components"]
+
+[format]
+# Home Assistant uses LF line endings; avoid CRLF-only diff noise on Windows.
+line-ending = "lf"
