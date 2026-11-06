@@ -27,6 +27,75 @@ Read [AI_POLICY.md](AI_POLICY.md) before starting work. It governs authorization
 - Clearly distinguish checks that passed, failed, or were not run.
 - Never claim a command or test ran unless it actually ran.
 
+## Mijn PWN device registry migration playbook
+
+When changing `DeviceInfo.identifiers` or entity-to-device association, inspect the
+current Home Assistant device registry contract and any identifiers stored by
+previous releases **before** changing the generated identifiers:
+
+- Home Assistant expects `set[tuple[str, str]]` (domain and stable identifier).
+  Legacy three-element tuples may have been persisted and reloaded by the
+  registry; correcting the type alone is not a safe upgrade migration.
+- Reuse `get_device_identifiers(entry_id, service_name)` in both the sensor and
+  binary sensor platforms. Invoice devices remain keyed by the config-entry ID;
+  other supported services use distinct, deterministic suffixes. Use equality
+  rather than object identity for service-name comparisons.
+- Scope migrations with `device_registry.async_entries_for_config_entry`.
+  Before replacing any identifier, check for an existing device owned by the same
+  config entry using `async_get_device_by_identifier`. Update the existing
+  device through `async_update_device(device.id, new_identifiers=...)` instead
+  of creating a replacement or changing its device ID. Preserve unrelated valid
+  identifiers and device metadata.
+- Reject unsupported legacy shapes, unknown services, and identifier collisions
+  without partial writes or cross-entry updates. Keep warning messages free of
+  account information and registry payloads. Running the migration twice must
+  not change a successfully migrated device.
+- Run registry migration **after** the initial successful coordinator refresh
+  and **before** forwarding entity platforms, so entities attach to the existing
+  devices. Keep conversions separate from registry mutation to control cognitive
+  complexity (SonarCloud's configured limit is 15).
+- Extend `custom_components/mijn_pwn/test_device_identifiers.py` when changing
+  this behavior. Cover invoice/user/consumption identifiers, malformed input,
+  existing device ID preservation, idempotence, other config entries, collisions,
+  unrelated identifiers, and mixed valid/unknown legacy identifiers. Distinguish
+  fake-registry unit tests from tests against actual Home Assistant storage.
+
+## Mijn PWN CI and SonarCloud lessons
+
+The repository uses Home Assistant-aligned Ruff formatting with Python 3.14
+and the rules in `ruff.toml`. Verify both `ruff format --check .` and
+`ruff check --output-format=github .` against the **final** PR commit. Keep
+LF line endings to prevent formatting-only failures.
+
+- Run device registry regression tests with the supported Home Assistant
+  runtime (currently represented in `.github/workflows/device-identifiers.yml`).
+  Prefer the official Home Assistant container pinned by an **independently
+  verified immutable digest**, an offline network, a read-only workspace, and
+  unprivileged execution. Do not silently replace the tested runtime with
+  lightweight stubs and report it as an integration test.
+- Avoid installing untrusted packages from source in CI. Direct `pip install`
+  of Home Assistant can transitively build source-only packages (the previous
+  workflow encountered `PyRIC`), even when this test does not use those
+  subsystems. Prefer an appropriately pinned prebuilt test runtime. Where pip
+  installation is truly necessary, require binary distributions with
+  `--only-binary :all:` and verify dependency availability; do not bypass
+  dependencies or security checks merely to get green CI.
+- Quote YAML `run:` values containing a colon followed by a space (for example
+  the `:all:` pip option), or use a block scalar. An invalid workflow may
+  produce a failed run with **zero jobs**, which is not a test failure.
+- Read individual SonarCloud findings, verify them against the current code,
+  and fix the cause rather than suppressing the rule. For cognitive complexity,
+  extract focused pure helpers while preserving behavior and tests. Recheck the
+  SonarCloud **Quality Gate on the final head** after every workflow revision;
+  a green check from an earlier commit is insufficient.
+- Evaluate GitHub Actions, SonarCloud and external status contexts separately.
+  Passing Ruff, tests, images and dependency review does not imply Snyk passed.
+  Report missing, skipped and external-error checks explicitly, and never claim
+  a full Home Assistant integration test from isolated registry tests.
+- Maintain these project-specific practices when new evidence or upstream Home
+  Assistant APIs change. Keep authorization, security, privacy and disclosure
+  policy in `AI_POLICY.md`; this document records engineering procedures.
+
 ## Pull-request reviews
 - Focus on defects introduced by the diff, especially correctness, security, compatibility, data integrity, and regressions.
 - Report actionable findings with severity, file/line, failure scenario, impact, and a concrete fix.
