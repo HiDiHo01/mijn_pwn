@@ -19,9 +19,7 @@ class TestOptionalSensors(unittest.TestCase):
         }
         status = descriptions["water_consumption_status"]
         self.assertEqual(status.device_class, SensorDeviceClass.ENUM)
-        self.assertEqual(
-            status.options, ["no_reported_anomaly", "anomaly_reported"]
-        )
+        self.assertEqual(status.options, ["no_reported_anomaly", "anomaly_reported"])
         last_reading = descriptions["last_meter_reading_date"]
         self.assertEqual(last_reading.device_class, SensorDeviceClass.DATE)
         self.assertEqual(last_reading.entity_category, EntityCategory.DIAGNOSTIC)
