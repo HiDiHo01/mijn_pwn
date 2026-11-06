@@ -54,7 +54,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
         key="water_consumption_status",
         translation_key="water_consumption_status",
         service_name=SERVICE_NAME_CONSUMPTION,
-        icon="mdi:water-check-outline",
+        icon="mdi:water-outline",
         device_class=SensorDeviceClass.ENUM,
         options=["no_reported_anomaly", "anomaly_reported"],
         value_fn=lambda data: get_water_consumption_status(data.get(DATA_CONSUMPTION)),
@@ -77,6 +77,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     PWNEntityDescription(
         key="total_open_amount",
         translation_key="total_open_amount",
+        icon="mdi:cash-clock",
         native_unit_of_measurement=CURRENCY_EURO,
         suggested_display_precision=2,
         device_class=SensorDeviceClass.MONETARY,
@@ -105,7 +106,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     PWNEntityDescription(
         key="open_invoices_document_numbers",
         translation_key="open_invoices_document_numbers",
-        icon="mdi:invoice",
+        icon="mdi:file-document-multiple-outline",
         suggested_display_precision=None,
         state_class=None,
         value_fn=lambda data: (
@@ -141,7 +142,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
         translation_key="number_of_open_items",
         suggested_display_precision=0,
         state_class=SensorStateClass.TOTAL,
-        icon="mdi:invoice",
+        icon="mdi:file-document-multiple",
         value_fn=lambda data: (
             data[DATA_INVOICES].get("invoicesSummary", {}).get("numberOfOpenItems")
             if data and DATA_INVOICES in data
@@ -166,6 +167,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     PWNEntityDescription(
         key="total_costs",
         translation_key="total_costs",
+        icon="mdi:cash-multiple",
         native_unit_of_measurement=CURRENCY_EURO,
         suggested_display_precision=2,
         device_class=SensorDeviceClass.MONETARY,
@@ -184,6 +186,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     PWNEntityDescription(
         key="total_costs_current_year",
         translation_key="total_costs_current_year",
+        icon="mdi:cash",
         native_unit_of_measurement=CURRENCY_EURO,
         suggested_display_precision=2,
         device_class=SensorDeviceClass.MONETARY,
@@ -202,6 +205,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     PWNEntityDescription(
         key="expected_costs_current_year",
         translation_key="expected_costs_current_year",
+        icon="mdi:chart-line",
         native_unit_of_measurement=CURRENCY_EURO,
         suggested_display_precision=2,
         device_class=SensorDeviceClass.MONETARY,
@@ -220,6 +224,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     PWNEntityDescription(
         key="total_cost_previous_year",
         translation_key="total_cost_previous_year",
+        icon="mdi:history",
         native_unit_of_measurement=CURRENCY_EURO,
         suggested_display_precision=2,
         device_class=SensorDeviceClass.MONETARY,
@@ -238,6 +243,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     PWNEntityDescription(
         key="costs_per_month_current_year",
         translation_key="costs_per_month_current_year",
+        icon="mdi:calendar-month",
         native_unit_of_measurement=CURRENCY_EURO,
         suggested_display_precision=2,
         device_class=SensorDeviceClass.MONETARY,
@@ -248,6 +254,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     PWNEntityDescription(
         key="invoice_quarter_current_year",
         translation_key="invoice_quarter_current_year",
+        icon="mdi:calendar-range",
         native_unit_of_measurement=CURRENCY_EURO,
         suggested_display_precision=2,
         device_class=SensorDeviceClass.MONETARY,
@@ -263,7 +270,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
         key="contract_account_number",
         translation_key="contract_account_number",
         suggested_display_precision=None,
-        icon="mdi:invoice",
+        icon="mdi:identifier",
         device_class=None,
         value_fn=lambda data: (
             next(
@@ -282,7 +289,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
         translation_key="relation_number",
         suggested_display_precision=None,
         service_name=SERVICE_NAME_USER,
-        icon="mdi:account",
+        icon="mdi:card-account-details-outline",
         device_class=None,
         value_fn=lambda data: (
             data[DATA_USER].get("relationNumber", None)
@@ -304,7 +311,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
         translation_key="birth_place",
         suggested_display_precision=None,
         service_name=SERVICE_NAME_USER,
-        icon="mdi:account",
+        icon="mdi:map-marker",
         device_class=None,
         value_fn=lambda data: (
             data[DATA_USER].get("privateClient", {}).get("birthplace", None)
@@ -317,7 +324,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
         translation_key="date_of_birth",
         suggested_display_precision=None,
         service_name=SERVICE_NAME_USER,
-        icon="mdi:account",
+        icon="mdi:cake-variant",
         device_class=None,
         value_fn=lambda data: (
             datetime.strptime(
@@ -335,7 +342,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
         translation_key="correspondence_address",
         suggested_display_precision=None,
         service_name=SERVICE_NAME_USER,
-        icon="mdi:account",
+        icon="mdi:map-marker-outline",
         device_class=None,
         value_fn=PWNSensor.get_correspondence_address,
     ),
@@ -345,7 +352,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfVolume.CUBIC_METERS,
         suggested_display_precision=0,
         service_name=SERVICE_NAME_CONSUMPTION,
-        icon="mdi:waves",
+        icon="mdi:gauge",
         device_class=SensorDeviceClass.WATER,
         state_class=SensorStateClass.TOTAL,
         value_fn=lambda data: (
@@ -413,7 +420,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfVolume.CUBIC_METERS,
         suggested_display_precision=0,
         service_name=SERVICE_NAME_CONSUMPTION,
-        icon="mdi:cup-water",
+        icon="mdi:water",
         device_class=SensorDeviceClass.WATER,
         state_class=SensorStateClass.TOTAL,
         value_fn=lambda data: (
@@ -451,7 +458,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfVolume.CUBIC_METERS,
         suggested_display_precision=0,
         service_name=SERVICE_NAME_CONSUMPTION,
-        icon="mdi:cup-water",
+        icon="mdi:water-circle",
         device_class=SensorDeviceClass.WATER,
         state_class=SensorStateClass.TOTAL,
         value_fn=lambda data: (
@@ -512,7 +519,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
         native_unit_of_measurement=None,  # No unit of measurement for timestamp
         suggested_display_precision=None,
         service_name=SERVICE_NAME_USER,
-        icon="mdi:update",
+        icon="mdi:clock-outline",
         device_class="timestamp",
         value_fn=lambda data: (
             datetime.fromisoformat(data["last_update"])
