@@ -70,6 +70,8 @@ class PWNEntityDescription(SensorEntityDescription):
         entity_category: EntityCategory | None = None,
         translation_key: str | None = None,
         icon: str | None = None,
+        options: list[str] | None = None,
+        available_fn: Callable[[dict[str, object]], bool] | None = None,
     ):
         super().__init__(
             key=key,
@@ -80,7 +82,9 @@ class PWNEntityDescription(SensorEntityDescription):
             suggested_display_precision=suggested_display_precision,
             translation_key=translation_key,
             entity_category=entity_category,
+            options=options,
         )
+        self.available_fn = available_fn
         self.authenticated = authenticated
         # self.translation_key = translation_key
         self.entity_category = entity_category if entity_category is not None else None
@@ -181,6 +185,17 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         # Initialize the sensor's state
         # self._attr_native_value = None
         super().__init__(coordinator)
+
+    @property
+    def available(self) -> bool:
+        """Return availability for optional account features and coordinator data."""
+        if not super().available:
+            return False
+        available_fn = self.entity_description.available_fn
+        if available_fn is None:
+            return True
+        data = self.coordinator.data
+        return available_fn(data if isinstance(data, dict) else {})
 
     async def async_added_to_hass(self) -> None:
         """Handle when the sensor is added to Home Assistant."""

@@ -106,6 +106,19 @@
       },
       "last_update2": {
         "name": "Last update timestamp"
+      },
+      "notification_count": {
+        "name": "Notification count"
+      },
+      "water_consumption_status": {
+        "name": "Water consumption status",
+        "state": {
+          "no_reported_anomaly": "No anomaly reported",
+          "anomaly_reported": "Anomaly reported"
+        }
+      },
+      "last_meter_reading_date": {
+        "name": "Last actual meter reading date"
       }
     },
     "binary_sensor": {

@@ -19,12 +19,18 @@ import homeassistant.util.dt as dt
 from .const import (
     DATA_CONSUMPTION,
     DATA_INVOICES,
+    DATA_NOTIFICATIONS,
     DATA_USER,
     DOMAIN,
     SERVICE_NAME_CONSUMPTION,
     SERVICE_NAME_USER,
 )
 from .coordinator import PWNDataUpdateCoordinator
+from .data_parsers import (
+    get_last_meter_reading_date,
+    get_notification_count,
+    get_water_consumption_status,
+)
 from .sensor_helper import PWNEntityDescription, PWNSensor
 
 _LOGGER = logging.getLogger(__name__)
@@ -32,6 +38,46 @@ INVOICE_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f0Z"  # Format for invoice dates
 MONTHS_COVERED_BY_INVOICE = 3
 
 SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
+    PWNEntityDescription(
+        key="notification_count",
+        translation_key="notification_count",
+        service_name=SERVICE_NAME_USER,
+        icon="mdi:bell-outline",
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=0,
+        value_fn=lambda data: get_notification_count(data.get(DATA_NOTIFICATIONS)),
+        available_fn=lambda data: (
+            get_notification_count(data.get(DATA_NOTIFICATIONS)) is not None
+        ),
+    ),
+    PWNEntityDescription(
+        key="water_consumption_status",
+        translation_key="water_consumption_status",
+        service_name=SERVICE_NAME_CONSUMPTION,
+        icon="mdi:water-check-outline",
+        device_class=SensorDeviceClass.ENUM,
+        options=["no_reported_anomaly", "anomaly_reported"],
+        value_fn=lambda data: get_water_consumption_status(
+            data.get(DATA_CONSUMPTION)
+        ),
+        available_fn=lambda data: (
+            get_water_consumption_status(data.get(DATA_CONSUMPTION)) is not None
+        ),
+    ),
+    PWNEntityDescription(
+        key="last_meter_reading_date",
+        translation_key="last_meter_reading_date",
+        service_name=SERVICE_NAME_CONSUMPTION,
+        icon="mdi:calendar-clock",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        device_class=SensorDeviceClass.DATE,
+        value_fn=lambda data: get_last_meter_reading_date(
+            data.get(DATA_CONSUMPTION)
+        ),
+        available_fn=lambda data: (
+            get_last_meter_reading_date(data.get(DATA_CONSUMPTION)) is not None
+        ),
+    ),
     PWNEntityDescription(
         key="total_open_amount",
         translation_key="total_open_amount",
@@ -517,10 +563,19 @@ def _should_add_sensor(
     description: PWNEntityDescription, coordinator: PWNDataUpdateCoordinator
 ) -> bool:
     """Determine if a sensor should be added based on the description and authentication status."""
-    if not description.authenticated or coordinator.api.is_authenticated():
-        return True
-    _LOGGER.debug(
-        "Skipping sensor %s because authentication is required and not fulfilled.",
-        description.key,
-    )
-    return False
+    if description.authenticated and not coordinator.api.is_authenticated():
+        _LOGGER.debug(
+            "Skipping sensor %s because authentication is required.",
+            description.key,
+        )
+        return False
+
+    available_fn = description.available_fn
+    if available_fn is not None and not available_fn(coordinator.data or {}):
+        _LOGGER.debug(
+            "Skipping unsupported sensor %s.",
+            description.key,
+        )
+        return False
+
+    return True
