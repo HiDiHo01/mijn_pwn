@@ -12,6 +12,11 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+_DEVICE_TRANSLATION_KEYS = {
+    SERVICE_NAME_INVOICES: "invoices",
+    SERVICE_NAME_USER: "user",
+    SERVICE_NAME_CONSUMPTION: "consumption",
+}
 _KNOWN_SERVICES = frozenset(
     (None, SERVICE_NAME_INVOICES, SERVICE_NAME_USER, SERVICE_NAME_CONSUMPTION)
 )
@@ -34,6 +39,19 @@ def get_device_identifiers(
         else f"{entry_id}_{service_name}"
     )
     return {(DOMAIN, identifier)}
+
+
+def get_device_translation_key(service_name: str | None) -> str:
+    """Return the stable translation key for a supported PWN service device."""
+    normalized_service = (
+        SERVICE_NAME_INVOICES if service_name is None else service_name
+    )
+    try:
+        return _DEVICE_TRANSLATION_KEYS[normalized_service]
+    except KeyError as err:
+        raise ValueError(
+            f"Unsupported PWN service name for device translation: {service_name!r}"
+        ) from err
 
 
 def _convert_legacy_identifiers(

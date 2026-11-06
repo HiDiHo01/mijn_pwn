@@ -23,7 +23,6 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     API_URL,
     ATTRIBUTION,
-    COMPONENT_TITLE,
     DATA_INVOICES,
     DATA_USER,
     ICON,
@@ -32,7 +31,7 @@ from .const import (
     VERSION,
 )
 from .coordinator import PWNDataUpdateCoordinator
-from .device_identifiers import get_device_identifiers
+from .device_identifiers import get_device_identifiers, get_device_translation_key
 from .exceptions import PWNAPIAuthenticationError
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,7 +53,7 @@ class PWNEntityDescription(SensorEntityDescription):
     def __init__(
         self,
         key: str,
-        name: str,
+        name: str | None = None,
         device_class: SensorDeviceClass | None = None,
         state_class: str | None = None,
         native_unit_of_measurement: str | None = None,
@@ -146,13 +145,12 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         """Initialize the sensor."""
         self.entity_description: PWNEntityDescription = description
         self.config_entry = config_entry
-        self._attr_name = description.name
         self._attr_unique_id = f"{config_entry.unique_id}_{description.key}"
         # self._attr_unique_id = f"{DOMAIN}_{
         #     description.service_name}_{description.key}"
         self._unique_id = f"{config_entry.unique_id}_{description.key}"
         # Automatically generated entity_id should not be manually set; it's managed by Home Assistant
-        # self._attr_entity_id = f"sensor.{self._attr_name.lower().replace(' ', '_')}"
+        # self._attr_entity_id = f"sensor.{self.entity_description.key.lower().replace(' ', '_')}"
         # self._attr_unique_id = f"{DOMAIN}_{description.key.lower().replace(' ', '_')}_{config_entry.entry_id}"
         # self._attr_should_poll = True
         # Do not set extra identifier for default service, backwards compatibility
@@ -167,8 +165,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
 
         self._attr_device_info = DeviceInfo(
             identifiers=device_info_identifiers,
-            name=f"{COMPONENT_TITLE} - {description.service_name}",
-            translation_key=f"{COMPONENT_TITLE} - {description.service_name}",
+            translation_key=get_device_translation_key(description.service_name),
             manufacturer=MANUFACTURER,
             entry_type=DeviceEntryType.SERVICE,
             suggested_area="Home",
@@ -186,14 +183,14 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
     async def async_added_to_hass(self) -> None:
         """Handle when the sensor is added to Home Assistant."""
         if self.coordinator is None:
-            _LOGGER.error("Coordinator is not set up for sensor: %s", self._attr_name)
+            _LOGGER.error("Coordinator is not set up for sensor: %s", self.entity_description.key)
             return
 
         # Ensure all attributes are properly set before updating state
         if not self.entity_description or not self.entity_description.value_fn:
             _LOGGER.error(
                 "Missing entity description or value function for sensor: %s",
-                self._attr_name,
+                self.entity_description.key,
             )
             return
 
@@ -212,7 +209,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         try:
             if not self.coordinator.data:
                 _LOGGER.error(
-                    "Coordinator data is missing for sensor: %s", self._attr_name
+                    "Coordinator data is missing for sensor: %s", self.entity_description.key
                 )
                 return
 
@@ -221,7 +218,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
             if value_fn is None or not callable(value_fn):
                 _LOGGER.error(
                     "The value function is not callable or is None for sensor: %s",
-                    self._attr_name,
+                    self.entity_description.key,
                 )
                 return
 
@@ -235,32 +232,32 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
                     _LOGGER.debug(
                         "Last update timestamp: %s for sensor: %s",
                         last_update,
-                        self._attr_name,
+                        self.entity_description.key,
                     )
                     self._attr_native_value = last_update
                 else:
                     _LOGGER.warning(
-                        "Last update field is missing for sensor: %s", self._attr_name
+                        "Last update field is missing for sensor: %s", self.entity_description.key
                     )
 
             self.async_write_ha_state()
             _LOGGER.debug(
                 "Sensor %s state successfully updated to: %s",
-                self._attr_name,
+                self.entity_description.key,
                 self._attr_native_value,
             )
 
         except Exception as e:
-            _LOGGER.error("Error updating sensor state for %s: %s", self._attr_name, e)
+            _LOGGER.error("Error updating sensor state for %s: %s", self.entity_description.key, e)
 
     def old_update_state(self):
         """Update the state of the sensor."""
-        _LOGGER.debug("Updating state for %s", self._attr_name)
+        _LOGGER.debug("Updating state for %s", self.entity_description.key)
         try:
             # if not self.entity_description or not self.coordinator.data:
             # _LOGGER.error(
             #     'Missing entity description or coordinator data for %s',
-            #     self._attr_name
+            #     self.entity_description.key
             # )
             # return
 
@@ -280,20 +277,20 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
 
             _LOGGER.debug(
                 "Sensor %s state successfully updated to: %s",
-                self._attr_name,
+                self.entity_description.key,
                 self._attr_native_value,
             )
 
         except Exception as e:
-            _LOGGER.error("Error updating sensor state for %s: %s", self._attr_name, e)
+            _LOGGER.error("Error updating sensor state for %s: %s", self.entity_description.key, e)
 
     def _update_state(self):
         """Update the state of the sensor."""
-        # _LOGGER.debug('Updating state for %s', self._attr_name)
+        # _LOGGER.debug('Updating state for %s', self.entity_description.key)
         try:
             # Ensure that coordinator data is not None
             if self.coordinator.data is None:
-                _LOGGER.error("Coordinator data is None for %s", self._attr_name)
+                _LOGGER.error("Coordinator data is None for %s", self.entity_description.key)
                 return
 
             # Use value_fn for the sensor's main state, ensuring coordinator data is valid
@@ -305,21 +302,21 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
             # else:
             # Value function returned None for Open invoices document numbers
             #     _LOGGER.warning(
-            #         'Value function returned None for %s', self._attr_name)
+            #         'Value function returned None for %s', self.entity_description.key)
 
             # _LOGGER.debug(
             #     "Sensor %s state successfully updated to: %s",
-            #     self._attr_name, self._attr_native_value
+            #     self.entity_description.key, self._attr_native_value
             # )
 
         except TypeError as e:
             _LOGGER.error(
                 "TypeError when updating sensor state for %s: %s. Data might be None or invalid.",
-                self._attr_name,
+                self.entity_description.key,
                 e,
             )
         except Exception as e:
-            _LOGGER.error("Error updating sensor state for %s: %s", self._attr_name, e)
+            _LOGGER.error("Error updating sensor state for %s: %s", self.entity_description.key, e)
 
     async def async_refresh_data(self) -> None:
         """Method to refresh the coordinator data asynchronously."""

@@ -1,174 +1,121 @@
 {
-    "title": "Mijn PWN",
-    "config": {
-        "abort": {
-            "already_configured": "Account is al toegevoegd",
-            "reauth_successful": "Opnieuw inloggen gelukt"
-        },
-        "error": {
-            "invalid_auth": "Inloggegevens niet geaccepteerd, controleer de gegevens en probeer het opnieuw."
-        },
-        "step": {
-            "login": {
-                "title": "Inloggen bij Mijn PWN",
-                "data": {
-                    "username": "Emailadres",
-                    "password": "Wachtwoord"
-                }
-            },
-            "user": {
-                "title": "Inloggen bij Mijn PWN",
-                "description": "Log in met de accountgegevens van mijn.pwn.nl",
-                "data": {
-                    "authentication": "Gebruik Mijn PWN-accountgegevens",
-                    "username": "Emailadres",
-                    "password": "Wachtwoord"
-                }
-            }
-        }
+  "title": "Mijn PWN",
+  "config": {
+    "abort": {
+      "already_configured": "La cuenta ya está configurada",
+      "reauth_successful": "Se ha iniciado sesión de nuevo correctamente"
     },
-    "device": {
-        "Mijn PWN - Consumption": {
-            "name": "Mijn PWN - Verbruik",
-            "model": {
-                "consumption": "Verbruik"
-            }
-        },
-        "Mijn PWN - Invoices": {
-            "name": "Mijn PWN - Kosten",
-            "model": {
-                "invoices": "Kosten"
-            }
-        },
-        "Mijn PWN - User": {
-            "name": "Mijn PWN - Gebruiker",
-            "model": {
-                "user": "Gebruiker"
-            }
-        }
+    "error": {
+      "invalid_auth": "Credenciales incorrectas. Comprueba los datos e inténtalo de nuevo."
     },
-    "entity_component": {
-        "_": {
-            "state_attributes": {
-                "correspondence_address": {
-                    "name": "Adres"
-                },
-                "mijn_pwn_gebruiker_correspondence_address": {
-                    "name": "Adres"
-                },
-                "mijn_pwn_user_correspondence_address": {
-                    "name": "Adres"
-                },
-                "sensor.mijn_pwn_gebruiker_correspondence_address": {
-                    "name": "Adres",
-                    "state": {
-                        "off": "[%key:common::state::off%]",
-                        "on": "[%key:common::state::on%]",
-                        "auto": "Auto",
-                        "low": "Low",
-                        "medium": "Medium",
-                        "high": "High",
-                        "top": "Top",
-                        "middle": "Middle",
-                        "focus": "Focus",
-                        "diffuse": "Diffuse"
-                    }
-                }
-            }
+    "step": {
+      "login": {
+        "title": "Iniciar sesión en Mijn PWN",
+        "data": {
+          "username": "Correo electrónico",
+          "password": "Contraseña"
         }
-    },
-    "entity": {
-        "sensor": {
-            "Correspondence address": {
-                "name": "Adres"
-            },
-            "Mijn PWN - Gebruiker Correspondence address": {
-                "name": "Adres"
-            },
-            "mijn_pwn_gebruiker_correspondence_address": {
-                "name": "Adres"
-            },
-            "Mijn PWN - User Correspondence address": {
-                "name": "Adres"
-            },
-            "mijn_pwn_user_correspondence_address": {
-                "name": "Adres"
-            },
-            "correspondence_address": {
-                "name": "Adres"
-            },
-            "Mijn PWN - Invoices Total costs": {
-                "name": "Totaal kosten"
-            },
-            "Mijn PWN - Kosten Total costs": {
-                "name": "Totaal kosten"
-            },
-            "Mijn_PWN_-_Invoices_Total_costs": {
-                "name": "Totaal kosten"
-            },
-            "Mijn_PWN_-_Kosten_Total_costs": {
-                "name": "Totaal kosten"
-            },
-            "Mijn PWN - Invoices total_cost": {
-                "name": "Totaal kosten"
-            },
-            "Mijn PWN - Kosten total costs": {
-                "name": "Totaal kosten"
-            },
-            "total_costs": {
-                "name": "Totaal kosten"
-            },
-            "mijn_pwn_kosten_total_costs": {
-                "name": "Totaal kosten"
-            },
-            "mijn_pwn_costs_total_costs": {
-                "name": "Totaal kosten"
-            },
-            "mijn_pwn_invoices_total_costs": {
-                "name": "Totaal kosten"
-            },
-            "total_costs_previous_year": {
-                "name": "Kosten vorig jaar"
-            },
-            "mijn_pwn_kosten_total_costs_previous_year": {
-                "name": "Kosten vorig jaar"
-            },
-            "open_invoices": {
-                "name": "Open facturen"
-            }
-        },
-        "binary_sensor": {
-            "open_invoices": {
-                "name": "Open facturen"
-            },
-            "mijn_pwn_kosten_open_invoices": {
-                "name": "Open facturen"
-            }
+      },
+      "user": {
+        "title": "Iniciar sesión en Mijn PWN",
+        "description": "Inicia sesión con tu cuenta de Mijn PWN.",
+        "data": {
+          "authentication": "Usar las credenciales de Mijn PWN",
+          "username": "Correo electrónico",
+          "password": "Contraseña"
         }
+      },
+      "reconfigure": {
+        "title": "Actualizar credenciales de Mijn PWN",
+        "data": {
+          "username": "Correo electrónico",
+          "password": "Contraseña"
+        }
+      }
+    }
+  },
+  "device": {
+    "consumption": {
+      "name": "Mijn PWN - Consumo"
     },
+    "invoices": {
+      "name": "Mijn PWN - Facturas"
+    },
+    "user": {
+      "name": "Mijn PWN - Usuario"
+    }
+  },
+  "entity": {
     "sensor": {
-        "total_open_amount": {
-            "name": "Totaal openstaand bedrag"
-        },
-        "open_invoices_document_numbers": "Documentnummers van openstaande facturen",
-        "number_of_open_items": "Aantal openstaande facturen",
-        "total_costs": "Totale kosten",
-        "total_costs_current_year": "Totale kosten huidig jaar",
-        "expected_costs_current_year": "Verwachte kosten huidig jaar",
-        "total_cost_previous_year": "Totale kosten vorig jaar",
-        "costs_per_month_current_year": "Kosten per maand huidig jaar",
-        "invoice_quarter_current_year": "Factuurkwartaal huidig jaar",
-        "contract_account_number": "Contractaccountnummer",
-        "relation_number": "Relatienummer",
-        "full_name": "Volledige naam",
-        "birth_place": "Geboorteplaats",
-        "date_of_birth": "Geboortedatum",
-        "correspondence_address": "Correspondentieadres",
-        "latest_meter_reading": "Laatste meterstand",
-        "total_consumption": "Totaal verbruik",
-        "consumption_last_year": "Verbruik vorig jaar"
+      "total_open_amount": {
+        "name": "Importe total pendiente"
+      },
+      "open_invoices_document_numbers": {
+        "name": "Números de documento de facturas pendientes"
+      },
+      "number_of_open_items": {
+        "name": "Número de facturas pendientes"
+      },
+      "total_costs": {
+        "name": "Costes totales"
+      },
+      "total_costs_current_year": {
+        "name": "Costes totales de este año"
+      },
+      "expected_costs_current_year": {
+        "name": "Costes previstos de este año"
+      },
+      "total_cost_previous_year": {
+        "name": "Costes totales del año pasado"
+      },
+      "costs_per_month_current_year": {
+        "name": "Costes mensuales de este año"
+      },
+      "invoice_quarter_current_year": {
+        "name": "Trimestre de facturación de este año"
+      },
+      "contract_account_number": {
+        "name": "Número de cuenta del contrato"
+      },
+      "relation_number": {
+        "name": "Número de cliente"
+      },
+      "full_name": {
+        "name": "Nombre completo"
+      },
+      "birth_place": {
+        "name": "Lugar de nacimiento"
+      },
+      "date_of_birth": {
+        "name": "Fecha de nacimiento"
+      },
+      "correspondence_address": {
+        "name": "Dirección de correspondencia"
+      },
+      "latest_meter_reading": {
+        "name": "Última lectura del contador"
+      },
+      "total_consumption": {
+        "name": "Consumo total"
+      },
+      "consumption_last_year": {
+        "name": "Consumo del año pasado"
+      },
+      "last_update": {
+        "name": "Última actualización"
+      },
+      "last_update2": {
+        "name": "Marca temporal de la última actualización"
+      }
     },
-    "correspondence_address": "Correspondentie Adres",
-    "Mijn PWN - Gebruiker Correspondence address": "Adres",
-    "mijn_pwn_gebruiker_correspondence_address": "Adres"
+    "binary_sensor": {
+      "open_invoices": {
+        "name": "Facturas pendientes",
+        "state": {
+          "on": "Facturas pendientes",
+          "off": "Sin facturas pendientes"
+        }
+      }
+    }
+  }
 }

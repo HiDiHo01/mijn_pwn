@@ -1,98 +1,121 @@
 {
-    "title": "Mijn PWN",
-    "config": {
-        "abort": {
-            "already_configured": "Account is al toegevoegd",
-            "reauth_successful": "Opnieuw inloggen gelukt"
-        },
-        "error": {
-            "invalid_auth": "Inloggegevens niet geaccepteerd, controleer de gegevens en probeer het opnieuw."
-        },
-        "step": {
-            "login": {
-                "title": "Inloggen bij Mijn PWN",
-                "data": {
-                    "username": "Emailadres",
-                    "password": "Wachtwoord"
-                }
-            },
-            "user": {
-                "title": "Inloggen bij Mijn PWN",
-                "description": "Log in met de accountgegevens van mijn.pwn.nl",
-                "data": {
-                    "authentication": "Gebruik Mijn PWN-accountgegevens",
-                    "username": "Emailadres",
-                    "password": "Wachtwoord"
-                }
-            }
-        }
+  "title": "Mijn PWN",
+  "config": {
+    "abort": {
+      "already_configured": "Account is already configured",
+      "reauth_successful": "Reauthentication successful"
     },
-    "device": {
-        "Mijn PWN - Consumption": {
-            "name": "Mijn PWN - Verbruik",
-            "model": {
-                "consumption": "Verbruik"
-            }
-        },
-        "Mijn PWN - Invoices": {
-            "name": "Mijn PWN - Kosten",
-            "model": {
-                "invoices": "Kosten"
-            }
-        },
-        "Mijn PWN - User": {
-            "name": "Mijn PWN - Gebruiker",
-            "model": {
-                "user": "Gebruiker"
-            }
-        }
+    "error": {
+      "invalid_auth": "Invalid login credentials. Check your details and try again."
     },
-    "entity": {
-        "sensor": {
-            "Mijn PWN - Invoices Total costs": {
-                "name": "Totaal kosten"
-            },
-            "Mijn PWN - Kosten Total costs": {
-                "name": "Totaal kosten"
-            },
-            "Mijn_PWN_-_Invoices_Total_costs": {
-                "name": "Totaal kosten"
-            },
-            "Mijn_PWN_-_Kosten_Total_costs": {
-                "name": "Totaal kosten"
-            },
-            "Mijn PWN - Invoices total_cost": {
-                "name": "Totaal kosten"
-            },
-            "Mijn PWN - Kosten total_cost": {
-                "name": "Totaal kosten"
-            },
-            "total_cost": {
-                "name": "Totaal kosten"
-            },
-            "total_costs": {
-                "name": "Totaal kosten"
-            },
-            "mijn_pwn_kosten_total_costs": {
-                "name": "Totaal kosten"
-            },
-            "mijn_pwn_costs_total_costs": {
-                "name": "Totaal kosten"
-            },
-            "mijn_pwn_invoices_total_costs": {
-                "name": "Totaal kosten"
-            },
-            "total_costs_previous_year": {
-                "name": "Kosten vorig jaar"
-            },
-            "open_invoices": {
-                "name": "Open invoices"
-            }
-        },
-        "binary_sensor": {
-            "open_invoices": {
-                "name": "Open invoices"
-            }
+    "step": {
+      "login": {
+        "title": "Sign in to Mijn PWN",
+        "data": {
+          "username": "Email address",
+          "password": "Password"
         }
+      },
+      "user": {
+        "title": "Sign in to Mijn PWN",
+        "description": "Sign in with your Mijn PWN account.",
+        "data": {
+          "authentication": "Use Mijn PWN account credentials",
+          "username": "Email address",
+          "password": "Password"
+        }
+      },
+      "reconfigure": {
+        "title": "Update Mijn PWN credentials",
+        "data": {
+          "username": "Email address",
+          "password": "Password"
+        }
+      }
     }
+  },
+  "device": {
+    "consumption": {
+      "name": "Mijn PWN - Consumption"
+    },
+    "invoices": {
+      "name": "Mijn PWN - Invoices"
+    },
+    "user": {
+      "name": "Mijn PWN - User"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "total_open_amount": {
+        "name": "Total open amount"
+      },
+      "open_invoices_document_numbers": {
+        "name": "Open invoice document numbers"
+      },
+      "number_of_open_items": {
+        "name": "Number of open invoices"
+      },
+      "total_costs": {
+        "name": "Total costs"
+      },
+      "total_costs_current_year": {
+        "name": "Total costs this year"
+      },
+      "expected_costs_current_year": {
+        "name": "Expected costs this year"
+      },
+      "total_cost_previous_year": {
+        "name": "Total costs last year"
+      },
+      "costs_per_month_current_year": {
+        "name": "Costs per month this year"
+      },
+      "invoice_quarter_current_year": {
+        "name": "Invoice quarter this year"
+      },
+      "contract_account_number": {
+        "name": "Contract account number"
+      },
+      "relation_number": {
+        "name": "Relation number"
+      },
+      "full_name": {
+        "name": "Full name"
+      },
+      "birth_place": {
+        "name": "Place of birth"
+      },
+      "date_of_birth": {
+        "name": "Date of birth"
+      },
+      "correspondence_address": {
+        "name": "Correspondence address"
+      },
+      "latest_meter_reading": {
+        "name": "Latest meter reading"
+      },
+      "total_consumption": {
+        "name": "Total consumption"
+      },
+      "consumption_last_year": {
+        "name": "Consumption last year"
+      },
+      "last_update": {
+        "name": "Last update"
+      },
+      "last_update2": {
+        "name": "Last update timestamp"
+      }
+    },
+    "binary_sensor": {
+      "open_invoices": {
+        "name": "Open invoices",
+        "state": {
+          "on": "Open invoices",
+          "off": "No open invoices"
+        }
+      }
+    }
+  }
 }
