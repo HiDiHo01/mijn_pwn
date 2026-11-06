@@ -562,7 +562,7 @@ async def async_setup_entry(
 def _should_add_sensor(
     description: PWNEntityDescription, coordinator: PWNDataUpdateCoordinator
 ) -> bool:
-    """Determine if a sensor should be added based on the description and authentication status."""
+    """Add only authenticated and supported sensor descriptions."""
     if description.authenticated and not coordinator.api.is_authenticated():
         _LOGGER.debug(
             "Skipping sensor %s because authentication is required.",
