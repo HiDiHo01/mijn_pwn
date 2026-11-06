@@ -22,8 +22,36 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Install Home Assistant
-        run: "python -m pip install --only-binary :all: homeassistant==2026.10.3"
+      - name: Install Home Assistant wheel and dependency inspector
+        run: |
+          python -m pip install --only-binary :all: --no-deps homeassistant==2026.10.3
+          python -m pip install --only-binary :all: packaging==25.0
+
+      - name: Install wheel-only runtime test dependencies
+        run: |
+          # Bluetooth functionality is unrelated to these device registry tests.
+          # Its optional dependency graph contains a source-only package.
+          python - <<'PY'
+          from importlib.metadata import requires
+          from pathlib import Path
+
+          from packaging.requirements import Requirement
+
+          requirements = []
+          for specification in requires("homeassistant") or []:
+              requirement = Requirement(specification)
+              normalized_name = requirement.name.lower().replace("_", "-")
+              if normalized_name == "home-assistant-bluetooth":
+                  continue
+              if requirement.marker and not requirement.marker.evaluate():
+                  continue
+              requirements.append(str(requirement))
+
+          Path("/tmp/homeassistant-test-requirements.txt").write_text(
+              "\n".join(requirements) + "\n", encoding="utf-8"
+          )
+          PY
+          python -m pip install --only-binary :all: -r /tmp/homeassistant-test-requirements.txt
 
       - name: Run device identifier and migration regression tests
         run: python -m unittest -v custom_components.mijn_pwn.test_device_identifiers
