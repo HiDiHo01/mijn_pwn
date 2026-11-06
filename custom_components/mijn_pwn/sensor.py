@@ -57,9 +57,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
         icon="mdi:water-check-outline",
         device_class=SensorDeviceClass.ENUM,
         options=["no_reported_anomaly", "anomaly_reported"],
-        value_fn=lambda data: get_water_consumption_status(
-            data.get(DATA_CONSUMPTION)
-        ),
+        value_fn=lambda data: get_water_consumption_status(data.get(DATA_CONSUMPTION)),
         available_fn=lambda data: (
             get_water_consumption_status(data.get(DATA_CONSUMPTION)) is not None
         ),
@@ -71,9 +69,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
         icon="mdi:calendar-clock",
         entity_category=EntityCategory.DIAGNOSTIC,
         device_class=SensorDeviceClass.DATE,
-        value_fn=lambda data: get_last_meter_reading_date(
-            data.get(DATA_CONSUMPTION)
-        ),
+        value_fn=lambda data: get_last_meter_reading_date(data.get(DATA_CONSUMPTION)),
         available_fn=lambda data: (
             get_last_meter_reading_date(data.get(DATA_CONSUMPTION)) is not None
         ),
