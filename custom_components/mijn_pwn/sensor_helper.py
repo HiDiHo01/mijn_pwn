@@ -35,6 +35,8 @@ from .device_identifiers import get_device_identifiers, get_device_translation_k
 from .exceptions import PWNAPIAuthenticationError
 
 _LOGGER = logging.getLogger(__name__)
+# Exception messages may include sensitive upstream payloads: log only the type.
+_SENSOR_STATE_UPDATE_ERROR = "Failed to update sensor %s (exception type: %s)"
 INVOICE_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f0Z"
 MONTHS_COVERED_BY_INVOICE = 3
 
@@ -251,9 +253,11 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
                 self._attr_native_value,
             )
 
-        except Exception as e:
+        except Exception as error:
             _LOGGER.error(
-                "Error updating sensor state for %s: %s", self.entity_description.key, e
+                _SENSOR_STATE_UPDATE_ERROR,
+                self.entity_description.key,
+                type(error).__name__,
             )
 
     def old_update_state(self):
@@ -287,9 +291,11 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
                 self._attr_native_value,
             )
 
-        except Exception as e:
+        except Exception as error:
             _LOGGER.error(
-                "Error updating sensor state for %s: %s", self.entity_description.key, e
+                _SENSOR_STATE_UPDATE_ERROR,
+                self.entity_description.key,
+                type(error).__name__,
             )
 
     def _update_state(self):
@@ -319,15 +325,16 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
             #     self.entity_description.key, self._attr_native_value
             # )
 
-        except TypeError as e:
+        except TypeError:
             _LOGGER.error(
-                "TypeError when updating sensor state for %s: %s. Data might be None or invalid.",
+                "Invalid data while updating sensor state for %s",
                 self.entity_description.key,
-                e,
             )
-        except Exception as e:
+        except Exception as error:
             _LOGGER.error(
-                "Error updating sensor state for %s: %s", self.entity_description.key, e
+                _SENSOR_STATE_UPDATE_ERROR,
+                self.entity_description.key,
+                type(error).__name__,
             )
 
     async def async_refresh_data(self) -> None:
