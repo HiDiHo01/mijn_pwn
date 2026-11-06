@@ -31,6 +31,19 @@ The anomaly indicator is a **billing-history summary**, not realtime flow,
 meter battery information, or proof that consumption is normal. Missing fields
 mean unavailable, not a healthy or zero state.
 
+## Sensor icons
+
+Sensors now declare explicit static Material Design Icons matching their
+meaning: financial totals and forecasts use cash/chart icons, invoice counts
+use document icons, account fields use identity/location icons, and water
+readings use meter/water icons. The invoice binary sensor uses a document alert.
+
+The consumption anomaly **status** uses a neutral water outline, because an
+icon implying normal consumption would be misleading when an anomaly is
+reported. Icons are deliberately static and do not infer a state beyond the
+actual reported sensor value. Entity keys, unique IDs, device associations,
+API behavior, and translations remain unchanged.
+
 ## Deferred pending validated API fixtures
 
 | Candidate | Existing coordinator dataset | Evidence needed |
