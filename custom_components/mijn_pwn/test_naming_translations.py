@@ -5,7 +5,7 @@ from pathlib import Path
 import unittest
 from unittest.mock import MagicMock
 
-from .binary_sensor import PWNBinarySensor, SENSOR_TYPES
+from .binary_sensor import SENSOR_TYPES, PWNBinarySensor
 from .const import (
     DOMAIN,
     SERVICE_NAME_CONSUMPTION,
