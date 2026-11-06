@@ -139,7 +139,6 @@ class TestNamingTranslations(unittest.TestCase):
         self.assertEqual(binary_entity.unique_id, "account-123_open_invoices")
 
 
-
 class TestSensorErrorLogging(unittest.IsolatedAsyncioTestCase):
     """Prevent sensitive upstream exception details from reaching the logs."""
 
