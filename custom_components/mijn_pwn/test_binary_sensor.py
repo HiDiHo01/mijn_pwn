@@ -23,22 +23,21 @@ class TestPWNBinarySensor(unittest.TestCase):
 
     def test_is_on_with_data(self):
         """Test the sensor state with invoice data."""
-        self.coordinator.data = {DATA_INVOICES: {'numberOfOpenItems': 1}}
+        self.coordinator.data = {DATA_INVOICES: {"numberOfOpenItems": 1}}
         self.assertTrue(self.sensor.is_on)
 
-        self.coordinator.data = {DATA_INVOICES: {'numberOfOpenItems': 0}}
+        self.coordinator.data = {DATA_INVOICES: {"numberOfOpenItems": 0}}
         self.assertFalse(self.sensor.is_on)
 
     def test_extra_state_attributes(self):
         """Test the extra state attributes."""
-        self.coordinator.data = {DATA_INVOICES: {'numberOfOpenItems': 1}}
+        self.coordinator.data = {DATA_INVOICES: {"numberOfOpenItems": 1}}
         expected_attributes = {
             "attribution": ATTRIBUTION,
-            "invoices": {'numberOfOpenItems': 1},
+            "invoices": {"numberOfOpenItems": 1},
         }
-        self.assertEqual(self.sensor.extra_state_attributes,
-                         expected_attributes)
+        self.assertEqual(self.sensor.extra_state_attributes, expected_attributes)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

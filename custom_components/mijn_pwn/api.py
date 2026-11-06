@@ -3,6 +3,7 @@ import logging
 from typing import Optional
 
 from aiohttp import ClientError, ClientResponse, ClientSession
+
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
@@ -97,7 +98,8 @@ class PWNAuth:
                         raise ConfigEntryAuthFailed
                     else:
                         _LOGGER.error(
-                            "Failed to refresh tokens. Status: %s", resp.status)
+                            "Failed to refresh tokens. Status: %s", resp.status
+                        )
 
         except asyncio.TimeoutError:
             _LOGGER.error("Timeout during token refresh")
@@ -152,10 +154,7 @@ class PWNAPI:
 
     async def _login(self) -> None:
         """Authenticate and obtain tokens."""
-        payload = {
-            "user": self._username,
-            "password": self._password
-        }
+        payload = {"user": self._username, "password": self._password}
 
         _LOGGER.debug("Attempting login to PWN API")
         _LOGGER.debug("Login endpoint: %s", self._url(AUTH_ENDPOINT))
@@ -164,8 +163,7 @@ class PWNAPI:
         try:
             async with asyncio.timeout(API_TIMEOUT):
                 async with self._session.post(
-                    self._url(AUTH_ENDPOINT),
-                    json=payload
+                    self._url(AUTH_ENDPOINT), json=payload
                 ) as resp:
                     await self._raise_for_status(resp)
 
@@ -173,20 +171,22 @@ class PWNAPI:
                     access_token = data.get("accessToken")
                     refresh_token = data.get("refreshToken")
 
-                    _LOGGER.debug("Received access token: %s",
-                                  "SET" if access_token else "NONE")
-                    _LOGGER.debug("Received refresh token: %s",
-                                  "SET" if refresh_token else "NONE")
+                    _LOGGER.debug(
+                        "Received access token: %s", "SET" if access_token else "NONE"
+                    )
+                    _LOGGER.debug(
+                        "Received refresh token: %s", "SET" if refresh_token else "NONE"
+                    )
 
                     if not isinstance(access_token, str):
                         raise ConfigEntryAuthFailed("Authentication failed")
 
                     self._access_token = access_token
-                    self._refresh_token = refresh_token if isinstance(
-                        refresh_token, str) else None
+                    self._refresh_token = (
+                        refresh_token if isinstance(refresh_token, str) else None
+                    )
 
-                    _LOGGER.info("Login successful for user %s",
-                                 self._username)
+                    _LOGGER.info("Login successful for user %s", self._username)
 
         except asyncio.TimeoutError as exc:
             raise UpdateFailed("Login timeout") from exc
@@ -220,8 +220,9 @@ class PWNAPI:
                     raise ConfigEntryAuthFailed("Token refresh failed")
 
                 self._access_token = access_token
-                self._refresh_token = refresh_token if isinstance(
-                    refresh_token, str) else None
+                self._refresh_token = (
+                    refresh_token if isinstance(refresh_token, str) else None
+                )
 
     async def _request(self, method: str, endpoint: str, **kwargs) -> dict[str, object]:
         """Perform authenticated HTTP request."""
@@ -241,7 +242,6 @@ class PWNAPI:
                     headers=headers,
                     **kwargs,
                 ) as resp:
-
                     if resp.status in (401, 403):
                         _LOGGER.debug("Token expired, refreshing")
                         async with self._auth_lock:

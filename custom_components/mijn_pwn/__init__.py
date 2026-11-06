@@ -4,6 +4,7 @@ import logging
 from typing import Any, Optional, Tuple
 
 from aiohttp import ClientError, ClientSession
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
@@ -77,8 +78,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     # Ensure the config entry has a unique_id
     if not config_entry.unique_id:
-        _LOGGER.error("ConfigEntry unique_id is not set for %s",
-                      config_entry.data)
+        _LOGGER.error("ConfigEntry unique_id is not set for %s", config_entry.data)
         return False
     _LOGGER.info("ConfigEntry unique_id: %s", config_entry.unique_id)
     _LOGGER.debug("Setting up config entry %s", config_entry.entry_id)
@@ -106,12 +106,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         _LOGGER.debug("Calling config_entry_first_refresh")
         await coordinator.async_config_entry_first_refresh()
     except ClientError as e:
-        _LOGGER.error("Network error setting up PWN entry: %s",
-                      e, exc_info=True)
+        _LOGGER.error("Network error setting up PWN entry: %s", e, exc_info=True)
         raise ConfigEntryNotReady from e
     except Exception as e:
-        _LOGGER.error("Unexpected error setting up PWN entry: %s",
-                      e, exc_info=True)
+        _LOGGER.error("Unexpected error setting up PWN entry: %s", e, exc_info=True)
         return False
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
@@ -120,7 +118,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Handle removal of an entry."""
-    if unloaded := await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS):
+    if unloaded := await hass.config_entries.async_unload_platforms(
+        config_entry, PLATFORMS
+    ):
         hass.data[DOMAIN].pop(config_entry.entry_id, None)
         # If no more entries exist, remove the DOMAIN data entirely
         if not hass.data[DOMAIN]:
@@ -156,7 +156,9 @@ async def authenticate(hass: HomeAssistant, config_entry: ConfigEntry) -> Option
         coordinator = await _create_coordinator(hass, config_entry)
         auth = coordinator.api.auth
 
-        success = await asyncio.wait_for(auth.login(coordinator.api.session), timeout=10)
+        success = await asyncio.wait_for(
+            auth.login(coordinator.api.session), timeout=10
+        )
         if success and auth.access_token:
             _LOGGER.info("Successfully authenticated and obtained token.")
             return auth.access_token
@@ -167,6 +169,5 @@ async def authenticate(hass: HomeAssistant, config_entry: ConfigEntry) -> Option
         _LOGGER.error("Authentication timed out.")
         return None
     except Exception as e:
-        _LOGGER.error(
-            "Unexpected error during authentication: %s", e, exc_info=True)
+        _LOGGER.error("Unexpected error during authentication: %s", e, exc_info=True)
         return None

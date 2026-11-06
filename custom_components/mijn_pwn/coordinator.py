@@ -1,7 +1,7 @@
 # coordinator.py
 import asyncio
-import logging
 from datetime import datetime, timedelta, timezone
+import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -108,8 +108,8 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             raise
 
         except (
-            PWNAPIServerError,          # 5xx – server side
-            PWNAPICommunicationError    # time‑out / network
+            PWNAPIServerError,  # 5xx – server side
+            PWNAPICommunicationError,  # time‑out / network
         ) as err:
             raise ConfigEntryNotReady(err) from err
 
@@ -122,7 +122,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             # raise ConfigEntryNotReady(err) from err
             raise
 
-        except Exception as err:        # pylint: disable=broad-except
+        except Exception as err:  # pylint: disable=broad-except
             # Unexpected bug – keep traceback and mark update failed
             raise UpdateFailed(err) from err
 
@@ -206,10 +206,11 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
 
             if isinstance(customer_id, str):
                 try:
-                    contact_preferences = await self.api.get_contact_preferences(customer_id)
+                    contact_preferences = await self.api.get_contact_preferences(
+                        customer_id
+                    )
                 except Exception as e:
-                    _LOGGER.warning(
-                        "Failed to fetch contact preferences: %s", e)
+                    _LOGGER.warning("Failed to fetch contact preferences: %s", e)
 
         data["contact_preferences"] = contact_preferences
         _LOGGER.debug("Received API data: %s", list(data.keys()))

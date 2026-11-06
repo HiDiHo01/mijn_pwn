@@ -1,11 +1,12 @@
 """
 Setting up sensors for PWN
 """
+
 # sensor_helper.py
-import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
+import logging
 from typing import Callable, DefaultDict, Mapping, Optional
 
 from homeassistant.components.sensor import (
@@ -35,7 +36,7 @@ from .coordinator import PWNDataUpdateCoordinator
 from .exceptions import PWNAPIAuthenticationError
 
 _LOGGER = logging.getLogger(__name__)
-INVOICE_DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%f0Z'
+INVOICE_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f0Z"
 MONTHS_COVERED_BY_INVOICE = 3
 
 
@@ -60,10 +61,9 @@ class PWNEntityDescription(SensorEntityDescription):
         suggested_display_precision: int | None = None,
         authenticated: bool = False,
         service_name: str | None = None,
-        value_fn: Callable[[dict[str, object]],
-                           object | None] = lambda data: None,
-        attr_fn: Callable[[dict[str, object]],
-                          dict[str, object]] | list = lambda data: {},
+        value_fn: Callable[[dict[str, object]], object | None] = lambda data: None,
+        attr_fn: Callable[[dict[str, object]], dict[str, object]]
+        | list = lambda data: {},
         entity_registry_enabled_default: bool = True,
         entity_registry_visible_default: bool = True,
         entity_category: EntityCategory | None = None,
@@ -78,20 +78,21 @@ class PWNEntityDescription(SensorEntityDescription):
             native_unit_of_measurement=native_unit_of_measurement,
             suggested_display_precision=suggested_display_precision,
             translation_key=translation_key,
-            entity_category=entity_category
+            entity_category=entity_category,
         )
         self.authenticated = authenticated
         # self.translation_key = translation_key
         self.entity_category = entity_category if entity_category is not None else None
         self.service_name = service_name or SERVICE_NAME_INVOICES
-        self.value_fn = value_fn if callable(
-            value_fn) else lambda data: STATE_UNKNOWN
+        self.value_fn = value_fn if callable(value_fn) else lambda data: STATE_UNKNOWN
         self.attr_fn = attr_fn if callable(attr_fn) else lambda data: {}
         self.entity_registry_enabled_default = entity_registry_enabled_default
         self.entity_registry_visible_default = entity_registry_visible_default
         self.icon = icon
 
-    def get_state(self, data: dict[str, object]) -> dict[str, object] | object | str | int | float | StateType | None:
+    def get_state(
+        self, data: dict[str, object]
+    ) -> dict[str, object] | object | str | int | float | StateType | None:
         """Get the state value from the provided data.
 
         Args:
@@ -187,15 +188,14 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
     async def async_added_to_hass(self) -> None:
         """Handle when the sensor is added to Home Assistant."""
         if self.coordinator is None:
-            _LOGGER.error(
-                "Coordinator is not set up for sensor: %s", self._attr_name)
+            _LOGGER.error("Coordinator is not set up for sensor: %s", self._attr_name)
             return
 
         # Ensure all attributes are properly set before updating state
         if not self.entity_description or not self.entity_description.value_fn:
             _LOGGER.error(
-                'Missing entity description or value function for sensor: %s',
-                self._attr_name
+                "Missing entity description or value function for sensor: %s",
+                self._attr_name,
             )
             return
 
@@ -203,7 +203,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         await self.async_update_state()
 
         # Add listener for coordinator updates if not already added
-        if not hasattr(self, '_listener_added') or not self._listener_added:
+        if not hasattr(self, "_listener_added") or not self._listener_added:
             self._listener_added = True
             self.async_on_remove(
                 self.coordinator.async_add_listener(self._update_state)
@@ -214,8 +214,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         try:
             if not self.coordinator.data:
                 _LOGGER.error(
-                    'Coordinator data is missing for sensor: %s',
-                    self._attr_name
+                    "Coordinator data is missing for sensor: %s", self._attr_name
                 )
                 return
 
@@ -223,8 +222,8 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
             value_fn = self.entity_description.value_fn
             if value_fn is None or not callable(value_fn):
                 _LOGGER.error(
-                    'The value function is not callable or is None for sensor: %s',
-                    self._attr_name
+                    "The value function is not callable or is None for sensor: %s",
+                    self._attr_name,
                 )
                 return
 
@@ -232,29 +231,33 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
             self._attr_native_value = value_fn(self.coordinator.data)
 
             # Special handling for 'last_update' if applicable
-            if self.entity_description.key == 'last_update':
-                last_update = self.coordinator.data.get('last_update')
+            if self.entity_description.key == "last_update":
+                last_update = self.coordinator.data.get("last_update")
                 if last_update:
                     _LOGGER.debug(
-                        "Last update timestamp: %s for sensor: %s", last_update, self._attr_name)
+                        "Last update timestamp: %s for sensor: %s",
+                        last_update,
+                        self._attr_name,
+                    )
                     self._attr_native_value = last_update
                 else:
                     _LOGGER.warning(
-                        "Last update field is missing for sensor: %s", self._attr_name)
+                        "Last update field is missing for sensor: %s", self._attr_name
+                    )
 
             self.async_write_ha_state()
             _LOGGER.debug(
                 "Sensor %s state successfully updated to: %s",
-                self._attr_name, self._attr_native_value
+                self._attr_name,
+                self._attr_native_value,
             )
 
         except Exception as e:
-            _LOGGER.error("Error updating sensor state for %s: %s",
-                          self._attr_name, e)
+            _LOGGER.error("Error updating sensor state for %s: %s", self._attr_name, e)
 
     def old_update_state(self):
         """Update the state of the sensor."""
-        _LOGGER.debug('Updating state for %s', self._attr_name)
+        _LOGGER.debug("Updating state for %s", self._attr_name)
         try:
             # if not self.entity_description or not self.coordinator.data:
             # _LOGGER.error(
@@ -264,10 +267,10 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
             # return
 
             # Use value_fn for the sensor's main state
-            if self.entity_description.value_fn(
-                    self.coordinator.data):
+            if self.entity_description.value_fn(self.coordinator.data):
                 self._attr_native_value = self.entity_description.value_fn(
-                    self.coordinator.data)
+                    self.coordinator.data
+                )
                 self.async_write_ha_state()
             # Special handling for last_update if applicable
             # last_update = self.coordinator.data.get('last_update')
@@ -279,12 +282,12 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
 
             _LOGGER.debug(
                 "Sensor %s state successfully updated to: %s",
-                self._attr_name, self._attr_native_value
+                self._attr_name,
+                self._attr_native_value,
             )
 
         except Exception as e:
-            _LOGGER.error("Error updating sensor state for %s: %s",
-                          self._attr_name, e)
+            _LOGGER.error("Error updating sensor state for %s: %s", self._attr_name, e)
 
     def _update_state(self):
         """Update the state of the sensor."""
@@ -292,13 +295,11 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         try:
             # Ensure that coordinator data is not None
             if self.coordinator.data is None:
-                _LOGGER.error('Coordinator data is None for %s',
-                              self._attr_name)
+                _LOGGER.error("Coordinator data is None for %s", self._attr_name)
                 return
 
             # Use value_fn for the sensor's main state, ensuring coordinator data is valid
-            main_value = self.entity_description.value_fn(
-                self.coordinator.data)
+            main_value = self.entity_description.value_fn(self.coordinator.data)
             # Validate the fetched value
             if main_value is not None:
                 self._attr_native_value = main_value
@@ -316,11 +317,11 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         except TypeError as e:
             _LOGGER.error(
                 "TypeError when updating sensor state for %s: %s. Data might be None or invalid.",
-                self._attr_name, e
+                self._attr_name,
+                e,
             )
         except Exception as e:
-            _LOGGER.error("Error updating sensor state for %s: %s",
-                          self._attr_name, e)
+            _LOGGER.error("Error updating sensor state for %s: %s", self._attr_name, e)
 
     async def async_refresh_data(self) -> None:
         """Method to refresh the coordinator data asynchronously."""
@@ -329,33 +330,45 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
             _LOGGER.info("Coordinator data refreshed successfully.")
 
             # Update "Last Update" sensor with the current timestamp
-            self.coordinator.data['last_update'] = datetime.now().isoformat()
+            self.coordinator.data["last_update"] = datetime.now().isoformat()
             _LOGGER.debug("Updating states...")
             self._update_state()  # Ensure the state is updated with the new timestamp
         except PWNAPIAuthenticationError as e:
             _LOGGER.error(
-                "Failed to refresh coordinator data due to authentication error: %s", e)
+                "Failed to refresh coordinator data due to authentication error: %s", e
+            )
         except Exception as e:
             _LOGGER.error(
-                "An unexpected error occurred while refreshing coordinator data: %s", e)
+                "An unexpected error occurred while refreshing coordinator data: %s", e
+            )
 
     @staticmethod
     def get_all_invoices(data: dict[str, object]) -> dict:
         """Get all invoices from the data."""
-        return {
-            "invoices": [
-                invoice for account in data[DATA_INVOICES].get('contractAccounts', [])
-                for invoice in account.get('summarizedInvoices', [])
-            ]
-        } if data and DATA_INVOICES in data else {}
+        return (
+            {
+                "invoices": [
+                    invoice
+                    for account in data[DATA_INVOICES].get("contractAccounts", [])
+                    for invoice in account.get("summarizedInvoices", [])
+                ]
+            }
+            if data and DATA_INVOICES in data
+            else {}
+        )
 
     @staticmethod
     def get_all_invoices_as_dict(data: dict[str, object]) -> dict:
         """Get all invoices from the data as a dictionary."""
-        all_invoices = [
-            invoice for account in data[DATA_INVOICES].get('contractAccounts', [])
-            for invoice in account.get('summarizedInvoices', [])
-        ] if data and DATA_INVOICES in data else []
+        all_invoices = (
+            [
+                invoice
+                for account in data[DATA_INVOICES].get("contractAccounts", [])
+                for invoice in account.get("summarizedInvoices", [])
+            ]
+            if data and DATA_INVOICES in data
+            else []
+        )
 
         return {"invoices": [PWNSensor.as_dict(invoice) for invoice in all_invoices]}
 
@@ -380,16 +393,14 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         """Calculate and return the total invoice amount."""
         total_invoice_amount = 0.00
         if not data or DATA_INVOICES not in data:
-            _LOGGER.warning(
-                "No data available for calculating total invoice amount.")
+            _LOGGER.warning("No data available for calculating total invoice amount.")
             return total_invoice_amount
 
         try:
             invoices_data = data[DATA_INVOICES]
-            for account in invoices_data.get('contractAccounts', []):
-                for invoice in account.get('summarizedInvoices', []):
-                    total_invoice_amount += PWNSensor._calculate_invoice_amount(
-                        invoice)
+            for account in invoices_data.get("contractAccounts", []):
+                for invoice in account.get("summarizedInvoices", []):
+                    total_invoice_amount += PWNSensor._calculate_invoice_amount(invoice)
         except Exception as e:
             _LOGGER.error("Error calculating total invoice amount: %s", e)
         return total_invoice_amount
@@ -401,11 +412,10 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         try:
             if data and DATA_INVOICES in data:
                 invoices_data = data[DATA_INVOICES]
-                if invoices_data and 'contractAccounts' in invoices_data:
-                    for account in invoices_data['contractAccounts']:
-                        if 'summarizedInvoices' in account:
-                            total_invoices += len(
-                                account['summarizedInvoices'])
+                if invoices_data and "contractAccounts" in invoices_data:
+                    for account in invoices_data["contractAccounts"]:
+                        if "summarizedInvoices" in account:
+                            total_invoices += len(account["summarizedInvoices"])
         except Exception as e:
             _LOGGER.error("Error counting total number of invoices: %s", e)
         return total_invoices
@@ -416,8 +426,11 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         total_invoice_amount = PWNSensor.calculate_total_invoice_amount(data)
         total_number_of_invoices = PWNSensor.get_total_number_of_invoices(data)
         try:
-            average_invoice_amount = total_invoice_amount / \
-                total_number_of_invoices if total_number_of_invoices > 0 else 0.00
+            average_invoice_amount = (
+                total_invoice_amount / total_number_of_invoices
+                if total_number_of_invoices > 0
+                else 0.00
+            )
         except Exception as e:
             _LOGGER.error("Error calculating average invoice amount: %s", e)
             average_invoice_amount = 0.00
@@ -431,17 +444,15 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         try:
             if data and DATA_INVOICES in data:
                 invoices_data = data[DATA_INVOICES]
-                if invoices_data and 'contractAccounts' in invoices_data:
-                    for account in invoices_data['contractAccounts']:
-                        if 'summarizedInvoices' in account:
-                            for invoice in account['summarizedInvoices']:
+                if invoices_data and "contractAccounts" in invoices_data:
+                    for account in invoices_data["contractAccounts"]:
+                        if "summarizedInvoices" in account:
+                            for invoice in account["summarizedInvoices"]:
                                 invoice_date = invoice.get("invoiceDate")
                                 if invoice_date:
                                     year = int(invoice_date[:4])
-                                    total_amount = invoice.get(
-                                        "totalAmount", 0.00)
-                                    payment_status = invoice.get(
-                                        "paymentStatus")
+                                    total_amount = invoice.get("totalAmount", 0.00)
+                                    payment_status = invoice.get("paymentStatus")
                                     if payment_status == "Betaald":
                                         total_amount_per_year[year] += total_amount
                                     elif payment_status == "Uitbetaald":
@@ -458,23 +469,23 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         try:
             if data and DATA_INVOICES in data:
                 invoices_data = data[DATA_INVOICES]
-                if invoices_data and 'contractAccounts' in invoices_data:
-                    for account in invoices_data['contractAccounts']:
-                        if 'summarizedInvoices' in account:
-                            for invoice in account['summarizedInvoices']:
+                if invoices_data and "contractAccounts" in invoices_data:
+                    for account in invoices_data["contractAccounts"]:
+                        if "summarizedInvoices" in account:
+                            for invoice in account["summarizedInvoices"]:
                                 invoice_date = invoice.get("invoiceDate")
-                                if invoice_date and int(invoice_date[:4]) == current_year:
-                                    total_amount = invoice.get(
-                                        "totalAmount", 0.0)
-                                    payment_status = invoice.get(
-                                        "paymentStatus")
+                                if (
+                                    invoice_date
+                                    and int(invoice_date[:4]) == current_year
+                                ):
+                                    total_amount = invoice.get("totalAmount", 0.0)
+                                    payment_status = invoice.get("paymentStatus")
                                     if payment_status == "Betaald":
                                         total_amount_current_year += total_amount
                                     elif payment_status == "Uitbetaald":
                                         total_amount_current_year -= total_amount
         except Exception as e:
-            _LOGGER.error(
-                "Error calculating total amount for current year: %s", e)
+            _LOGGER.error("Error calculating total amount for current year: %s", e)
         return total_amount_current_year
 
     @staticmethod
@@ -485,23 +496,23 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         try:
             if data and DATA_INVOICES in data:
                 invoices_data = data[DATA_INVOICES]
-                if invoices_data and 'contractAccounts' in invoices_data:
-                    for account in invoices_data['contractAccounts']:
-                        if 'summarizedInvoices' in account:
-                            for invoice in account['summarizedInvoices']:
+                if invoices_data and "contractAccounts" in invoices_data:
+                    for account in invoices_data["contractAccounts"]:
+                        if "summarizedInvoices" in account:
+                            for invoice in account["summarizedInvoices"]:
                                 invoice_date = invoice.get("invoiceDate")
-                                if invoice_date and int(invoice_date[:4]) == previous_year:
-                                    total_amount = invoice.get(
-                                        "totalAmount", 0.00)
-                                    payment_status = invoice.get(
-                                        "paymentStatus")
+                                if (
+                                    invoice_date
+                                    and int(invoice_date[:4]) == previous_year
+                                ):
+                                    total_amount = invoice.get("totalAmount", 0.00)
+                                    payment_status = invoice.get("paymentStatus")
                                     if payment_status == "Betaald":
                                         total_amount_previous_year += total_amount
                                     elif payment_status == "Uitbetaald":
                                         total_amount_previous_year -= total_amount
         except Exception as e:
-            _LOGGER.error(
-                "Error calculating total amount for previous year: %s", e)
+            _LOGGER.error("Error calculating total amount for previous year: %s", e)
         return total_amount_previous_year
 
     @staticmethod
@@ -514,33 +525,38 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         try:
             if data and DATA_INVOICES in data:
                 invoices_data = data[DATA_INVOICES]
-                for account in invoices_data.get('contractAccounts', []):
-                    for invoice in account.get('summarizedInvoices', []):
+                for account in invoices_data.get("contractAccounts", []):
+                    for invoice in account.get("summarizedInvoices", []):
                         invoice_date_str = invoice.get("invoiceDate")
                         if invoice_date_str:
                             invoice_date = datetime.strptime(
-                                invoice_date_str, INVOICE_DATE_FORMAT)
+                                invoice_date_str, INVOICE_DATE_FORMAT
+                            )
                             if invoice_date.year == current_year:
-                                total_amount_current_year += PWNSensor._calculate_invoice_amount(
-                                    invoice)
+                                total_amount_current_year += (
+                                    PWNSensor._calculate_invoice_amount(invoice)
+                                )
                                 total_months_current_year += 3
 
             if total_months_current_year > 0:
                 # Calculate the average cost per month and scale it to 12 months
-                average_cost_per_month = total_amount_current_year / total_months_current_year
+                average_cost_per_month = (
+                    total_amount_current_year / total_months_current_year
+                )
                 expected_costs_current_year = average_cost_per_month * 12
             else:
                 expected_costs_current_year = 0.00
 
         except Exception as e:
-            _LOGGER.error(
-                "Error calculating expected costs for current year: %s", e)
+            _LOGGER.error("Error calculating expected costs for current year: %s", e)
             expected_costs_current_year = 0.00
 
         return expected_costs_current_year
 
     @staticmethod
-    def calculate_amount_per_month_per_year(data: dict[str, object], year: int) -> Optional[float]:
+    def calculate_amount_per_month_per_year(
+        data: dict[str, object], year: int
+    ) -> Optional[float]:
         """Calculate the total amount for a given year."""
         total_amount_for_year = 0.00
         number_of_months = 0
@@ -548,16 +564,16 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         try:
             if data and DATA_INVOICES in data:
                 invoices_data = data[DATA_INVOICES]
-                for account in invoices_data.get('contractAccounts', []):
-                    for invoice in account.get('summarizedInvoices', []):
+                for account in invoices_data.get("contractAccounts", []):
+                    for invoice in account.get("summarizedInvoices", []):
                         invoice_date_str = invoice.get("invoiceDate")
                         if invoice_date_str:
                             invoice_date = datetime.strptime(
-                                invoice_date_str, INVOICE_DATE_FORMAT)
+                                invoice_date_str, INVOICE_DATE_FORMAT
+                            )
                             invoice_year = invoice_date.year
                             if invoice_year == year:
-                                total_amount_for_year += invoice.get(
-                                    "totalAmount", 0.0)
+                                total_amount_for_year += invoice.get("totalAmount", 0.0)
                                 number_of_months += 3
 
         except Exception as e:
@@ -569,37 +585,45 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return None
 
     @staticmethod
-    def calculate_amount_per_month_per_year_as_dict(data: dict[str, object]) -> dict[str, object]:
+    def calculate_amount_per_month_per_year_as_dict(
+        data: dict[str, object],
+    ) -> dict[str, object]:
         """Calculate and return the amount per month for each year with string keys."""
         amount_per_month_per_year = defaultdict(lambda: defaultdict(float))
 
         try:
             if data and DATA_INVOICES in data:
                 invoices_data = data[DATA_INVOICES]
-                for account in invoices_data.get('contractAccounts', []):
-                    for invoice in account.get('summarizedInvoices', []):
+                for account in invoices_data.get("contractAccounts", []):
+                    for invoice in account.get("summarizedInvoices", []):
                         invoice_date_str = invoice.get("invoiceDate")
                         if invoice_date_str:
                             invoice_date = datetime.strptime(
-                                invoice_date_str, INVOICE_DATE_FORMAT)
+                                invoice_date_str, INVOICE_DATE_FORMAT
+                            )
                             year = invoice_date.year
                             total_amount = invoice.get("totalAmount", 0.0)
-                            amount_per_month = total_amount / 3  # Each invoice covers 3 months
+                            amount_per_month = (
+                                total_amount / 3
+                            )  # Each invoice covers 3 months
 
                             # Distribute the amount over the three months the invoice covers
                             for month_offset in range(3):
-                                month = (invoice_date.month +
-                                         month_offset - 1) % 12 + 1
-                                adjusted_year = year + \
-                                    (invoice_date.month + month_offset - 1) // 12
-                                amount_per_month_per_year[str(adjusted_year)][str(
-                                    month)] += amount_per_month
+                                month = (invoice_date.month + month_offset - 1) % 12 + 1
+                                adjusted_year = (
+                                    year + (invoice_date.month + month_offset - 1) // 12
+                                )
+                                amount_per_month_per_year[str(adjusted_year)][
+                                    str(month)
+                                ] += amount_per_month
 
         except Exception as e:
             _LOGGER.error("Error calculating amount per month per year: %s", e)
 
         # Convert to a format that matches the expected return type for attr_fn
-        return {year: dict(months) for year, months in amount_per_month_per_year.items()}
+        return {
+            year: dict(months) for year, months in amount_per_month_per_year.items()
+        }
 
     @staticmethod
     def get_costs_per_month_current_year(data: dict[str, object]) -> float | None:
@@ -622,18 +646,21 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         return 0.00
 
     @staticmethod
-    def calculate_total_costs_per_year_asdict(data: dict[str, object]) -> dict[int, float]:
+    def calculate_total_costs_per_year_asdict(
+        data: dict[str, object],
+    ) -> dict[int, float]:
         """Calculate and return the total costs per year as a dictionary."""
         total_costs_per_year = defaultdict(float)
         try:
             if data and DATA_INVOICES in data:
                 invoices_data = data[DATA_INVOICES]
-                for account in invoices_data.get('contractAccounts', []):
-                    for invoice in account.get('summarizedInvoices', []):
+                for account in invoices_data.get("contractAccounts", []):
+                    for invoice in account.get("summarizedInvoices", []):
                         invoice_date_str = invoice.get("invoiceDate")
                         if invoice_date_str:
                             invoice_date = datetime.strptime(
-                                invoice_date_str, INVOICE_DATE_FORMAT)
+                                invoice_date_str, INVOICE_DATE_FORMAT
+                            )
                             year = invoice_date.year
                             total_amount = invoice.get("totalAmount", 0.0)
                             payment_status = invoice.get("paymentStatus")
@@ -654,62 +681,68 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         try:
             if data and DATA_INVOICES in data:
                 invoices_data = data[DATA_INVOICES]
-                yearly_data = defaultdict(lambda: {
-                    'totalAmount': 0.00,
-                    'number of invoices': 0,
-                    'openAmount': 0.00,
-                    'year end invoice': 0.00,
-                    'invoice_quarter': 0.00,
-                    'paymentStatus': 'Unknown',
-                    'invoiceType': 'Jaarrekening'
-                })
+                yearly_data = defaultdict(
+                    lambda: {
+                        "totalAmount": 0.00,
+                        "number of invoices": 0,
+                        "openAmount": 0.00,
+                        "year end invoice": 0.00,
+                        "invoice_quarter": 0.00,
+                        "paymentStatus": "Unknown",
+                        "invoiceType": "Jaarrekening",
+                    }
+                )
 
-                for account in invoices_data.get('contractAccounts', []):
-                    for invoice in account.get('summarizedInvoices', []):
+                for account in invoices_data.get("contractAccounts", []):
+                    for invoice in account.get("summarizedInvoices", []):
                         invoice_date_str = invoice.get("invoiceDate")
                         if invoice_date_str:
                             invoice_date = datetime.strptime(
-                                invoice_date_str, INVOICE_DATE_FORMAT)
+                                invoice_date_str, INVOICE_DATE_FORMAT
+                            )
                             year = invoice_date.year
-                            total_amount = PWNSensor._calculate_invoice_amount(
-                                invoice)
+                            total_amount = PWNSensor._calculate_invoice_amount(invoice)
                             open_amount: float = invoice.get("openAmount", 0.0)
-                            invoice_type = invoice.get(
-                                "invoiceType", 'Unknown')
+                            invoice_type = invoice.get("invoiceType", "Unknown")
 
                             if invoice_type == "Termijnfactuur":
                                 invoice_quarter = total_amount
 
-                            yearly_data[year]['totalAmount'] += total_amount
-                            yearly_data[year]['number of invoices'] += 1
-                            yearly_data[year]['invoice_quarter'] = invoice_quarter
-                            yearly_data[year]['openAmount'] += open_amount
+                            yearly_data[year]["totalAmount"] += total_amount
+                            yearly_data[year]["number of invoices"] += 1
+                            yearly_data[year]["invoice_quarter"] = invoice_quarter
+                            yearly_data[year]["openAmount"] += open_amount
                             if open_amount == 0:
-                                yearly_data[year]['paymentStatus'] = "Betaald"
-                            yearly_data[year]['invoiceType'] = invoice_type
+                                yearly_data[year]["paymentStatus"] = "Betaald"
+                            yearly_data[year]["invoiceType"] = invoice_type
                             if invoice_type == "Drinkwaterfactuur":
-                                yearly_data[year]['year end invoice'] += total_amount
+                                yearly_data[year]["year end invoice"] += total_amount
 
                 for year, data in yearly_data.items():
-                    data['average per month'] = round(
-                        data['totalAmount'] / (data['number of invoices'] * MONTHS_COVERED_BY_INVOICE), 2)
-                    bills_per_year.append({
-                        'Year': year,
-                        'Start date': f"01-01-{year}",
-                        'Amount': data['totalAmount'],
-                        'Number of invoices': data['number of invoices'],
-                        'Open Amount': data['openAmount'],
-                        'Average per month': data['average per month'],
-                        'Invoice quarter': data['invoice_quarter'],
-                        'Year end invoice': data['year end invoice'],
-                        'Payment status': data['paymentStatus'],
-                        'Invoice type': data['invoiceType']
-                    })
+                    data["average per month"] = round(
+                        data["totalAmount"]
+                        / (data["number of invoices"] * MONTHS_COVERED_BY_INVOICE),
+                        2,
+                    )
+                    bills_per_year.append(
+                        {
+                            "Year": year,
+                            "Start date": f"01-01-{year}",
+                            "Amount": data["totalAmount"],
+                            "Number of invoices": data["number of invoices"],
+                            "Open Amount": data["openAmount"],
+                            "Average per month": data["average per month"],
+                            "Invoice quarter": data["invoice_quarter"],
+                            "Year end invoice": data["year end invoice"],
+                            "Payment status": data["paymentStatus"],
+                            "Invoice type": data["invoiceType"],
+                        }
+                    )
 
         except Exception as e:
             _LOGGER.error("Error calculating bills per year: %s", e)
 
-        return {'costs_per_year': bills_per_year}
+        return {"costs_per_year": bills_per_year}
 
     @staticmethod
     def calculate_invoice_quarter_current_year(data: dict[str, object]) -> float | None:
@@ -721,17 +754,19 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         try:
             if data and DATA_INVOICES in data:
                 invoices_data = data[DATA_INVOICES]
-                for account in invoices_data.get('contractAccounts', []):
-                    for invoice in account.get('summarizedInvoices', []):
+                for account in invoices_data.get("contractAccounts", []):
+                    for invoice in account.get("summarizedInvoices", []):
                         invoice_date_str = invoice.get("invoiceDate")
                         if invoice_date_str:
                             invoice_date = datetime.strptime(
-                                invoice_date_str, INVOICE_DATE_FORMAT)
+                                invoice_date_str, INVOICE_DATE_FORMAT
+                            )
                             year = invoice_date.year
                             if year == current_year:
                                 quarter = (invoice_date.month - 1) // 3 + 1
-                                quarters[str(
-                                    quarter)] += PWNSensor._calculate_invoice_amount(invoice)
+                                quarters[str(quarter)] += (
+                                    PWNSensor._calculate_invoice_amount(invoice)
+                                )
                 # Calculate the average amount per quarter
                 if quarters:
                     quarter_amount = sum(quarters.values()) / len(quarters)
@@ -739,13 +774,14 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
                     quarter_amount = 0.0
 
         except Exception as e:
-            _LOGGER.error(
-                "Error calculating invoice quarters current year: %s", e)
+            _LOGGER.error("Error calculating invoice quarters current year: %s", e)
 
         return quarter_amount
 
     @staticmethod
-    def calculate_invoice_quarters_current_year_asdict(data: dict[str, object]) -> dict[str, float]:
+    def calculate_invoice_quarters_current_year_asdict(
+        data: dict[str, object],
+    ) -> dict[str, float]:
         """Calculate and return the total amount for each quarter of the current year."""
         current_year = str(datetime.now().year)
         quarters = defaultdict(float)
@@ -753,20 +789,21 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         try:
             if data and DATA_INVOICES in data:
                 invoices_data = data[DATA_INVOICES]
-                for account in invoices_data.get('contractAccounts', []):
-                    for invoice in account.get('summarizedInvoices', []):
+                for account in invoices_data.get("contractAccounts", []):
+                    for invoice in account.get("summarizedInvoices", []):
                         invoice_date_str = invoice.get("invoiceDate")
                         if invoice_date_str:
                             invoice_date = datetime.strptime(
-                                invoice_date_str, INVOICE_DATE_FORMAT)
+                                invoice_date_str, INVOICE_DATE_FORMAT
+                            )
                             year = invoice_date.year
                             if str(year) == current_year:
                                 quarter = (invoice_date.month - 1) // 3 + 1
-                                quarters[f"Q{str(
-                                    quarter)}"] = PWNSensor._calculate_invoice_amount(invoice)
+                                quarters[f"Q{str(quarter)}"] = (
+                                    PWNSensor._calculate_invoice_amount(invoice)
+                                )
         except Exception as e:
-            _LOGGER.error(
-                "Error calculating invoice quarters current year: %s", e)
+            _LOGGER.error("Error calculating invoice quarters current year: %s", e)
 
         return {str(k): v for k, v in quarters.items()}
         # return dict(quarters)
@@ -775,10 +812,10 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
     def get_full_name(data: dict[str, object]) -> str | None:
         """Get the full name by combining initials and last name."""
         if data and DATA_USER in data:
-            private_client = data[DATA_USER].get('privateClient', {})
-            prefix = private_client.get('prefix', '').strip()
-            initials = private_client.get('initials', '').strip()
-            last_name = private_client.get('lastName', '').strip()
+            private_client = data[DATA_USER].get("privateClient", {})
+            prefix = private_client.get("prefix", "").strip()
+            initials = private_client.get("initials", "").strip()
+            last_name = private_client.get("lastName", "").strip()
             full_name = f"{prefix} {initials} {last_name}"
             return full_name
         return None
@@ -787,16 +824,15 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
     def get_correspondence_address(data: dict[str, object]) -> Optional[str]:
         """Get the full name by combining initials and last name."""
         if data and DATA_USER in data:
-            correspondence_address = data[DATA_USER].get(
-                'correspondenceAddress', {})
-            street = correspondence_address.get('street', '').strip()
-            house_number = correspondence_address.get(
-                'houseNumber', '').strip()
-            postal_code = correspondence_address.get('postalCode', '').strip()
-            city = correspondence_address.get('city', '').strip()
-            country = correspondence_address.get('country', '').strip()
-            correspondence_address = f"{street} {house_number} {
-                postal_code} {city} {country}".strip()
+            correspondence_address = data[DATA_USER].get("correspondenceAddress", {})
+            street = correspondence_address.get("street", "").strip()
+            house_number = correspondence_address.get("houseNumber", "").strip()
+            postal_code = correspondence_address.get("postalCode", "").strip()
+            city = correspondence_address.get("city", "").strip()
+            country = correspondence_address.get("country", "").strip()
+            correspondence_address = f"{street} {house_number} {postal_code} {city} {
+                country
+            }".strip()
             return correspondence_address
         return None
 
@@ -836,16 +872,26 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
 
         # add fixed attributes
         if getattr(self.coordinator, "last_update_error", None):
-            attributes.update({
-                "last_update_error": getattr(self.coordinator, "last_update_error", None),
-            })
+            attributes.update(
+                {
+                    "last_update_error": getattr(
+                        self.coordinator, "last_update_error", None
+                    ),
+                }
+            )
         if getattr(self.coordinator, "last_update_exception", None):
-            attributes.update({
-                "last_update_exception": getattr(self.coordinator, "last_update_exception", None),
-            })
-        attributes.update({
-            "attribution": ATTRIBUTION,
-        })
+            attributes.update(
+                {
+                    "last_update_exception": getattr(
+                        self.coordinator, "last_update_exception", None
+                    ),
+                }
+            )
+        attributes.update(
+            {
+                "attribution": ATTRIBUTION,
+            }
+        )
         return attributes
 
     @property
@@ -874,9 +920,9 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
 
         try:
             value = self.entity_description.value_fn(self.coordinator.data)
-#            if value is None:
-#                _LOGGER.warning("Sensor %s state is None.",
-#                                self.entity_description.key)
+            #            if value is None:
+            #                _LOGGER.warning("Sensor %s state is None.",
+            #                                self.entity_description.key)
             return value
         except Exception as e:
             _LOGGER.error("Failed to retrieve sensor state: %s", str(e))
@@ -885,14 +931,13 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
     async def old_async_added_to_hass(self) -> None:
         """When entity is added to hass."""
         await super().async_added_to_hass()
-        self.async_on_remove(
-            self.coordinator.async_add_listener(self._update_state))
+        self.async_on_remove(self.coordinator.async_add_listener(self._update_state))
         self._update_state()
 
     def _update_invoice_sensor(self, invoices):
         """Update invoice sensor with new data."""
         if invoices:
-            self._attr_state = invoices.get('some_value', 'default_value')
+            self._attr_state = invoices.get("some_value", "default_value")
         else:
             self._attr_state = None  # 'No data'
         _LOGGER.debug("Updated invoice sensor state to: %s", self._attr_state)
@@ -900,8 +945,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
 
 async def async_update(self):
     """Fetch the latest data from the coordinator and update the entity's state and attributes."""
-    _LOGGER.debug("Starting async_update for %s",
-                  self.entity_description.name)
+    _LOGGER.debug("Starting async_update for %s", self.entity_description.name)
 
     # Fetch data from the coordinator
     data = self.coordinator.data
@@ -921,15 +965,18 @@ async def async_update(self):
             return
 
         # Validate entity description
-        if not self.entity_description or not callable(self.entity_description.value_fn):
+        if not self.entity_description or not callable(
+            self.entity_description.value_fn
+        ):
             _LOGGER.error("Invalid entity description or value function.")
             self._set_state(None, {})
             return
 
         # Check if entity ID is specified
         if not self.entity_description.key:
-            _LOGGER.error("No entity ID specified for entity: %s",
-                          self.entity_description.name)
+            _LOGGER.error(
+                "No entity ID specified for entity: %s", self.entity_description.name
+            )
             self._set_state(None, {})
             return
 
@@ -940,10 +987,14 @@ async def async_update(self):
         extra_attributes = self.entity_description.attr_fn(data)
 
         # Log the updated state for debugging purposes
-        _LOGGER.debug("Updated sensor %s state to: %s",
-                      self.entity_description.name, native_value)
-        _LOGGER.debug("Updated sensor %s attributes to: %s",
-                      self.entity_description.name, extra_attributes)
+        _LOGGER.debug(
+            "Updated sensor %s state to: %s", self.entity_description.name, native_value
+        )
+        _LOGGER.debug(
+            "Updated sensor %s attributes to: %s",
+            self.entity_description.name,
+            extra_attributes,
+        )
 
         # Set the entity's state and attributes using a helper method
         self._set_state(native_value, extra_attributes)

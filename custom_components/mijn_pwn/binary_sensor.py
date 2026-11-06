@@ -1,11 +1,12 @@
 """
 Binary Sensor platform for Mijn PWN.
 """
+
 # binary_sensor.py
-import logging
-import uuid
 from dataclasses import dataclass, field
+import logging
 from typing import Callable, Optional, Union
+import uuid
 
 from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
@@ -36,17 +37,17 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Mijn PWN binary sensor based on a config entry."""
-    _LOGGER.debug("Setting up Mijn PWN binary sensor for entry: %s",
-                  config_entry.entry_id)
+    _LOGGER.debug(
+        "Setting up Mijn PWN binary sensor for entry: %s", config_entry.entry_id
+    )
 
     # Ensure the config entry has a unique ID
     if config_entry.unique_id is None:
         unique_id = str(uuid.uuid4())
-        hass.config_entries.async_update_entry(
-            config_entry, unique_id=unique_id)
+        hass.config_entries.async_update_entry(config_entry, unique_id=unique_id)
     else:
         unique_id = config_entry.unique_id
 
@@ -55,8 +56,7 @@ async def async_setup_entry(
         [
             PWNBinarySensor(coordinator, description, config_entry)
             for description in SENSOR_TYPES
-            if not description.authenticated
-            or coordinator.api.is_authenticated
+            if not description.authenticated or coordinator.api.is_authenticated
         ],
         True,
     )
@@ -65,6 +65,7 @@ async def async_setup_entry(
 @dataclass(frozen=True, slots=True)
 class PWNEntityDescription(BinarySensorEntityDescription):
     """Representation of a Sensor."""
+
     key: str
     translation_key: str | None = None
     has_entity_name: bool = True
@@ -81,9 +82,11 @@ SENSOR_TYPES: tuple[PWNEntityDescription, ...] = (
         key="open_invoices",
         translation_key="open_invoices",
         icon="mdi:alert",
-        value_fn=lambda data: data.get(
-            DATA_INVOICES, {}).get('numberOfOpenItems', 0) > 0
-        if data else False
+        value_fn=lambda data: (
+            data.get(DATA_INVOICES, {}).get("numberOfOpenItems", 0) > 0
+            if data
+            else False
+        ),
     ),
 )
 
@@ -91,10 +94,12 @@ SENSOR_TYPES: tuple[PWNEntityDescription, ...] = (
 class PWNBinarySensor(CoordinatorEntity, BinarySensorEntity):
     """Representation of a Mijn PWN binary sensor."""
 
-    def __init__(self,
-                 coordinator: PWNDataUpdateCoordinator,
-                 description: PWNEntityDescription,
-                 entry: ConfigEntry):
+    def __init__(
+        self,
+        coordinator: PWNDataUpdateCoordinator,
+        description: PWNEntityDescription,
+        entry: ConfigEntry,
+    ):
         """Initialize the binary sensor."""
         super().__init__(coordinator)
         self.entity_description = description
@@ -119,15 +124,14 @@ class PWNBinarySensor(CoordinatorEntity, BinarySensorEntity):
             sw_version=VERSION,
         )
 
-        _LOGGER.debug(
-            "PWNBinarySensor initialized with coordinator: %s", coordinator)
+        _LOGGER.debug("PWNBinarySensor initialized with coordinator: %s", coordinator)
 
     @property
     def is_on(self) -> bool:
         """Return the state of the sensor."""
         invoices_data = self.coordinator.data.get(DATA_INVOICES, {})
         if invoices_data:
-            return invoices_data.get('numberOfOpenItems', 0) > 0
+            return invoices_data.get("numberOfOpenItems", 0) > 0
         _LOGGER.warning("No invoice data available for sensor: %s", self.name)
         return False
 
