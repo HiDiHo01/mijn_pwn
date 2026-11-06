@@ -182,6 +182,23 @@ class TestDeviceIdentifiers(unittest.TestCase):
         self.assertEqual(old.identifiers, {(DOMAIN, "entry-123", None)})
         self.assertEqual(registry.updated_ids, [])
 
+    def test_skips_mixed_legacy_and_unrecognized_identifiers(self) -> None:
+        """Reject a partially valid device without applying a partial migration."""
+        mixed = _RegistryDevice(
+            "mixed-id",
+            "entry-123",
+            {
+                (DOMAIN, "entry-123", SERVICE_NAME_INVOICES),
+                (DOMAIN, "entry-123", "Unknown"),
+            },
+        )
+        original_identifiers = mixed.identifiers.copy()
+        registry = _FakeDeviceRegistry([mixed])
+
+        self.assertEqual(self._migrate(registry), 0)
+        self.assertEqual(mixed.identifiers, original_identifiers)
+        self.assertEqual(registry.updated_ids, [])
+
     def test_skips_unrecognized_identifier_shape(self) -> None:
         """Do not rewrite unsupported legacy or foreign identifier formats."""
         legacy = _RegistryDevice(
