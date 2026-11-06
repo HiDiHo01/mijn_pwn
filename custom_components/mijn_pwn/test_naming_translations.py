@@ -59,7 +59,7 @@ class TestNamingTranslations(unittest.TestCase):
     def test_sensor_descriptions_use_translation_keys(self) -> None:
         """Every sensor uses a unique key instead of a hardcoded display name."""
         keys = [description.key for description in SENSOR_DESCRIPTIONS]
-        self.assertEqual(len(keys), 20)
+        self.assertEqual(len(keys), 23)
         self.assertEqual(len(keys), len(set(keys)))
         for description in SENSOR_DESCRIPTIONS:
             with self.subTest(sensor=description.key):

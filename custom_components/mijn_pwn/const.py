@@ -61,6 +61,9 @@ SERVICES: Final[Services] = {
 DATA_CONSUMPTION: Final[str] = "consumption_history"
 """Data key for consumption history."""
 
+DATA_NOTIFICATIONS: Final[str] = "notifications"
+"""Data key for account notifications."""
+
 DATA_INVOICES: Final[str] = "invoices"
 """Data key for invoices."""
 

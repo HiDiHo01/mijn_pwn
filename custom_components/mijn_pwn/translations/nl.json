@@ -106,6 +106,19 @@
       },
       "last_update2": {
         "name": "Tijdstempel laatste update"
+      },
+      "notification_count": {
+        "name": "Aantal meldingen"
+      },
+      "water_consumption_status": {
+        "name": "Waterverbruiksstatus",
+        "state": {
+          "no_reported_anomaly": "Geen afwijking gemeld",
+          "anomaly_reported": "Afwijking gemeld"
+        }
+      },
+      "last_meter_reading_date": {
+        "name": "Datum laatste werkelijke meterstand"
       }
     },
     "binary_sensor": {
