@@ -36,6 +36,34 @@ def get_device_identifiers(
     return {(DOMAIN, identifier)}
 
 
+def _convert_legacy_identifiers(
+    identifiers: set[tuple[str, str]],
+    entry_id: str,
+) -> tuple[set[tuple[str, str]], set[tuple[str, str]]] | None:
+    """Return converted identifiers and targets, or None for unsupported input."""
+    converted_identifiers: set[tuple[str, str]] = set()
+    targets: set[tuple[str, str]] = set()
+
+    for identifier in identifiers:
+        if len(identifier) == 2:
+            converted_identifiers.add(identifier)
+            continue
+
+        if (
+            len(identifier) != 3
+            or identifier[0] != DOMAIN
+            or identifier[1] != entry_id
+            or identifier[2] not in _KNOWN_SERVICES
+        ):
+            return None
+
+        replacement = next(iter(get_device_identifiers(entry_id, identifier[2])))
+        converted_identifiers.add(replacement)
+        targets.add(replacement)
+
+    return converted_identifiers, targets
+
+
 def migrate_legacy_device_identifiers(
     registry: device_registry.DeviceRegistry,
     entry_id: str,
@@ -49,37 +77,15 @@ def migrate_legacy_device_identifiers(
     migrated = 0
 
     for device in device_registry.async_entries_for_config_entry(registry, entry_id):
-        new_identifiers: set[tuple[str, str]] = set()
-        targets: set[tuple[str, str]] = set()
-        found_legacy = False
-        unsupported = False
-
-        for identifier in device.identifiers:
-            if len(identifier) == 2:
-                new_identifiers.add(identifier)
-                continue
-
-            if (
-                len(identifier) != 3
-                or identifier[0] != DOMAIN
-                or identifier[1] != entry_id
-                or identifier[2] not in _KNOWN_SERVICES
-            ):
-                unsupported = True
-                break
-
-            replacement = next(iter(get_device_identifiers(entry_id, identifier[2])))
-            new_identifiers.add(replacement)
-            targets.add(replacement)
-            found_legacy = True
-
-        if unsupported:
+        converted = _convert_legacy_identifiers(device.identifiers, entry_id)
+        if converted is None:
             _LOGGER.warning(
                 "Skipping Mijn PWN device migration with unsupported identifiers"
             )
             continue
 
-        if not found_legacy:
+        new_identifiers, targets = converted
+        if not targets:
             continue
 
         if any(
