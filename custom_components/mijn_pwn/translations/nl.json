@@ -1,8 +1,111 @@
 {
+  "title": "Mijn PWN",
+  "config": {
+    "abort": {
+      "already_configured": "Account is al toegevoegd",
+      "reauth_successful": "Opnieuw inloggen gelukt"
+    },
+    "error": {
+      "invalid_auth": "Inloggegevens niet geaccepteerd. Controleer de gegevens en probeer het opnieuw."
+    },
+    "step": {
+      "login": {
+        "title": "Inloggen bij Mijn PWN",
+        "data": {
+          "username": "E-mailadres",
+          "password": "Wachtwoord"
+        }
+      },
+      "user": {
+        "title": "Inloggen bij Mijn PWN",
+        "description": "Log in met de accountgegevens van mijn.pwn.nl.",
+        "data": {
+          "authentication": "Gebruik Mijn PWN-accountgegevens",
+          "username": "E-mailadres",
+          "password": "Wachtwoord"
+        }
+      },
+      "reconfigure": {
+        "title": "Mijn PWN-inloggegevens bijwerken",
+        "data": {
+          "username": "E-mailadres",
+          "password": "Wachtwoord"
+        }
+      }
+    }
+  },
+  "device": {
+    "consumption": {
+      "name": "Mijn PWN - Verbruik"
+    },
+    "invoices": {
+      "name": "Mijn PWN - Kosten"
+    },
+    "user": {
+      "name": "Mijn PWN - Gebruiker"
+    }
+  },
   "entity": {
     "sensor": {
+      "total_open_amount": {
+        "name": "Totaal openstaand bedrag"
+      },
+      "open_invoices_document_numbers": {
+        "name": "Documentnummers van openstaande facturen"
+      },
+      "number_of_open_items": {
+        "name": "Aantal openstaande facturen"
+      },
+      "total_costs": {
+        "name": "Totale kosten"
+      },
+      "total_costs_current_year": {
+        "name": "Totale kosten dit jaar"
+      },
+      "expected_costs_current_year": {
+        "name": "Verwachte kosten dit jaar"
+      },
+      "total_cost_previous_year": {
+        "name": "Totale kosten vorig jaar"
+      },
+      "costs_per_month_current_year": {
+        "name": "Kosten per maand dit jaar"
+      },
+      "invoice_quarter_current_year": {
+        "name": "Factuurkwartaal dit jaar"
+      },
       "contract_account_number": {
-        "name": "Contract account nummer"
+        "name": "Contractrekeningnummer"
+      },
+      "relation_number": {
+        "name": "Relatienummer"
+      },
+      "full_name": {
+        "name": "Volledige naam"
+      },
+      "birth_place": {
+        "name": "Geboorteplaats"
+      },
+      "date_of_birth": {
+        "name": "Geboortedatum"
+      },
+      "correspondence_address": {
+        "name": "Correspondentieadres"
+      },
+      "latest_meter_reading": {
+        "name": "Laatste meterstand"
+      },
+      "total_consumption": {
+        "name": "Totaal verbruik"
+      },
+      "consumption_last_year": {
+        "name": "Verbruik vorig jaar"
+      },
+      "last_update": {
+        "name": "Laatste update"
+      },
+      "last_update2": {
+        "name": "Tijdstempel laatste update"
       }
     },
     "binary_sensor": {

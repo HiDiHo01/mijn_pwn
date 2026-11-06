@@ -28,4 +28,6 @@ jobs:
             --env PYTHONDONTWRITEBYTECODE=1 \
             --entrypoint python3 \
             ghcr.io/home-assistant/home-assistant:2026.10.3@sha256:c32ab33f0b0589182b2f40324826acb02a104d1707c91573b6420fd622b82127 \
-            -m unittest -v custom_components.mijn_pwn.test_device_identifiers
+            -m unittest -v \
+            custom_components.mijn_pwn.test_device_identifiers \
+            custom_components.mijn_pwn.test_naming_translations

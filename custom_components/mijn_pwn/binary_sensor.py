@@ -22,7 +22,6 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     API_URL,
     ATTRIBUTION,
-    COMPONENT_TITLE,
     DATA_INVOICES,
     DOMAIN,
     MANUFACTURER,
@@ -30,7 +29,7 @@ from .const import (
     VERSION,
 )
 from .coordinator import PWNDataUpdateCoordinator
-from .device_identifiers import get_device_identifiers
+from .device_identifiers import get_device_identifiers, get_device_translation_key
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -112,8 +111,7 @@ class PWNBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
         self._attr_device_info = DeviceInfo(
             identifiers=device_info_identifiers,
-            name=f"{COMPONENT_TITLE} - {description.service_name}",
-            translation_key=f"{COMPONENT_TITLE} - {description.service_name}",
+            translation_key=get_device_translation_key(description.service_name),
             manufacturer=MANUFACTURER,
             entry_type=DeviceEntryType.SERVICE,
             configuration_url=API_URL,

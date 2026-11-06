@@ -34,7 +34,6 @@ MONTHS_COVERED_BY_INVOICE = 3
 SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     PWNEntityDescription(
         key="total_open_amount",
-        name="Total open amount",
         translation_key="total_open_amount",
         native_unit_of_measurement=CURRENCY_EURO,
         suggested_display_precision=2,
@@ -63,7 +62,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="open_invoices_document_numbers",
-        name="Open invoices document numbers",
         translation_key="open_invoices_document_numbers",
         icon="mdi:invoice",
         suggested_display_precision=None,
@@ -98,7 +96,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="number_of_open_items",
-        name="Number of open invoices",
         translation_key="number_of_open_items",
         suggested_display_precision=0,
         state_class=SensorStateClass.TOTAL,
@@ -126,7 +123,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="total_costs",
-        name="Total costs",
         translation_key="total_costs",
         native_unit_of_measurement=CURRENCY_EURO,
         suggested_display_precision=2,
@@ -145,7 +141,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="total_costs_current_year",
-        name="Total costs current year",
         translation_key="total_costs_current_year",
         native_unit_of_measurement=CURRENCY_EURO,
         suggested_display_precision=2,
@@ -164,7 +159,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="expected_costs_current_year",
-        name="Expected costs current year",
         translation_key="expected_costs_current_year",
         native_unit_of_measurement=CURRENCY_EURO,
         suggested_display_precision=2,
@@ -183,7 +177,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="total_cost_previous_year",
-        name="Total costs previous year",
         translation_key="total_cost_previous_year",
         native_unit_of_measurement=CURRENCY_EURO,
         suggested_display_precision=2,
@@ -202,7 +195,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="costs_per_month_current_year",
-        name="Costs per month current year",
         translation_key="costs_per_month_current_year",
         native_unit_of_measurement=CURRENCY_EURO,
         suggested_display_precision=2,
@@ -213,7 +205,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="invoice_quarter_current_year",
-        name="Invoice Quarter Current Year",
         translation_key="invoice_quarter_current_year",
         native_unit_of_measurement=CURRENCY_EURO,
         suggested_display_precision=2,
@@ -228,7 +219,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="contract_account_number",
-        name="Contract account number",
         translation_key="contract_account_number",
         suggested_display_precision=None,
         icon="mdi:invoice",
@@ -247,7 +237,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="relation_number",
-        name="Relation number",
         translation_key="relation_number",
         suggested_display_precision=None,
         service_name=SERVICE_NAME_USER,
@@ -261,7 +250,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="full_name",
-        name="Full Name",
         translation_key="full_name",
         suggested_display_precision=None,
         service_name=SERVICE_NAME_USER,
@@ -271,7 +259,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="birth_place",
-        name="Birth place",
         translation_key="birth_place",
         suggested_display_precision=None,
         service_name=SERVICE_NAME_USER,
@@ -285,7 +272,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="date_of_birth",
-        name="Date of birth",
         translation_key="date_of_birth",
         suggested_display_precision=None,
         service_name=SERVICE_NAME_USER,
@@ -304,7 +290,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="correspondence_address",
-        name="Correspondence address",
         translation_key="correspondence_address",
         suggested_display_precision=None,
         service_name=SERVICE_NAME_USER,
@@ -314,7 +299,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="latest_meter_reading",
-        name="Latest Meter Reading",
         translation_key="latest_meter_reading",
         native_unit_of_measurement=UnitOfVolume.CUBIC_METERS,
         suggested_display_precision=0,
@@ -383,7 +367,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="total_consumption",
-        name="Total Consumption",
         translation_key="total_consumption",
         native_unit_of_measurement=UnitOfVolume.CUBIC_METERS,
         suggested_display_precision=0,
@@ -422,7 +405,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="consumption_last_year",
-        name="Consumption Last Year",
         translation_key="consumption_last_year",
         native_unit_of_measurement=UnitOfVolume.CUBIC_METERS,
         suggested_display_precision=0,
@@ -466,7 +448,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="last_update",
-        name="Last Update",
         translation_key="last_update",
         entity_category=EntityCategory.DIAGNOSTIC,
         native_unit_of_measurement=None,
@@ -484,7 +465,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
     ),
     PWNEntityDescription(
         key="last_update2",
-        name="Last Update",
         translation_key="last_update2",
         entity_category=EntityCategory.DIAGNOSTIC,
         native_unit_of_measurement=None,  # No unit of measurement for timestamp
