@@ -14,7 +14,9 @@ class TestOptionalSensors(unittest.TestCase):
 
     def test_sensor_metadata(self) -> None:
         """Keep date and enum metadata compatible with Home Assistant."""
-        descriptions = {description.key: description for description in SENSOR_DESCRIPTIONS}
+        descriptions = {
+            description.key: description for description in SENSOR_DESCRIPTIONS
+        }
         status = descriptions["water_consumption_status"]
         self.assertEqual(status.device_class, SensorDeviceClass.ENUM)
         self.assertEqual(
@@ -27,7 +29,9 @@ class TestOptionalSensors(unittest.TestCase):
     def test_notification_entity_only_for_supported_array(self) -> None:
         """Do not create an entity if the notifications schema is unknown."""
         coordinator = MagicMock()
-        descriptions = {description.key: description for description in SENSOR_DESCRIPTIONS}
+        descriptions = {
+            description.key: description for description in SENSOR_DESCRIPTIONS
+        }
         notification = descriptions["notification_count"]
         coordinator.data = {"notifications": {"unknown": []}}
         self.assertFalse(_should_add_sensor(notification, coordinator))
@@ -38,7 +42,9 @@ class TestOptionalSensors(unittest.TestCase):
     def test_history_entities_only_with_supported_data(self) -> None:
         """Create diagnostic entities only when validated records are present."""
         coordinator = MagicMock()
-        descriptions = {description.key: description for description in SENSOR_DESCRIPTIONS}
+        descriptions = {
+            description.key: description for description in SENSOR_DESCRIPTIONS
+        }
         date_sensor = descriptions["last_meter_reading_date"]
         status_sensor = descriptions["water_consumption_status"]
         coordinator.data = {"consumption_history": {"history": []}}
