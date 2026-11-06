@@ -13,48 +13,19 @@ jobs:
   device-identifiers:
     name: Registry migration tests (Home Assistant)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4.2.2
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
-
-      - name: Install Home Assistant wheel
-        run: "python -m pip install --only-binary :all: --no-deps homeassistant==2026.10.3"
-
-      - name: Install dependency inspector
-        run: "python -m pip install --only-binary :all: packaging==25.0"
-
-      - name: Resolve registry test dependencies
+      - name: Run tests in Home Assistant 2026.10.3
         run: |
-          # Bluetooth functionality is unrelated to these device registry tests.
-          # Its optional dependency graph contains a source-only package.
-          python - <<'PY'
-          from importlib.metadata import requires
-          from pathlib import Path
-
-          from packaging.requirements import Requirement
-
-          requirements = []
-          for specification in requires("homeassistant") or []:
-              requirement = Requirement(specification)
-              normalized_name = requirement.name.lower().replace("_", "-")
-              if normalized_name == "home-assistant-bluetooth":
-                  continue
-              if requirement.marker and not requirement.marker.evaluate():
-                  continue
-              requirements.append(str(requirement))
-
-          Path("/tmp/homeassistant-test-requirements.txt").write_text(
-              "\n".join(requirements) + "\n", encoding="utf-8"
-          )
-          PY
-
-      - name: Install wheel-only runtime test dependencies
-        run: "python -m pip install --only-binary :all: -r /tmp/homeassistant-test-requirements.txt"
-
-      - name: Run device identifier and migration regression tests
-        run: python -m unittest -v custom_components.mijn_pwn.test_device_identifiers
+          docker run --rm \
+            --network none \
+            --user "$(id -u):$(id -g)" \
+            --volume "${GITHUB_WORKSPACE}:/workspace:ro" \
+            --workdir /workspace \
+            --env PYTHONDONTWRITEBYTECODE=1 \
+            --entrypoint python3 \
+            ghcr.io/home-assistant/home-assistant:2026.10.3@sha256:c32ab33f0b0589182b2f40324826acb02a104d1707c91573b6420fd622b82127 \
+            -m unittest -v custom_components.mijn_pwn.test_device_identifiers
