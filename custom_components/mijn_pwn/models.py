@@ -13,6 +13,7 @@ import jwt
 from pydantic import BaseModel, EmailStr
 import pytz
 
+from .const import DATA_USER
 from .exceptions import AuthException, RequestException
 
 DEFAULT_ROUND = 6
@@ -474,6 +475,7 @@ class Me:
 
 
 def get_segments(data: dict[str, Any]) -> Optional[list[str]]:
+    """Return delivery-site segments from the user payload, if available."""
     delivery_site_data = data.get(DATA_USER)
     if delivery_site_data:
         delivery_site = DeliverySite(**delivery_site_data)
@@ -669,15 +671,6 @@ class MeterReadingExportPeriod:
     segment: str
     type: str
     updatedAt: str
-
-
-@dataclass
-class Signup:
-    class UserDetails:
-        id: Optional[str] = None
-        email: Optional[str] = None
-
-    user: UserDetails
 
 
 @dataclass
@@ -1207,7 +1200,6 @@ class Price:
     market_price: float = 0.0
     sourcing_markup_price: float = 0.0
     energy_tax_price: float = 0.0
-    total: float = 0.0
     marketPrice: float = 0.0
     marketPriceTax: float = 0.0
     sourcingMarkupPrice: float = 0.0
@@ -1220,10 +1212,6 @@ class Price:
     start_time: datetime = field(default_factory=datetime.now)
     timestamp: datetime = field(default_factory=datetime.now)
     market_price_tax: float = 0.0
-    for_now: bool = False
-    for_today: bool = False
-    for_tomorrow: bool = False
-    for_upcoming: bool = False
     market_price_including_tax: Optional[float] = None
     market_price_including_tax_and_markup: Optional[float] = None
 
@@ -1501,15 +1489,6 @@ class PriceData:
 
     price_data: list[Price] = []
     energy_type: Optional[str] = None
-    current_hour: Price = None
-    previous_hour: Price = None
-    next_hour: Price = None
-    upcoming_min: Price = None
-    upcoming_max: Price = None
-    upcoming_avg: Price = None
-    upcoming_prices: list[Price] = None
-    elec_previoushour: float = None
-    elec_nexthour: float = None
 
     # def __init__(self, prices: list[Price] | None = None) -> None:
     #    """Parse the response from the prices query."""
@@ -1612,7 +1591,7 @@ class PriceData:
     @property  # todo
     def tomorrow_average_price(self) -> Optional[float]:
         """Average total price for tomorrow."""
-        tomorrow_prices = self.get_prices_for_time_period(TimePeriod.TOMORROW)
+        tomorrow_prices = self.tomorrow
 
         if not tomorrow_prices:
             return None
@@ -1625,7 +1604,7 @@ class PriceData:
     @property
     def tomorrow_average_price_including_tax(self) -> Optional[float]:
         """Average total price including tax and markup for tomorrow."""
-        tomorrow_prices = self.get_prices_for_time_period(TimePeriod.TOMORROW)
+        tomorrow_prices = self.tomorrow
 
         if not tomorrow_prices:
             return None
@@ -1640,7 +1619,7 @@ class PriceData:
     @property
     def tomorrow_average_price_including_tax_and_markup(self) -> Optional[float]:
         """Average total price including tax and markup for tomorrow."""
-        tomorrow_prices = self.get_prices_for_time_period(TimePeriod.TOMORROW)
+        tomorrow_prices = self.tomorrow
 
         if not tomorrow_prices:
             return None
@@ -1655,7 +1634,7 @@ class PriceData:
     @property
     def tomorrow_average_market_price(self) -> Optional[float]:
         """Average market price for tomorrow."""
-        tomorrow_prices = self.get_prices_for_time_period(TimePeriod.TOMORROW)
+        tomorrow_prices = self.tomorrow
 
         if not tomorrow_prices:
             return None
@@ -1729,14 +1708,6 @@ class PriceData:
             if len(upcoming_data) > 0
             else 0,
         }
-
-    @property
-    def upcoming_min(self) -> Optional["Price"]:
-        return min([hour for hour in self.upcoming], key=lambda hour: hour.total)
-
-    @property
-    def upcoming_max(self) -> Optional["Price"]:
-        return max([hour for hour in self.upcoming], key=lambda hour: hour.total)
 
     @property
     def elec_previoushour(self):
@@ -1821,11 +1792,6 @@ class PriceData:
     def upcoming_prices(self):
         """Prices for hours after the current one."""
         return [hour for hour in self.price_data if hour.for_upcoming]
-
-    @property
-    def today_prices(self):
-        """Prices for today."""
-        return [hour for hour in self.price_data if hour.for_today]
 
     @property
     def tomorrow_prices(self):
@@ -1929,32 +1895,9 @@ class PriceData:
             result.append(data)
         return result
 
-    def calculate_stats(self):
-        electricity_prices = [price.total for price in self if price.electricity]
-        gas_prices = [price.total for price in self if price.gas]
-
-        electricity_mean = mean(electricity_prices)
-        gas_mean = mean(gas_prices)
-
-        electricity_min = min(electricity_prices)
-        gas_min = min(gas_prices)
-
-        electricity_max = max(electricity_prices)
-        gas_max = max(gas_prices)
-
-        return {
-            "electricity": {
-                "mean": electricity_mean,
-                "min": electricity_min,
-                "max": electricity_max,
-            },
-            "gas": {"mean": gas_mean, "min": gas_min, "max": gas_max},
-        }
-
     def calculate_stats(data):
         print(data)
         electricity_prices = data.MarketPrices.electricity
-        gas_prices = data.MarketPrices.gas
 
         # Calculate total market price and total market price tax and the total price
         total_market_price = sum(price.market_price for price in electricity_prices)
@@ -1973,15 +1916,6 @@ class PriceData:
         # Find the minimum and maximum prices
         min_market_price = min(price.market_price for price in electricity_prices)
         max_market_price = max(price.market_price for price in electricity_prices)
-        min_market_price_with_tax = min(
-            price.market_price_with_tax for price in electricity_prices
-        )
-        max_market_price_with_tax = max(
-            price.market_price_with_tax for price in electricity_prices
-        )
-        min_total_price = min(price.total for price in electricity_prices)
-        max_total_price = max(price.total for price in electricity_prices)
-
         # Find the time interval with the highest market price
         max_market_price_interval = max(
             electricity_prices, key=lambda x: x["marketPrice"]
@@ -2120,7 +2054,7 @@ class PriceData:
         # upcoming_prices = [
         #     price for price in self.price_data if price.date_from > current_hour.date_till]
 
-        upcoming_prices = self.get_prices_for_time_period(TimePeriod.UPCOMING)
+        upcoming_prices = self.future_prices()
 
         if not upcoming_prices:
             return None
@@ -2170,16 +2104,7 @@ class PriceData:
     @property
     def tomorrow_avg(self):
         """Get the average of tomorrow's prices."""
-        now = datetime.now(timezone.utc).astimezone()
-        tomorrow = now + timedelta(days=1)
-        tomorrow_start = tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
-        tomorrow_end = tomorrow_start + timedelta(days=1)
-
-        # tomorrow_prices = [
-        #     price for price in self.price_data
-        #     if tomorrow_start <= price.date_from < tomorrow_end
-        # ]
-        tomorrow_prices = self.get_prices_for_time_period(TimePeriod.TOMORROW)
+        tomorrow_prices = self.tomorrow
 
         if not tomorrow_prices:
             return None

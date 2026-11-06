@@ -107,7 +107,9 @@ class PWNEntityDescription(SensorEntityDescription):
 
     # def get_attributes(self, data: dict[str, object]) -> dict[str, Union[StateType, list]]:
     # def get_attributes(self, data: dict[str, object]) -> Mapping[str, StateType | list[StateType]]:
-    def get_attributes(self) -> Mapping[str, StateType | list[StateType]]:
+    def get_attributes(
+        self, data: dict[str, object]
+    ) -> Mapping[str, StateType | list[StateType]]:
         """Get the additional attributes from the provided data.
 
         Args:

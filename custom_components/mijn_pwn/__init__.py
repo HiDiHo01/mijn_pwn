@@ -3,7 +3,7 @@ import asyncio
 import logging
 from typing import Any, Optional, Tuple
 
-from aiohttp import ClientError, ClientSession
+from aiohttp import ClientError
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
@@ -12,7 +12,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import PWNAPI
-from .const import CONFIG_CONSTANTS, DOMAIN, PLATFORMS
+from .const import DOMAIN, PLATFORMS
 from .coordinator import PWNDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)

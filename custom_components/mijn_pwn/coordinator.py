@@ -87,45 +87,6 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.exception("Unexpected error during PWN data update")
             raise UpdateFailed(err) from err
 
-    async def old_async_update_data(self) -> dict[str, object]:
-        """Fetch fresh data from Mijn PWN.
-
-        Raises
-        ------
-        ConfigEntryAuthFailed
-            When the refresh token is invalid or credentials expired.
-        UpdateFailed
-            For transient network/server errors.
-        """
-        try:
-            _LOGGER.debug("Fetching PWN data")
-            data = await self._fetch_all_data()
-            data["last_update"] = datetime.now(timezone.utc).isoformat()
-            return data
-
-        except ConfigEntryAuthFailed:
-            # Let HA start the re‑auth flow; core logs & retries
-            raise
-
-        except (
-            PWNAPIServerError,  # 5xx – server side
-            PWNAPICommunicationError,  # time‑out / network
-        ) as err:
-            raise ConfigEntryNotReady(err) from err
-
-        except PWNAPIAuthenticationError as err:
-            # Bad creds during normal runtime; surface as re‑auth request
-            raise ConfigEntryAuthFailed(err) from err
-
-        except UpdateFailed:
-            # UpdateFailed van API wordt hier nu vertaald naar NotReady
-            # raise ConfigEntryNotReady(err) from err
-            raise
-
-        except Exception as err:  # pylint: disable=broad-except
-            # Unexpected bug – keep traceback and mark update failed
-            raise UpdateFailed(err) from err
-
     async def old_async_update_data(self):
         """Fetch data from the API."""
         try:
