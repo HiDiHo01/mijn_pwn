@@ -14,7 +14,7 @@ from .const import (
 )
 from .device_identifiers import get_device_identifiers, get_device_translation_key
 from .sensor import SENSOR_DESCRIPTIONS
-from .sensor_helper import PWNSensor
+from .sensor_helper import PWNEntityDescription, PWNSensor
 
 _COMPONENT_DIR = Path(__file__).resolve().parent
 _DEVICE_KEYS = {"invoices", "user", "consumption"}
@@ -137,6 +137,59 @@ class TestNamingTranslations(unittest.TestCase):
             get_device_identifiers(entry.entry_id, SERVICE_NAME_INVOICES),
         )
         self.assertEqual(binary_entity.unique_id, "account-123_open_invoices")
+
+
+
+class TestSensorErrorLogging(unittest.IsolatedAsyncioTestCase):
+    """Prevent sensitive upstream exception details from reaching the logs."""
+
+    @staticmethod
+    def _failing_sensor(error: Exception) -> PWNSensor:
+        """Build a synthetic sensor whose value provider raises an exception."""
+        coordinator = MagicMock()
+        coordinator.data = {"sample": "synthetic"}
+        entry = MagicMock()
+        entry.entry_id = "synthetic-entry"
+        entry.unique_id = "synthetic-account"
+        description = PWNEntityDescription(
+            key="total_costs",
+            translation_key="total_costs",
+            value_fn=MagicMock(side_effect=error),
+        )
+        return PWNSensor(coordinator, description, entry)
+
+    async def test_exception_paths_do_not_log_private_messages(self) -> None:
+        """Log only exception types in all three state-update handlers."""
+        private_marker = "synthetic-private-api-payload"
+        sensor = self._failing_sensor(ValueError(private_marker))
+
+        with self.assertLogs(
+            "custom_components.mijn_pwn.sensor_helper", level="ERROR"
+        ) as recorded:
+            await sensor.async_update_state()
+            sensor.old_update_state()
+            sensor._update_state()
+
+        self.assertEqual(len(recorded.output), 3)
+        self.assertNotIn(private_marker, "\n".join(recorded.output))
+        self.assertNotIn("Traceback", "\n".join(recorded.output))
+        for log_entry in recorded.output:
+            self.assertIn("total_costs", log_entry)
+            self.assertIn("ValueError", log_entry)
+
+    async def test_type_error_does_not_log_private_messages(self) -> None:
+        """Keep invalid-data diagnostics without disclosing payload contents."""
+        private_marker = "synthetic-secret-type-error"
+        sensor = self._failing_sensor(TypeError(private_marker))
+
+        with self.assertLogs(
+            "custom_components.mijn_pwn.sensor_helper", level="ERROR"
+        ) as recorded:
+            sensor._update_state()
+
+        self.assertEqual(len(recorded.output), 1)
+        self.assertIn("Invalid data while updating sensor state", recorded.output[0])
+        self.assertNotIn(private_marker, recorded.output[0])
 
 
 if __name__ == "__main__":
