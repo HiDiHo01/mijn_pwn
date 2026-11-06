@@ -50,9 +50,7 @@ class TestConsumptionIndicators(unittest.TestCase):
             ]
         }
         self.assertEqual(get_last_meter_reading_date(payload), date(2025, 4, 30))
-        self.assertEqual(
-            get_water_consumption_status(payload), "no_reported_anomaly"
-        )
+        self.assertEqual(get_water_consumption_status(payload), "no_reported_anomaly")
 
     def test_reported_anomaly(self) -> None:
         """Expose an anomaly category without publishing the reason."""
@@ -72,11 +70,7 @@ class TestConsumptionIndicators(unittest.TestCase):
 
     def test_absent_reason_is_unknown(self) -> None:
         """Do not equate missing response fields with healthy consumption."""
-        payload = {
-            "history": [
-                {"lastActualReading": True, "endDate": "2025-05-01"}
-            ]
-        }
+        payload = {"history": [{"lastActualReading": True, "endDate": "2025-05-01"}]}
         self.assertIsNone(get_water_consumption_status(payload))
         self.assertEqual(get_last_meter_reading_date(payload), date(2025, 5, 1))
 
