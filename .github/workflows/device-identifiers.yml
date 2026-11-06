@@ -1,0 +1,29 @@
+name: Device Identifier Migration Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  device-identifiers:
+    name: Registry migration tests (Home Assistant)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install Home Assistant
+        run: python -m pip install homeassistant==2026.10.3
+
+      - name: Run device identifier and migration regression tests
+        run: python -m unittest -v custom_components.mijn_pwn.test_device_identifiers

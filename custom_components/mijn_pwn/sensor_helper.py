@@ -26,13 +26,13 @@ from .const import (
     COMPONENT_TITLE,
     DATA_INVOICES,
     DATA_USER,
-    DOMAIN,
     ICON,
     MANUFACTURER,
     SERVICE_NAME_INVOICES,
     VERSION,
 )
 from .coordinator import PWNDataUpdateCoordinator
+from .device_identifiers import get_device_identifiers
 from .exceptions import PWNAPIAuthenticationError
 
 _LOGGER = logging.getLogger(__name__)
@@ -161,12 +161,8 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         # Logging to verify initialization
         # _LOGGER.debug("Initializing PWNSensor: %s", self._attr_unique_id)
 
-        # identifiers moet een 2-tuple zijn:
-        # identifiers: set[tuple[str, str]] = {(DOMAIN, f"{config_entry.entry_id}_{description.key}")}
-        device_info_identifiers: set[tuple[str, str, Optional[str]]] = (
-            {(DOMAIN, f"{config_entry.entry_id}", None)}
-            if description.service_name is SERVICE_NAME_INVOICES
-            else {(DOMAIN, f"{config_entry.entry_id}", description.service_name)}
+        device_info_identifiers: set[tuple[str, str]] = get_device_identifiers(
+            config_entry.entry_id, description.service_name
         )
 
         self._attr_device_info = DeviceInfo(

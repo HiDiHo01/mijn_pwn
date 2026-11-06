@@ -5,7 +5,7 @@ Binary Sensor platform for Mijn PWN.
 # binary_sensor.py
 from dataclasses import dataclass, field
 import logging
-from typing import Callable, Optional, Union
+from typing import Callable, Union
 import uuid
 
 from homeassistant.components.binary_sensor import (
@@ -30,6 +30,7 @@ from .const import (
     VERSION,
 )
 from .coordinator import PWNDataUpdateCoordinator
+from .device_identifiers import get_device_identifiers
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -105,12 +106,8 @@ class PWNBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self.entity_description = description
         self._attr_unique_id = f"{entry.unique_id}_{description.key}"
 
-        # identifiers moet een 2-tuple zijn:
-        # device_info_identifiers: set[tuple[str, str]] = (
-        device_info_identifiers: set[tuple[str, str, Optional[str]]] = (
-            {(DOMAIN, entry.entry_id, None)}
-            if description.service_name is SERVICE_NAME_INVOICES
-            else {(DOMAIN, entry.entry_id, description.service_name)}
+        device_info_identifiers: set[tuple[str, str]] = get_device_identifiers(
+            entry.entry_id, description.service_name
         )
 
         self._attr_device_info = DeviceInfo(
