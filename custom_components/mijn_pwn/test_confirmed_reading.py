@@ -224,6 +224,52 @@ class TestConfirmedReading(unittest.IsolatedAsyncioTestCase):
             )
             self.assertTrue(sensor.extra_state_attributes["pwn_confirmed"])
 
+    async def test_restore_prevents_duplicate_submissions_after_restart(self) -> None:
+        """Hydrate coordinator only from verified final submission metadata."""
+        coordinator = _make_coordinator()
+        sensor = _make_sensor(coordinator, "last_submitted_meter_reading")
+        previous_state = MagicMock()
+        previous_state.attributes = {
+            "source": "pwn_submission",
+            "pwn_confirmed": True,
+            "meter_number": "00012345",
+            "reading_number": "01234567890",
+            "formatted_reading": "00165",
+            "confirmed_at": "2026-11-07T09:01:00+00:00",
+        }
+        stored = MagicMock()
+        stored.native_value = 165.0
+        with (
+            patch.object(
+                BaseCoordinatorEntity,
+                "async_added_to_hass",
+                new_callable=AsyncMock,
+            ),
+            patch.object(
+                sensor,
+                "async_get_last_state",
+                new_callable=AsyncMock,
+                return_value=previous_state,
+            ),
+            patch.object(
+                sensor,
+                "async_get_last_sensor_data",
+                new_callable=AsyncMock,
+                return_value=stored,
+            ),
+        ):
+            await sensor.async_added_to_hass()
+
+        confirmed = coordinator.last_confirmed_meter_reading
+        self.assertIsNotNone(confirmed)
+        self.assertEqual(confirmed.value, 165)
+        self.assertEqual(confirmed.reading_number, "01234567890")
+        self.assertEqual(
+            confirmed.confirmed_at,
+            datetime(2026, 11, 7, 9, 1, tzinfo=timezone.utc),
+        )
+        coordinator.async_update_listeners.assert_called_once_with()
+
     async def test_never_restore_local_draft_or_unconfirmed_history(self) -> None:
         """Skip old sensor state lacking final submission confirmation."""
         for source, confirmed in (
