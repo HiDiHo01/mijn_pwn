@@ -1,6 +1,7 @@
 """Offline checks for authentication propagation and Home Assistant recovery."""
 
 import asyncio
+from secrets import token_urlsafe
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -134,7 +135,7 @@ class TestAPIAuthenticationErrors(unittest.IsolatedAsyncioTestCase):
         self._session = MagicMock()
         self._api = PWNAPI(
             username="synthetic@example.invalid",
-            password="synthetic-password",
+            password=token_urlsafe(16),
             session=self._session,
         )
 
@@ -158,7 +159,7 @@ class TestAPIAuthenticationErrors(unittest.IsolatedAsyncioTestCase):
 
     async def test_protected_request_passes_auth_error_to_coordinator(self) -> None:
         """Protected endpoint unauthorized responses require fresh credentials."""
-        self._api._access_token = "fictional-access-token"
+        self._api._access_token = token_urlsafe(16)
         self._api._refresh_tokens = AsyncMock(
             side_effect=ConfigEntryAuthFailed("expired")
         )
@@ -169,7 +170,7 @@ class TestAPIAuthenticationErrors(unittest.IsolatedAsyncioTestCase):
 
     async def test_transient_transport_failure_raises_update_failed(self) -> None:
         """A connection error must not start a reauthentication flow."""
-        self._api._access_token = "fictional-access-token"
+        self._api._access_token = token_urlsafe(16)
         context = _mock_response_context(200)
         context.__aenter__.side_effect = ClientConnectionError("synthetic-offline")
         self._session.request.return_value = context
@@ -190,7 +191,7 @@ class TestSetupAuthenticationRecovery(unittest.IsolatedAsyncioTestCase):
         self._entry.unique_id = "synthetic@example.invalid"
         self._entry.data = {
             "username": self._entry.unique_id,
-            "password": "synthetic-password",
+            "password": token_urlsafe(16),
         }
 
     async def test_first_refresh_auth_error_propagates_without_stale_entry(
