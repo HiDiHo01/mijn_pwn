@@ -60,6 +60,11 @@ class TestConfirmedReading(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(sensor.extra_state_attributes, {})
         date_sensor = _make_sensor(coordinator, "last_submitted_meter_reading_date")
         self.assertEqual(date_sensor.device_class, SensorDeviceClass.TIMESTAMP)
+        numeric_description = next(
+            item for item in CONFIRMED_READING_DESCRIPTIONS
+            if item.key == "last_submitted_meter_reading"
+        )
+        self.assertIsNone(numeric_description.state_class)
 
     def test_record_only_final_submission_success(self) -> None:
         """Accept 200 or 204 only after explicit final-submission callback."""
@@ -310,6 +315,45 @@ class TestConfirmedReading(unittest.IsolatedAsyncioTestCase):
             datetime(2026, 11, 7, 9, 1, tzinfo=timezone.utc),
         )
         coordinator.async_update_listeners.assert_called_once_with()
+
+    async def test_restore_meter_number_longer_than_64_characters(self) -> None:
+        """Restore every meter identifier the submission writer previously accepted."""
+        coordinator = _make_coordinator()
+        sensor = _make_sensor(coordinator, "last_submitted_meter_reading")
+        long_meter_number = "X" * 80
+        previous_state = MagicMock()
+        previous_state.attributes = {
+            "source": "pwn_submission",
+            "pwn_confirmed": True,
+            "meter_number": long_meter_number,
+            "reading_number": "01234567890",
+            "formatted_reading": "00165",
+            "confirmed_at": "2026-11-07T09:00:00+00:00",
+        }
+        stored = MagicMock()
+        stored.native_value = 165.0
+        with (
+            patch.object(
+                BaseCoordinatorEntity,
+                "async_added_to_hass",
+                new_callable=AsyncMock,
+            ),
+            patch.object(
+                sensor,
+                "async_get_last_state",
+                new_callable=AsyncMock,
+                return_value=previous_state,
+            ),
+            patch.object(
+                sensor,
+                "async_get_last_sensor_data",
+                new_callable=AsyncMock,
+                return_value=stored,
+            ),
+        ):
+            await sensor.async_added_to_hass()
+        self.assertEqual(sensor.native_value, 165)
+        self.assertIn("01234567890", coordinator.confirmed_readings[long_meter_number])
 
     async def test_never_restore_local_draft_or_unconfirmed_history(self) -> None:
         """Skip old sensor state lacking final submission confirmation."""
