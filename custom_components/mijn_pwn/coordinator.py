@@ -447,7 +447,9 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             if not requests:
                 self.uncertain_submissions.pop(meter_number)
             try:
-                await self._confirmed_store.async_save(self._confirmed_storage_payload())
+                await self._confirmed_store.async_save(
+                    self._confirmed_storage_payload()
+                )
             except BaseException:
                 self.uncertain_submissions.setdefault(meter_number, {})[
                     reading_number
@@ -551,9 +553,9 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
                     continue
                 meter_number, reading_number = identity
                 if not self.was_reading_submitted(meter_number, reading_number):
-                    restored_uncertain.setdefault(meter_number, {})[
-                        reading_number
-                    ] = started_at
+                    restored_uncertain.setdefault(meter_number, {})[reading_number] = (
+                        started_at
+                    )
         self.uncertain_submissions = restored_uncertain
         for meter_number, requests in restored_uncertain.items():
             for reading_number in requests:
@@ -859,9 +861,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
                 meter_number=details.meter_number,
                 reading_number=details.reading_number,
             )
-            self.uncertain_submissions[details.meter_number].pop(
-                details.reading_number
-            )
+            self.uncertain_submissions[details.meter_number].pop(details.reading_number)
             if not self.uncertain_submissions[details.meter_number]:
                 self.uncertain_submissions.pop(details.meter_number)
             await self._confirmed_store.async_save(self._confirmed_storage_payload())
