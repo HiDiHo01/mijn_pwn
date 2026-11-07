@@ -164,6 +164,7 @@ PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.BINARY_SENSOR,
     Platform.NUMBER,
+    Platform.BUTTON,
 ]
 """List of platforms supported by this integration."""
 
