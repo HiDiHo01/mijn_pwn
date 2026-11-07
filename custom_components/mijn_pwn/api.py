@@ -429,10 +429,7 @@ class PWNAPI:
         """
         if type(wheel_count) is not int or not 1 <= wheel_count <= 9:
             raise ValueError("Invalid meter wheel count: expected 1 to 9 digits")
-        if (
-            type(meter_reading) is not int
-            or not 0 <= meter_reading < 10**wheel_count
-        ):
+        if type(meter_reading) is not int or not 0 <= meter_reading < 10**wheel_count:
             raise ValueError(
                 "Invalid meter reading: expected a whole number within the wheel range"
             )
