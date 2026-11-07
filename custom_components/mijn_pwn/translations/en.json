@@ -4,7 +4,8 @@
     "abort": {
       "already_configured": "Account is already configured",
       "reauth_successful": "Reauthentication successful",
-      "unique_id_mismatch": "This is a different Mijn PWN account. Add it separately instead of reconfiguring the selected account."
+      "unique_id_mismatch": "This is a different Mijn PWN account. Add it separately instead of reconfiguring the selected account.",
+      "reauth_account_mismatch": "The selected Mijn PWN account cannot be reauthenticated because its saved identity is inconsistent."
     },
     "error": {
       "invalid_auth": "Invalid login credentials. Check your details and try again."
@@ -30,6 +31,13 @@
         "title": "Update Mijn PWN credentials",
         "data": {
           "username": "Email address",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reconnect Mijn PWN",
+        "description": "Enter the new password for the existing Mijn PWN account.",
+        "data": {
           "password": "Password"
         }
       }
