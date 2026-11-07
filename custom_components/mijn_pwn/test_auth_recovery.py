@@ -199,6 +199,7 @@ class TestSetupAuthenticationRecovery(unittest.IsolatedAsyncioTestCase):
         """Leave another account untouched if initial auth cannot succeed."""
         coordinator = MagicMock()
         coordinator.async_load_confirmed_readings = AsyncMock()
+        coordinator.async_load_drafts = AsyncMock()
         coordinator.async_config_entry_first_refresh = AsyncMock(
             side_effect=ConfigEntryAuthFailed("fictional-expired-session")
         )
