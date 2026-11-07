@@ -92,15 +92,15 @@ class TestPlausibleReadingURL(unittest.TestCase):
                         meter_reading, reading_date, address, wheel_count
                     )
         self.assertEqual(
-            PWNAPI._build_plausible_reading_payload(
-                0, reading_date, address, 5
-            )["meterReading"],
+            PWNAPI._build_plausible_reading_payload(0, reading_date, address, 5)[
+                "meterReading"
+            ],
             0,
         )
         self.assertEqual(
-            PWNAPI._build_plausible_reading_payload(
-                99999, reading_date, address, 5
-            )["meterReading"],
+            PWNAPI._build_plausible_reading_payload(99999, reading_date, address, 5)[
+                "meterReading"
+            ],
             99999,
         )
 
