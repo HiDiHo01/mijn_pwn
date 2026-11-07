@@ -170,7 +170,9 @@ class TestUncertainSubmission(unittest.IsolatedAsyncioTestCase):
         hass.auth.async_get_user = AsyncMock()
         async_register_submission_recovery(hass)
         registered = hass.services.async_register.call_args
-        self.assertEqual(registered.args[:2], ("mijn_pwn", "release_uncertain_submission"))
+        self.assertEqual(
+            registered.args[:2], ("mijn_pwn", "release_uncertain_submission")
+        )
         handler = registered.args[2]
         call = MagicMock()
         call.context.user_id = None
