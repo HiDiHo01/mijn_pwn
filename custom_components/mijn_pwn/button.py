@@ -106,7 +106,7 @@ class PWNSubmitMeterReadingButton(CoordinatorEntity, ButtonEntity):
             raise HomeAssistantError(
                 "PWN rejected the reading as implausible; please check the reading and date"
             ) from None
-        except (PWNAPIError, UpdateFailed, ValueError):
+        except PWNAPIError, UpdateFailed, ValueError:
             raise HomeAssistantError(
                 "PWN has not confirmed the reading; check your PWN account before retrying"
             ) from None
