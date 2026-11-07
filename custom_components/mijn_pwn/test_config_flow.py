@@ -2,7 +2,9 @@
 
 from secrets import token_urlsafe
 import unittest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from aiohttp import ClientConnectionError, ClientResponseError
 
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import AbortFlow, FlowResultType
@@ -245,6 +247,133 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self._second.data, self._second_original)
         self._hass.config_entries.async_update_entry.assert_not_called()
         self._hass.config_entries.async_schedule_reload.assert_not_called()
+
+    async def test_reauth_real_validator_distinguishes_http_failures(self) -> None:
+        """401 and 403 reject credentials; 503 and 429 report temporary failures."""
+        self._flow.context["source"] = config_entries.SOURCE_REAUTH
+        self._flow._validate_user_input = (
+            PWNConfigFlow._validate_user_input.__get__(self._flow)
+        )
+
+        for status, expected_error in (
+            (401, "invalid_auth"),
+            (403, "invalid_auth"),
+            (503, "cannot_connect"),
+            (429, "cannot_connect"),
+        ):
+            with self.subTest(status=status):
+                response = MagicMock()
+                response.status = status
+                context = MagicMock()
+                context.__aenter__ = AsyncMock(return_value=response)
+                context.__aexit__ = AsyncMock(return_value=None)
+                session = MagicMock()
+                session.post.return_value = context
+
+                with patch(
+                    "custom_components.mijn_pwn.config_flow.async_get_clientsession",
+                    return_value=session,
+                ):
+                    result = await self._flow.async_step_reauth_confirm(
+                        {"password": token_urlsafe(16)}
+                    )
+
+                self.assertEqual(result["type"], FlowResultType.FORM)
+                self.assertEqual(result["errors"], {"base": expected_error})
+                self.assertEqual(self._first.data, self._first_original)
+                self.assertEqual(self._second.data, self._second_original)
+                self._hass.config_entries.async_update_entry.assert_not_called()
+                self._hass.config_entries.async_schedule_reload.assert_not_called()
+
+    async def test_reauth_real_validator_handles_connection_and_http_errors(
+        self,
+    ) -> None:
+        """Transport failures must keep existing entries unchanged."""
+        self._flow.context["source"] = config_entries.SOURCE_REAUTH
+        self._flow._validate_user_input = (
+            PWNConfigFlow._validate_user_input.__get__(self._flow)
+        )
+        for exception in (
+            ClientConnectionError("fictional-offline"),
+            ClientResponseError(None, (), status=503),
+            TimeoutError(),
+        ):
+            with self.subTest(error_type=type(exception).__name__):
+                context = MagicMock()
+                context.__aenter__ = AsyncMock(side_effect=exception)
+                context.__aexit__ = AsyncMock(return_value=None)
+                session = MagicMock()
+                session.post.return_value = context
+
+                with patch(
+                    "custom_components.mijn_pwn.config_flow.async_get_clientsession",
+                    return_value=session,
+                ):
+                    result = await self._flow.async_step_reauth_confirm(
+                        {"password": token_urlsafe(16)}
+                    )
+
+                self.assertEqual(result["type"], FlowResultType.FORM)
+                self.assertEqual(result["errors"], {"base": "cannot_connect"})
+                self.assertEqual(self._first.data, self._first_original)
+                self.assertEqual(self._second.data, self._second_original)
+                self._hass.config_entries.async_update_entry.assert_not_called()
+                self._hass.config_entries.async_schedule_reload.assert_not_called()
+
+    async def test_reconfigure_real_validator_reports_temporary_outage(self) -> None:
+        """Reconfiguration must not mistake an outage for changed credentials."""
+        self._flow._validate_user_input = (
+            PWNConfigFlow._validate_user_input.__get__(self._flow)
+        )
+        session = MagicMock()
+        context = MagicMock()
+        context.__aenter__ = AsyncMock(
+            side_effect=ClientConnectionError("fictional-offline")
+        )
+        context.__aexit__ = AsyncMock(return_value=None)
+        session.post.return_value = context
+
+        with patch(
+            "custom_components.mijn_pwn.config_flow.async_get_clientsession",
+            return_value=session,
+        ):
+            result = await self._flow.async_step_reconfigure(
+                {"username": self._second.unique_id, "password": token_urlsafe(16)}
+            )
+
+        self.assertEqual(result["type"], FlowResultType.FORM)
+        self.assertEqual(result["errors"], {"base": "cannot_connect"})
+        self.assertEqual(self._first.data, self._first_original)
+        self.assertEqual(self._second.data, self._second_original)
+        self._hass.config_entries.async_update_entry.assert_not_called()
+
+    async def test_new_account_real_validator_reports_temporary_outage(self) -> None:
+        """A failed sign-in must not create a config entry."""
+        self._flow.context["source"] = config_entries.SOURCE_USER
+        self._flow._validate_user_input = (
+            PWNConfigFlow._validate_user_input.__get__(self._flow)
+        )
+        session = MagicMock()
+        response = MagicMock()
+        response.status = 503
+        context = MagicMock()
+        context.__aenter__ = AsyncMock(return_value=response)
+        context.__aexit__ = AsyncMock(return_value=None)
+        session.post.return_value = context
+
+        with patch(
+            "custom_components.mijn_pwn.config_flow.async_get_clientsession",
+            return_value=session,
+        ):
+            result = await self._flow.async_step_user(
+                {"username": "third@example.invalid", "password": token_urlsafe(16)}
+            )
+
+        self.assertEqual(result["type"], FlowResultType.FORM)
+        self.assertEqual(result["errors"], {"base": "cannot_connect"})
+        self.assertEqual(self._first.data, self._first_original)
+        self.assertEqual(self._second.data, self._second_original)
+        self._hass.config_entries.async_update_entry.assert_not_called()
 
     async def test_reauth_rejects_inconsistent_entry_identity(self) -> None:
         """Reject corrupted identity state before contacting the API."""
