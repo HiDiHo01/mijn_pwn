@@ -174,3 +174,87 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
         self._flow._validate_user_input.assert_not_awaited()
         self._hass.config_entries.async_update_entry.assert_not_called()
         self._hass.config_entries.async_schedule_reload.assert_not_called()
+
+    async def test_reauth_password_only_form_targets_selected_entry(self) -> None:
+        """Present only a password control for the account in the flow context."""
+        self._flow.context["source"] = config_entries.SOURCE_REAUTH
+        result = await self._flow.async_step_reauth(dict(self._second.data))
+        self.assertEqual(result["type"], FlowResultType.FORM)
+        self.assertEqual(result["step_id"], "reauth_confirm")
+        self.assertEqual(
+            {marker.schema for marker in result["data_schema"].schema},
+            {"password"},
+        )
+        self._flow._validate_user_input.assert_not_awaited()
+
+    async def test_reauth_updates_only_selected_password_and_reloads(self) -> None:
+        """Preserve the other account and unrelated data during password renewal."""
+        self._flow.context["source"] = config_entries.SOURCE_REAUTH
+        password = "replacement-synthetic-password"
+        result = await self._flow.async_step_reauth_confirm({"password": password})
+        self.assertEqual(result["type"], FlowResultType.ABORT)
+        self.assertEqual(result["reason"], "reauth_successful")
+        self._flow._validate_user_input.assert_awaited_once_with(
+            {"username": self._second.unique_id, "password": password}
+        )
+        self.assertEqual(self._first.data, self._first_original)
+        self.assertEqual(self._second.data, {**self._second_original, "password": password})
+        self.assertEqual(self._second.unique_id, self._second_original["username"])
+        self.assertEqual(len(self._entries), 2)
+        self._hass.config_entries.async_update_entry.assert_called_once()
+        self._hass.config_entries.async_schedule_reload.assert_called_once_with(
+            self._second.entry_id
+        )
+
+    async def test_reauth_respects_first_entry_selection(self) -> None:
+        """Reauthenticate the selected entry regardless of entry list order."""
+        self._flow.context.update({
+            "source": config_entries.SOURCE_REAUTH,
+            "entry_id": self._first.entry_id,
+        })
+        result = await self._flow.async_step_reauth_confirm(
+            {"password": "replacement-first-password"}
+        )
+        self.assertEqual(result["type"], FlowResultType.ABORT)
+        self.assertEqual(self._first.data["password"], "replacement-first-password")
+        self.assertEqual(self._second.data, self._second_original)
+        self._hass.config_entries.async_schedule_reload.assert_called_once_with(
+            self._first.entry_id
+        )
+
+    async def test_reauth_failed_authentication_preserves_entries(self) -> None:
+        """Do not save credentials after a rejected authentication attempt."""
+        self._flow.context["source"] = config_entries.SOURCE_REAUTH
+        self._flow._validate_user_input.return_value = False
+        result = await self._flow.async_step_reauth_confirm(
+            {"password": "rejected-synthetic-password"}
+        )
+        self.assertEqual(result["type"], FlowResultType.FORM)
+        self.assertEqual(result["errors"], {"base": "invalid_auth"})
+        self.assertEqual(self._first.data, self._first_original)
+        self.assertEqual(self._second.data, self._second_original)
+        self._hass.config_entries.async_update_entry.assert_not_called()
+        self._hass.config_entries.async_schedule_reload.assert_not_called()
+
+    async def test_reauth_rejects_inconsistent_entry_identity(self) -> None:
+        """Reject corrupted identity state before contacting the API."""
+        self._flow.context["source"] = config_entries.SOURCE_REAUTH
+        self._second.unique_id = "other@example.invalid"
+        result = await self._flow.async_step_reauth_confirm(
+            {"password": "synthetic-password"}
+        )
+        self.assertEqual(result["type"], FlowResultType.ABORT)
+        self.assertEqual(result["reason"], "reauth_account_mismatch")
+        self._flow._validate_user_input.assert_not_awaited()
+        self._hass.config_entries.async_update_entry.assert_not_called()
+
+    async def test_reauth_empty_password_does_not_update_entry(self) -> None:
+        """Blank input must not invoke the API or modify a config entry."""
+        self._flow.context["source"] = config_entries.SOURCE_REAUTH
+        for user_input in (None, {}, {"password": ""}):
+            with self.subTest(user_input=user_input):
+                result = await self._flow.async_step_reauth_confirm(user_input)
+                self.assertEqual(result["type"], FlowResultType.FORM)
+        self._flow._validate_user_input.assert_not_awaited()
+        self._hass.config_entries.async_update_entry.assert_not_called()
+        self._hass.config_entries.async_schedule_reload.assert_not_called()
