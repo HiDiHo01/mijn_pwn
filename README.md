@@ -57,3 +57,20 @@ bevestiging van zijn herkomst.
 **De integratie voert deze POST-aanvraag niet uit.** De herkomst van het
 bevestigingstoken is nog onbekend. Het invoeren en verzenden van een
 watermeterstand is een aparte, nog niet bevestigde API-stap.
+
+## Watermeterdetails (voorbereid)
+
+De PWN-website gebruikt `POST /api/WaterUsage/meter-details`. De bevestigde
+JSON-respons bevat `meterType` (tekst, mag leeg zijn),
+`amountOfBlackWheels` (niet-negatief geheel getal) en
+`amountOfRedWheels` (niet-negatief geheel getal). Een waargenomen respons
+heeft een leeg `meterType`, vijf zwarte telwielen en nul rode telwielen.
+
+Het endpoint is geregistreerd en `PWNAPI.parse_water_meter_details()`
+valideert de respons. Deze waarden zijn afzonderlijk van
+`amountOfWheels` uit de meterstandverzoekrespons; de relatie ertussen is
+nog niet vastgesteld.
+
+**De integratie doet geen POST-aanroep naar dit endpoint:** de requestbody
+is nog niet bekend. De gegevens worden nog niet als entiteiten aangeboden
+of gebruikt voor het indienen van een meterstand.
