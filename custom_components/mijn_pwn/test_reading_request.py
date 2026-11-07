@@ -79,9 +79,7 @@ class TestReadingRequest(unittest.IsolatedAsyncioTestCase):
             PWNAPI._parse_json_response([reading_request], expect_list=True),
             [reading_request],
         )
-        self.assertEqual(
-            PWNAPI._parse_json_response([], expect_list=True), []
-        )
+        self.assertEqual(PWNAPI._parse_json_response([], expect_list=True), [])
         self.assertEqual(
             PWNAPI._parse_json_response({"sample": 1}, expect_list=False),
             {"sample": 1},
