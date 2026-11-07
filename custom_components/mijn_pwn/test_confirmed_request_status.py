@@ -183,8 +183,8 @@ class TestConfirmedRequestStatus(unittest.IsolatedAsyncioTestCase):
         restored._confirmed_store.async_load = AsyncMock(
             return_value=saved_confirmations
         )
-        restored._draft_storage_payload.side_effect = (
-            lambda: PWNDataUpdateCoordinator._draft_storage_payload(restored)
+        restored._draft_storage_payload.side_effect = lambda: (
+            PWNDataUpdateCoordinator._draft_storage_payload(restored)
         )
         restored.async_save_drafts = AsyncMock(
             wraps=PWNDataUpdateCoordinator.async_save_drafts.__get__(restored)
