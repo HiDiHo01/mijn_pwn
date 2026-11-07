@@ -16,6 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 import homeassistant.util.dt as dt
 
+from .confirmed_reading import setup_confirmed_reading_sensors
 from .const import (
     DATA_CONSUMPTION,
     DATA_INVOICES,
@@ -25,7 +26,6 @@ from .const import (
     SERVICE_NAME_CONSUMPTION,
     SERVICE_NAME_USER,
 )
-from .confirmed_reading import setup_confirmed_reading_sensors
 from .coordinator import PWNDataUpdateCoordinator
 from .data_parsers import (
     get_last_meter_reading_date,
