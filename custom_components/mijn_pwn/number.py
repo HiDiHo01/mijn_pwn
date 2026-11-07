@@ -48,6 +48,8 @@ def _get_open_request(
         or not reading_number.isdecimal()
     ):
         return None
+    if coordinator.is_reading_request_closed(meter_number, reading_number):
+        return None
     return request if _wheel_count(request) is not None else None
 
 

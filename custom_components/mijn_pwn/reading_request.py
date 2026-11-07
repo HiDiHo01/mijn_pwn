@@ -117,6 +117,18 @@ def _get_request_for_meter(
     return None
 
 
+def _is_closed_request(
+    coordinator: PWNDataUpdateCoordinator,
+    meter_number: str,
+    request: dict[str, object],
+) -> bool:
+    """Identify a rejected request by its exact meter and opname number."""
+    reading_number = request.get("readingNumber")
+    return isinstance(reading_number, str) and coordinator.is_reading_request_closed(
+        meter_number, reading_number
+    )
+
+
 def _parse_timestamp(value: object) -> datetime | None:
     """Parse an ISO 8601 timestamp only when it includes an explicit timezone."""
     if not isinstance(value, str):
@@ -219,11 +231,12 @@ class PWNReadingRequestSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def available(self) -> bool:
-        """Report unavailable when this meter's request is missing or ambiguous."""
+        """Hide a meter request after PWN has definitively rejected it."""
+        request = _get_request_for_meter(self.coordinator.data, self._meter_number)
         return (
             super().available
-            and _get_request_for_meter(self.coordinator.data, self._meter_number)
-            is not None
+            and request is not None
+            and not _is_closed_request(self.coordinator, self._meter_number, request)
         )
 
     @property
@@ -293,9 +306,10 @@ class PWNReadingRequestBinarySensor(CoordinatorEntity, BinarySensorEntity):
             return False
         if self._meter_number is None:
             return _get_request_list(self.coordinator.data) is not None
+        request = _get_request_for_meter(self.coordinator.data, self._meter_number)
         return (
-            _get_request_for_meter(self.coordinator.data, self._meter_number)
-            is not None
+            request is not None
+            and not _is_closed_request(self.coordinator, self._meter_number, request)
         )
 
     @property
@@ -304,12 +318,21 @@ class PWNReadingRequestBinarySensor(CoordinatorEntity, BinarySensorEntity):
         if self._meter_number is None:
             requests = _get_request_list(self.coordinator.data)
             return (
-                any(request.get("openReading") is True for request in requests)
+                any(
+                    request.get("openReading") is True
+                    and isinstance(request.get("meterNumber"), str)
+                    and not _is_closed_request(
+                        self.coordinator, request["meterNumber"], request
+                    )
+                    for request in requests
+                )
                 if requests is not None
                 else None
             )
         request = _get_request_for_meter(self.coordinator.data, self._meter_number)
         if request is None:
+            return None
+        if _is_closed_request(self.coordinator, self._meter_number, request):
             return None
         is_open = request.get("openReading")
         return is_open if isinstance(is_open, bool) else None

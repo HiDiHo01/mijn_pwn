@@ -181,8 +181,10 @@ De definitieve verzendaanvraag is vastgesteld als
 `POST /api/WaterUsage/{readingNumber}`. Home Assistant biedt **twee aparte
 knoppen** bij elk gevonden meterstandverzoek:
 
-1. **Controleer meterstand ({meter_number})** controleert het ingevulde concept
-   via de plausibiliteits-API, maar verstuurt de meterstand nog niet.
+1. **Controleer meterstand ({meter_number})** valideert eerst of PWN het
+   opnamenummer nog accepteert via `validate-measurement-request` en controleert
+   daarna het ingevulde concept via de plausibiliteits-API. De meterstand wordt
+   hierbij nog niet definitief verzonden.
 2. **Bevestig verzending meterstand ({meter_number})** komt uitsluitend
    beschikbaar wanneer PWN de plausibiliteitscontrole heeft goedgekeurd.
    Een tweede expliciete knopdruk start de definitieve POST.
@@ -198,6 +200,24 @@ vervalt de bevestiging; controleer dan opnieuw. De tijdelijke goedkeuring wordt
 daarentegen afzonderlijk opgeslagen, ook wanneer de meterstand-entiteit
 tijdelijk onbeschikbaar is doordat de API een fout geeft.
 Een wijziging van de `number`-entiteit **verstuurt niets**.
+
+### Afgesloten verzoek bij PWN (`sap-01`)
+
+Als PWN bij de expliciet gestarte validatie van het opnamenummer **HTTP 400**
+met JSON-foutcode `sap-01` teruggeeft, is de stand volgens PWN al ontvangen of
+is de stand geschat. De integratie behandelt uitsluitend deze combinatie als
+een afgesloten verzoek, ongeacht of de GET-API nog `openReading: true` toont.
+De invoer voor de conceptmeterstand, opnamedatum, controle- en verzendknop en
+alle afzonderlijke meterstandverzoek-sensoren/binaire sensoren voor **deze
+watermeter en dit opnamenummer** worden dan `unavailable`. De algemene
+binaire sensor voor openstaande verzoeken telt dit verzoek niet langer mee.
+
+Deze blokkering wordt zonder HTML-bericht, persoonsgegevens of tokens per
+configuratie-entry lokaal opgeslagen en na een herstart hersteld. Een **nieuw
+opnamenummer** kan weer worden ingevoerd; andere watermeters blijven werken.
+Andere HTTP 400-codes, time-outs en serverfouten leiden niet tot een
+permanente blokkering. De validatie gebeurt **uitsluitend na een handmatige
+knopdruk**, nooit automatisch bij opstarten, verversen of conceptinvoer.
 
 Het `ReadingDate`-veld gebruikt uitsluitend de afzonderlijk gekozen
 **werkelijke opnamedatum**; het wordt niet meer uit `entered_at` afgeleid.

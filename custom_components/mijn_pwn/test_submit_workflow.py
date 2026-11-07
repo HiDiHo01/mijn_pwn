@@ -22,6 +22,7 @@ from .coordinator import (
 def _coordinator() -> MagicMock:
     """Build a mocked coordinator with real preparation and confirmation behavior."""
     coordinator = MagicMock()
+    coordinator.api.validate_measurement_request = AsyncMock(return_value={})
     coordinator.api.validate_plausible_reading = AsyncMock(
         return_value={"isPlausible": True, "minReading": None, "maxReading": None}
     )
@@ -33,6 +34,10 @@ def _coordinator() -> MagicMock:
     coordinator._draft_store.async_save = AsyncMock()
     coordinator.async_save_drafts = AsyncMock()
     coordinator._draft_store.async_load = AsyncMock(return_value=None)
+    coordinator._closed_reading_requests = {}
+    coordinator._parse_stored_closed_request.side_effect = (
+        PWNDataUpdateCoordinator._parse_stored_closed_request
+    )
     coordinator._parse_stored_draft.side_effect = (
         PWNDataUpdateCoordinator._parse_stored_draft
     )
@@ -98,6 +103,18 @@ def _coordinator() -> MagicMock:
         """Run production plausibility-check orchestration."""
         await PWNDataUpdateCoordinator.async_prepare_meter_reading(coordinator, details)
 
+    async def _close_request(meter_number: str, reading_number: str) -> None:
+        """Run the real closure transition and store the new local state."""
+        await PWNDataUpdateCoordinator.async_record_closed_reading_request(
+            coordinator, meter_number, reading_number
+        )
+
+    def _is_closed(meter_number: str, reading_number: str) -> bool:
+        """Check a mock against the real per-meter rejection guard."""
+        return PWNDataUpdateCoordinator.is_reading_request_closed(
+            coordinator, meter_number, reading_number
+        )
+
     async def _confirm(details: PWNSubmissionDetails) -> None:
         """Run production final-submission orchestration."""
         await PWNDataUpdateCoordinator.async_confirm_meter_reading(coordinator, details)
@@ -126,6 +143,10 @@ def _coordinator() -> MagicMock:
     )
     coordinator._valid_meter_address.side_effect = (
         PWNDataUpdateCoordinator._valid_meter_address
+    )
+    coordinator.is_reading_request_closed.side_effect = _is_closed
+    coordinator.async_record_closed_reading_request = AsyncMock(
+        side_effect=_close_request
     )
     coordinator.current_submission_details.side_effect = _details
     coordinator.is_prepared_submission.side_effect = _is_prepared
@@ -162,6 +183,9 @@ class TestSubmissionWorkflow(unittest.IsolatedAsyncioTestCase):
 
         await check_button.async_press()
 
+        coordinator.api.validate_measurement_request.assert_awaited_once_with(
+            "01234567890", coordinator.data[DATA_READING_REQUESTS][0]["address"]
+        )
         coordinator.api.validate_plausible_reading.assert_awaited_once()
         coordinator.api.submit_meter_reading.assert_not_awaited()
         self.assertTrue(confirm_button.available)

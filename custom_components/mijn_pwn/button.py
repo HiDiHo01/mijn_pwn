@@ -7,7 +7,11 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, UpdateFailed
 
-from .api import PWNAPIError, PWNReadingNotPlausibleError
+from .api import (
+    PWNAPIError,
+    PWNReadingNotPlausibleError,
+    PWNReadingRequestClosedError,
+)
 from .const import DOMAIN
 from .coordinator import PWNDataUpdateCoordinator, PWNSubmissionDetails
 from .reading_request import _reading_device_info, _register_meter_entities
@@ -78,6 +82,11 @@ class PWNPrepareMeterReadingButton(PWNReadingActionButton):
 
         try:
             await self.coordinator.async_prepare_meter_reading(details)
+        except PWNReadingRequestClosedError:
+            raise HomeAssistantError(
+                "PWN has already received or estimated this meter reading; "
+                "the request is no longer available"
+            ) from None
         except PWNReadingNotPlausibleError:
             raise HomeAssistantError(
                 "PWN rejected the reading as implausible; correct it before retrying"

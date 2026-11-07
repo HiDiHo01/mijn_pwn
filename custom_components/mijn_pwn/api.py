@@ -30,6 +30,10 @@ class PWNReadingSubmissionRejected(PWNAPIError):
     """PWN explicitly rejected the final water meter reading submission."""
 
 
+class PWNReadingRequestClosedError(PWNAPIError):
+    """PWN has already received or estimated this meter-reading request."""
+
+
 class PWNReadingNotPlausibleError(PWNAPIError):
     """The entered reading failed PWN plausibility checks; nothing was submitted."""
 
@@ -278,7 +282,9 @@ class PWNAPI:
                 async with self._session.post(
                     self._url(AUTH_ENDPOINT), json=payload
                 ) as resp:
-                    await self._raise_for_status(resp)
+                    await self._raise_for_status(
+                        resp, is_measurement_validation=is_measurement_validation
+                    )
 
                     data: dict[str, object] = await resp.json()
                     access_token = data.get("accessToken")
@@ -374,6 +380,12 @@ class PWNAPI:
 
         headers = dict(kwargs.pop("headers", {}))
         headers["Authorization"] = f"Bearer {self._access_token}"
+        is_measurement_validation = (
+            method == "POST"
+            and endpoint.startswith(
+                f"{DATA_ENDPOINTS['water_usage_validate_measurement_request']}/"
+            )
+        )
 
         try:
             async with asyncio.timeout(API_TIMEOUT):
@@ -397,7 +409,10 @@ class PWNAPI:
                             headers=headers,
                             **kwargs,
                         ) as retry_resp:
-                            await self._raise_for_status(retry_resp)
+                            await self._raise_for_status(
+                                retry_resp,
+                                is_measurement_validation=is_measurement_validation,
+                            )
                             self._check_expected_status(
                                 retry_resp.status, expected_status
                             )
@@ -862,7 +877,7 @@ class PWNAPI:
         """Request a validation token for a reading number and an address.
 
         The token is returned only to the caller; it is never persisted or logged.
-        The method is not called automatically during Home Assistant setup.
+        Called only by the explicit check button, never during setup or polling.
         """
         if (
             not isinstance(reading_number, str)
@@ -993,18 +1008,27 @@ class PWNAPI:
     # Response helper
     # ------------------------------------------------------------------
 
-    async def _raise_for_status(self, resp: ClientResponse) -> None:
-        """Map HTTP status codes to HA exceptions."""
+    async def _raise_for_status(
+        self, resp: ClientResponse, *, is_measurement_validation: bool = False
+    ) -> None:
+        """Detect the closed-request code without exposing upstream HTML or data."""
         if resp.status < 400:
             return
 
         if resp.status in (401, 403):
             raise ConfigEntryAuthFailed("Authentication expired")
 
-        if 400 <= resp.status < 500:
-            text = await resp.text()
-            raise UpdateFailed(f"Client error {resp.status}: {text}")
+        if resp.status == 400 and is_measurement_validation:
+            try:
+                payload = await resp.json(content_type=None)
+            except (ClientError, ValueError, TypeError):
+                payload = None
+            if isinstance(payload, dict) and payload.get("code") == "sap-01":
+                raise PWNReadingRequestClosedError(
+                    "PWN no longer accepts this meter-reading request"
+                )
 
-        if resp.status >= 500:
-            text = await resp.text()
-            raise UpdateFailed(f"Server error {resp.status}: {text}")
+        if 400 <= resp.status < 500:
+            raise UpdateFailed(f"PWN API returned HTTP {resp.status} client error")
+
+        raise UpdateFailed(f"PWN API returned HTTP {resp.status} server error")

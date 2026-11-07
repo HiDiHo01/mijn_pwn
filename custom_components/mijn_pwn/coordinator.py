@@ -19,6 +19,7 @@ from .api import (
     PWNAPICommunicationError,
     PWNAPIError,
     PWNAPIServerError,
+    PWNReadingRequestClosedError,
 )
 from .const import DATA_READING_REQUESTS, DATA_USER
 
@@ -113,6 +114,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         self._submission_lock = asyncio.Lock()
         self._unloading = False
         self.draft_readings: dict[str, PWNReadingDraft] = {}
+        self._closed_reading_requests: dict[str, str] = {}
         self._prepared_submissions: dict[str, PWNPreparedSubmission] = {}
         self._confirmation_cancels: dict[str, Callable[[], None]] = {}
         self.confirmed_readings: dict[str, dict[str, PWNConfirmedMeterReading]] = {}
@@ -193,7 +195,11 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
                     ),
                 }
                 for meter_number, draft in self.draft_readings.items()
-            ]
+            ],
+            "closed_requests": [
+                {"meter_number": meter_number, "reading_number": reading_number}
+                for meter_number, reading_number in self._closed_reading_requests.items()
+            ],
         }
 
     @staticmethod
@@ -259,19 +265,49 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             reading_date=reading_date,
         )
 
+    @staticmethod
+    def _parse_stored_closed_request(item: object) -> tuple[str, str] | None:
+        """Restore only valid, per-meter rejected request identifiers."""
+        if not isinstance(item, dict):
+            return None
+        meter_number = item.get("meter_number")
+        reading_number = item.get("reading_number")
+        if (
+            not isinstance(meter_number, str)
+            or not meter_number.strip()
+            or not isinstance(reading_number, str)
+            or len(reading_number) != 11
+            or not reading_number.isascii()
+            or not reading_number.isdecimal()
+        ):
+            return None
+        return meter_number, reading_number
+
     async def async_load_drafts(self) -> None:
-        """Restore validated local drafts independently of API availability."""
+        """Restore local drafts and rejected request IDs independently."""
         saved = await self._draft_store.async_load()
-        if not isinstance(saved, dict) or not isinstance(saved.get("drafts"), list):
+        if not isinstance(saved, dict):
             return
 
-        restored: dict[str, PWNReadingDraft] = {}
-        for item in saved["drafts"]:
-            parsed = self._parse_stored_draft(item)
-            if parsed is not None:
-                meter_number, draft = parsed
-                restored[meter_number] = draft
-        self.draft_readings = restored
+        drafts = saved.get("drafts")
+        if isinstance(drafts, list):
+            restored: dict[str, PWNReadingDraft] = {}
+            for item in drafts:
+                parsed = self._parse_stored_draft(item)
+                if parsed is not None:
+                    meter_number, draft = parsed
+                    restored[meter_number] = draft
+            self.draft_readings = restored
+
+        closed_requests = saved.get("closed_requests")
+        if isinstance(closed_requests, list):
+            restored_closed: dict[str, str] = {}
+            for item in closed_requests:
+                parsed = self._parse_stored_closed_request(item)
+                if parsed is not None:
+                    meter_number, reading_number = parsed
+                    restored_closed[meter_number] = reading_number
+            self._closed_reading_requests = restored_closed
 
     def schedule_draft_save(self) -> None:
         """Schedule durable draft metadata storage from synchronous callbacks."""
@@ -280,6 +316,25 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
     async def async_save_drafts(self) -> None:
         """Persist the current drafts immediately after explicit user changes."""
         await self._draft_store.async_save(self._draft_storage_payload())
+
+    def is_reading_request_closed(
+        self, meter_number: str, reading_number: str
+    ) -> bool:
+        """Return whether PWN rejected this exact meter and request as closed."""
+        return self._closed_reading_requests.get(meter_number) == reading_number
+
+    async def async_record_closed_reading_request(
+        self, meter_number: str, reading_number: str
+    ) -> None:
+        """Persist a sap-01 rejection and immediately disable the affected meter."""
+        if self._parse_stored_closed_request(
+            {"meter_number": meter_number, "reading_number": reading_number}
+        ) is None:
+            raise ValueError("Invalid rejected PWN meter-reading identifier")
+        self._closed_reading_requests[meter_number] = reading_number
+        self.invalidate_prepared_submission(meter_number)
+        self.async_update_listeners()
+        await self.async_save_drafts()
 
     def was_reading_submitted(self, meter_number: str, reading_number: str) -> bool:
         """Return whether this exact request was previously accepted by PWN."""
@@ -493,6 +548,8 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         )
         if request is None or not self._valid_draft_for_request(draft, request):
             return None
+        if self.is_reading_request_closed(meter_number, draft.reading_number):
+            return None
 
         identifier = self._extract_relation_number(current_data.get(DATA_USER))
         address = request.get("address")
@@ -569,6 +626,18 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
                 raise ValueError("Meter reading changed; enter and check it again")
             if self.was_reading_submitted(details.meter_number, details.reading_number):
                 raise ValueError("This meter-reading request was already submitted")
+
+            try:
+                await self.api.validate_measurement_request(
+                    details.reading_number, details.as_address()
+                )
+            except PWNReadingRequestClosedError:
+                await self.async_record_closed_reading_request(
+                    details.meter_number, details.reading_number
+                )
+                raise
+            if self.current_submission_details(details.meter_number) != details:
+                raise ValueError("Meter reading changed during request validation")
 
             result = await self.api.validate_plausible_reading(
                 details.reading_number,
