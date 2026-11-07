@@ -20,6 +20,18 @@ from .reading_request import (
 MAX_SUPPORTED_WHEELS = 9
 
 
+def _wheel_count(request: dict[str, object]) -> int | None:
+    """Return a supported integer count without accepting booleans."""
+    value = request.get("amountOfWheels")
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or not 1 <= value <= MAX_SUPPORTED_WHEELS
+    ):
+        return None
+    return value
+
+
 def _get_open_request(
     coordinator: PWNDataUpdateCoordinator, meter_number: str
 ) -> dict[str, object] | None:
@@ -27,10 +39,7 @@ def _get_open_request(
     request = _get_request_for_meter(coordinator.data, meter_number)
     if not isinstance(request, dict) or request.get("openReading") is not True:
         return None
-    wheel_count = request.get("amountOfWheels")
-    if type(wheel_count) is not int or not 1 <= wheel_count <= MAX_SUPPORTED_WHEELS:
-        return None
-    return request
+    return request if _wheel_count(request) is not None else None
 
 
 def format_meter_reading(value: int, wheel_count: int) -> str:
@@ -88,8 +97,8 @@ class PWNReadingDraftNumber(CoordinatorEntity, NumberEntity):
         request = _get_open_request(self.coordinator, self._meter_number)
         if request is None:
             return 0
-        wheel_count = request["amountOfWheels"]
-        return float(10**wheel_count - 1)
+        wheel_count = _wheel_count(request)
+        return float(10**wheel_count - 1) if wheel_count is not None else 0
 
     @property
     def extra_state_attributes(self) -> dict[str, str]:
@@ -98,11 +107,10 @@ class PWNReadingDraftNumber(CoordinatorEntity, NumberEntity):
         value = self._attr_native_value
         if not self.available or request is None or value is None:
             return {}
-        return {
-            "formatted_reading": format_meter_reading(
-                int(value), request["amountOfWheels"]
-            )
-        }
+        wheel_count = _wheel_count(request)
+        if wheel_count is None:
+            return {}
+        return {"formatted_reading": format_meter_reading(int(value), wheel_count)}
 
     async def async_set_native_value(self, value: float) -> None:
         """Store an integer draft locally, never submitting to the PWN API."""
