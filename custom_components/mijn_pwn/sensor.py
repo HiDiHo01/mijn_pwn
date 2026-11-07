@@ -25,10 +25,10 @@ from .const import (
     SERVICE_NAME_CONSUMPTION,
     SERVICE_NAME_USER,
 )
+from .confirmed_reading import setup_confirmed_reading_sensors
 from .coordinator import PWNDataUpdateCoordinator
 from .data_parsers import (
     get_last_meter_reading_date,
-    get_last_reported_meter_reading,
     get_notification_count,
     get_water_consumption_status,
 )
@@ -75,27 +75,6 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
         available_fn=lambda data: (
             get_last_meter_reading_date(data.get(DATA_CONSUMPTION)) is not None
         ),
-    ),
-    PWNEntityDescription(
-        key="last_submitted_meter_reading",
-        translation_key="last_submitted_meter_reading",
-        native_unit_of_measurement=UnitOfVolume.CUBIC_METERS,
-        suggested_display_precision=0,
-        service_name=SERVICE_NAME_CONSUMPTION,
-        icon="mdi:counter",
-        device_class=SensorDeviceClass.WATER,
-        state_class=SensorStateClass.TOTAL,
-        value_fn=lambda data: get_last_reported_meter_reading(
-            data.get(DATA_CONSUMPTION) if data else None
-        ),
-    ),
-    PWNEntityDescription(
-        key="last_submitted_meter_reading_date",
-        translation_key="last_submitted_meter_reading_date",
-        service_name=SERVICE_NAME_CONSUMPTION,
-        icon="mdi:calendar-check",
-        device_class=SensorDeviceClass.DATE,
-        value_fn=lambda data: get_last_meter_reading_date(data.get(DATA_CONSUMPTION)),
     ),
     PWNEntityDescription(
         key="total_open_amount",
@@ -585,6 +564,7 @@ async def async_setup_entry(
         _LOGGER.warning("No sensors created for entry: %s", config_entry.entry_id)
 
     setup_reading_request_sensors(coordinator, config_entry, async_add_entities)
+    setup_confirmed_reading_sensors(hass, config_entry, async_add_entities)
 
 
 def _should_add_sensor(
