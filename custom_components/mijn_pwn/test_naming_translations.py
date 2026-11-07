@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 from homeassistant.helpers.typing import UNDEFINED
 
 from .binary_sensor import SENSOR_TYPES, PWNBinarySensor
+from .confirmed_reading import CONFIRMED_READING_DESCRIPTIONS
 from .const import (
     DOMAIN,
     SERVICE_NAME_CONSUMPTION,
@@ -101,6 +102,7 @@ class TestNamingTranslations(unittest.TestCase):
         """Every shipped language covers all entity and service device names."""
         sensor_keys = {description.key for description in SENSOR_DESCRIPTIONS}
         sensor_keys.update(item.key for item in READING_REQUEST_SENSOR_DESCRIPTIONS)
+        sensor_keys.update(item.key for item in CONFIRMED_READING_DESCRIPTIONS)
         binary_keys = {description.key for description in SENSOR_TYPES}
         binary_keys.update({"reading_request_open", "reading_requests_open"})
         english = json.loads((_COMPONENT_DIR / "strings.json").read_text("utf-8"))
