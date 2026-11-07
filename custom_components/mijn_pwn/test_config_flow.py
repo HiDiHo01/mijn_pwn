@@ -198,7 +198,9 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
             {"username": self._second.unique_id, "password": password}
         )
         self.assertEqual(self._first.data, self._first_original)
-        self.assertEqual(self._second.data, {**self._second_original, "password": password})
+        self.assertEqual(
+            self._second.data, {**self._second_original, "password": password}
+        )
         self.assertEqual(self._second.unique_id, self._second_original["username"])
         self.assertEqual(len(self._entries), 2)
         self._hass.config_entries.async_update_entry.assert_called_once()
@@ -208,10 +210,12 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
 
     async def test_reauth_respects_first_entry_selection(self) -> None:
         """Reauthenticate the selected entry regardless of entry list order."""
-        self._flow.context.update({
-            "source": config_entries.SOURCE_REAUTH,
-            "entry_id": self._first.entry_id,
-        })
+        self._flow.context.update(
+            {
+                "source": config_entries.SOURCE_REAUTH,
+                "entry_id": self._first.entry_id,
+            }
+        )
         result = await self._flow.async_step_reauth_confirm(
             {"password": "replacement-first-password"}
         )
