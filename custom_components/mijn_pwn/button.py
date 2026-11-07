@@ -1,4 +1,4 @@
-"""Explicit user-operated PWN water meter submission buttons."""
+"""Two-step, explicitly confirmed PWN meter reading submission buttons."""
 
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
@@ -6,33 +6,93 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, UpdateFailed
-from homeassistant.util import dt as dt_util
 
 from .api import PWNAPIError, PWNReadingNotPlausibleError
-from .const import DATA_USER, DOMAIN
-from .coordinator import PWNDataUpdateCoordinator
-from .number import _get_open_request
+from .const import DOMAIN
+from .coordinator import PWNDataUpdateCoordinator, PWNSubmissionDetails
 from .reading_request import _reading_device_info, _register_meter_entities
 
 
-def _relation_number(account_data: object) -> str | None:
-    """Use only seven raw relation digits or a confirmed 000-prefixed identifier."""
-    if not isinstance(account_data, dict):
-        return None
-    number = account_data.get("relationNumber")
-    if not isinstance(number, str) or not number.isascii() or not number.isdecimal():
-        return None
-    if len(number) == 7:
-        return number
-    if len(number) == 10 and number.startswith("000"):
-        return number[3:]
-    return None
-
-
-class PWNSubmitMeterReadingButton(CoordinatorEntity, ButtonEntity):
-    """Send the last explicitly entered reading only when this button is pressed."""
+class PWNReadingActionButton(CoordinatorEntity, ButtonEntity):
+    """Base for manual per-meter actions; never send from a state change."""
 
     _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: PWNDataUpdateCoordinator,
+        entry: ConfigEntry,
+        meter_number: str,
+        action: str,
+    ) -> None:
+        """Initialize a stable per-meter action."""
+        super().__init__(coordinator)
+        self._meter_number = meter_number
+        self._attr_unique_id = (
+            f"{entry.unique_id}_reading_meter_{meter_number}_{action}"
+        )
+        self._attr_translation_placeholders = {"meter_number": meter_number}
+        self._attr_device_info = _reading_device_info(entry.entry_id)
+
+    def _current_details(self) -> PWNSubmissionDetails | None:
+        """Get the current draft snapshot, rejecting stale or missing requests."""
+        return self.coordinator.current_submission_details(self._meter_number)
+
+    @property
+    def available(self) -> bool:
+        """Permit actions only for a complete, not-yet-submitted draft."""
+        details = self._current_details()
+        confirmed = self.coordinator.last_confirmed_meter_reading
+        return (
+            super().available
+            and details is not None
+            and (
+                confirmed is None
+                or confirmed.reading_number != details.reading_number
+            )
+        )
+
+
+class PWNPrepareMeterReadingButton(PWNReadingActionButton):
+    """Check a draft against PWN without sending the meter reading."""
+
+    _attr_translation_key = "prepare_meter_reading"
+    _attr_icon = "mdi:clipboard-check-outline"
+
+    def __init__(
+        self,
+        coordinator: PWNDataUpdateCoordinator,
+        entry: ConfigEntry,
+        meter_number: str,
+    ) -> None:
+        """Register the check-and-prepare action."""
+        super().__init__(coordinator, entry, meter_number, "prepare_meter_reading")
+
+    async def async_press(self) -> None:
+        """Check plausibility and arm a confirmation that expires in two minutes."""
+        if not self.available:
+            raise HomeAssistantError(
+                "Enter a meter reading for an open PWN request before checking"
+            )
+        details = self._current_details()
+        if details is None:
+            raise HomeAssistantError("The PWN reading request is no longer available")
+
+        try:
+            await self.coordinator.async_prepare_meter_reading(details)
+        except PWNReadingNotPlausibleError:
+            raise HomeAssistantError(
+                "PWN rejected the reading as implausible; correct it before retrying"
+            ) from None
+        except PWNAPIError, UpdateFailed, ValueError:
+            raise HomeAssistantError(
+                "PWN could not approve this meter reading; nothing was submitted"
+            ) from None
+
+
+class PWNSubmitMeterReadingButton(PWNReadingActionButton):
+    """Send only a validated draft after a second, explicit user action."""
+
     _attr_translation_key = "submit_meter_reading"
     _attr_icon = "mdi:send-check"
 
@@ -42,70 +102,31 @@ class PWNSubmitMeterReadingButton(CoordinatorEntity, ButtonEntity):
         entry: ConfigEntry,
         meter_number: str,
     ) -> None:
-        """Create a per-meter submission action without performing network calls."""
-        super().__init__(coordinator)
-        self._meter_number = meter_number
-        self._attr_unique_id = (
-            f"{entry.unique_id}_reading_meter_{meter_number}_submit_meter_reading"
-        )
-        self._attr_translation_placeholders = {"meter_number": meter_number}
-        self._attr_device_info = _reading_device_info(entry.entry_id)
+        """Keep the existing submission button ID for compatibility."""
+        super().__init__(coordinator, entry, meter_number, "submit_meter_reading")
 
     @property
     def available(self) -> bool:
-        """Enable only when a matching draft, request, and relation ID exist."""
-        request = _get_open_request(self.coordinator, self._meter_number)
-        draft = self.coordinator.draft_readings.get(self._meter_number)
-        account_data = (
-            self.coordinator.data.get(DATA_USER)
-            if isinstance(self.coordinator.data, dict)
-            else None
-        )
-        already_submitted = self.coordinator.last_confirmed_meter_reading
+        """Only enable the final button after a matching unexpired check."""
+        details = self._current_details()
         return (
             super().available
-            and request is not None
-            and draft is not None
-            and draft.reading_number == request.get("readingNumber")
-            and isinstance(request.get("address"), dict)
-            and _relation_number(account_data) is not None
-            and (
-                already_submitted is None
-                or already_submitted.reading_number != draft.reading_number
-            )
+            and details is not None
+            and self.coordinator.is_prepared_submission(details)
         )
 
     async def async_press(self) -> None:
-        """Check plausibility and submit only after an explicit button press."""
+        """Transmit the unchanged, approved reading exactly once on confirmation."""
         if not self.available:
             raise HomeAssistantError(
-                "No complete, open PWN reading draft is available for submission"
+                "First check the meter reading, then confirm within two minutes"
             )
-        request = _get_open_request(self.coordinator, self._meter_number)
-        draft = self.coordinator.draft_readings.get(self._meter_number)
-        account_data = self.coordinator.data.get(DATA_USER)
-        relation_number = _relation_number(account_data)
-        if request is None or draft is None or relation_number is None:
-            raise HomeAssistantError("PWN meter-reading data is no longer available")
-
-        address = request.get("address")
-        if not isinstance(address, dict):
-            raise HomeAssistantError("PWN meter address is unavailable")
+        details = self._current_details()
+        if details is None:
+            raise HomeAssistantError("The PWN reading request has changed")
 
         try:
-            await self.coordinator.async_submit_meter_reading(
-                reading_number=draft.reading_number,
-                relation_number=relation_number,
-                meter_number=self._meter_number,
-                meter_reading=draft.value,
-                wheel_count=request["amountOfWheels"],
-                reading_date=dt_util.as_local(draft.entered_at).date(),
-                address=address,
-            )
-        except PWNReadingNotPlausibleError:
-            raise HomeAssistantError(
-                "PWN rejected the reading as implausible; please check the reading and date"
-            ) from None
+            await self.coordinator.async_confirm_meter_reading(details)
         except PWNAPIError, UpdateFailed, ValueError:
             raise HomeAssistantError(
                 "PWN has not confirmed the reading; check your PWN account before retrying"
@@ -117,13 +138,16 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Create a manual submission button for each discovered water meter."""
+    """Create separate prepare and confirm buttons for each discovered meter."""
     coordinator: PWNDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
 
-    def _make_button(meter_number: str) -> list[CoordinatorEntity]:
-        """Build the per-meter manual submission action."""
-        return [PWNSubmitMeterReadingButton(coordinator, config_entry, meter_number)]
+    def _make_buttons(meter_number: str) -> list[CoordinatorEntity]:
+        """Create one of each button, with distinct stable unique IDs."""
+        return [
+            PWNPrepareMeterReadingButton(coordinator, config_entry, meter_number),
+            PWNSubmitMeterReadingButton(coordinator, config_entry, meter_number),
+        ]
 
     _register_meter_entities(
-        coordinator, config_entry, async_add_entities, _make_button
+        coordinator, config_entry, async_add_entities, _make_buttons
     )
