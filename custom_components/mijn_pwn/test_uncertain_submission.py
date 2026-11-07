@@ -12,10 +12,7 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from .button import PWNPrepareMeterReadingButton, PWNSubmitMeterReadingButton
 from .coordinator import PWNDataUpdateCoordinator, PWNReadingDraft
-from .submission_recovery import (
-    async_register_submission_recovery,
-    _RELEASE_SCHEMA,
-)
+from .submission_recovery import _RELEASE_SCHEMA, async_register_submission_recovery
 from .test_submit_workflow import _buttons, _coordinator
 
 
