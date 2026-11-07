@@ -11,7 +11,7 @@ De integratie toont een binaire sensor voor openstaande verzoeken binnen het acc
 en per watermeter een binaire sensor en acht sensoren:
 
 - Openstaand meterstandverzoek (`openReading`)
-- Opnamenummer (`readingNumber`)
+- Opnamenummer (`readingNumber`, exact 11 cijfers als tekst, inclusief voorloopnullen)
 - Startdatum meterstandopname (`readingStartDate`)
 - Opnamedatum (`readingDate`)
 - Opnameredencode (`readingReason`)
@@ -93,8 +93,10 @@ aangeboden of gebruikt om een meterstand in te dienen.
 
 Voordat de website persoonsgegevens bevestigt, gebruikt zij
 `POST /api/WaterUsage/validate-measurement-request/{reading_number}`.
-Hierbij is `reading_number` de identificatie van het meterstandverzoek, niet
-het relatienummer. De JSON-requestbody bevat alleen `houseNumber`,
+Hierbij is `reading_number` het **11-cijferige opnamenummer** van het
+meterstandverzoek (als tekst, met behoud van voorloopnullen), niet het
+relatienummer of de 10-cijferige bevestigingsidentifier. De JSON-requestbody
+bevat alleen `houseNumber`,
 `houseNumberAddition` (mag leeg zijn) en `postalCode`.
 
 De server retourneert een JSON-object met `relationNumber`, `clientType`,
