@@ -116,7 +116,10 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         self._confirmation_cancels: dict[str, Callable[[], None]] = {}
         self.confirmed_readings: dict[str, dict[str, PWNConfirmedMeterReading]] = {}
         self._confirmed_store = Store[dict[str, object]](
-            hass, 1, f"{config_entry.entry_id}_mijn_pwn_confirmed_readings", private=True
+            hass,
+            1,
+            f"{config_entry.entry_id}_mijn_pwn_confirmed_readings",
+            private=True,
         )
 
     def record_confirmed_meter_submission(
@@ -248,6 +251,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         self, meter_number: str, expires_at: datetime
     ) -> None:
         """Update the confirm button when its approval window expires."""
+
         def _expire(_now: datetime) -> None:
             """Revoke a pending confirmation and refresh its button state."""
             self._confirmation_cancels.pop(meter_number, None)
