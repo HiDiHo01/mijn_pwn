@@ -62,7 +62,7 @@ class TestNamingTranslations(unittest.TestCase):
     def test_sensor_descriptions_use_translation_keys(self) -> None:
         """Every sensor uses a unique key instead of a hardcoded display name."""
         keys = [description.key for description in SENSOR_DESCRIPTIONS]
-        self.assertEqual(len(keys), 23)
+        self.assertEqual(len(keys), 25)
         self.assertEqual(len(keys), len(set(keys)))
         for description in SENSOR_DESCRIPTIONS:
             with self.subTest(sensor=description.key):
@@ -114,6 +114,11 @@ class TestNamingTranslations(unittest.TestCase):
                 self.assertEqual(set(catalog["device"]), _DEVICE_KEYS)
                 self.assertEqual(set(catalog["entity"]["sensor"]), sensor_keys)
                 self.assertEqual(set(catalog["entity"]["binary_sensor"]), binary_keys)
+                self.assertIn("meter_reading_draft", catalog["entity"]["number"])
+                self.assertIn(
+                    "{meter_number}",
+                    catalog["entity"]["number"]["meter_reading_draft"]["name"],
+                )
                 for field_key in sensor_keys - {
                     description.key for description in SENSOR_DESCRIPTIONS
                 }:
