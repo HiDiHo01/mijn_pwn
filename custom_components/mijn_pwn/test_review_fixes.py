@@ -62,16 +62,12 @@ class TestMeterDateInput(unittest.IsolatedAsyncioTestCase):
         """A blank observation date must prevent either network call."""
         coordinator = _coordinator()
         draft = coordinator.draft_readings["00012345"]
-        coordinator.draft_readings["00012345"] = replace(
-            draft, reading_date=None
-        )
+        coordinator.draft_readings["00012345"] = replace(draft, reading_date=None)
         self.assertIsNone(coordinator.current_submission_details("00012345"))
         entry = MagicMock()
         entry.unique_id = "fictional-account"
         entry.entry_id = "fictional-entry"
-        button = PWNPrepareMeterReadingButton(
-            coordinator, entry, "00012345"
-        )
+        button = PWNPrepareMeterReadingButton(coordinator, entry, "00012345")
         self.assertFalse(button.available)
         with self.assertRaises(HomeAssistantError):
             await button.async_press()
