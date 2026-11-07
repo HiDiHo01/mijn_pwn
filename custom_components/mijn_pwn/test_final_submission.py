@@ -72,9 +72,7 @@ class TestFinalReadingSubmission(unittest.IsolatedAsyncioTestCase):
             with self.subTest(response=response):
                 with self.assertRaises(PWNReadingSubmissionRejected) as error:
                     PWNAPI.parse_final_reading_response(response)
-                self.assertNotIn(
-                    "fictional-personal-information", str(error.exception)
-                )
+                self.assertNotIn("fictional-personal-information", str(error.exception))
 
         for response in (
             None,
