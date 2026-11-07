@@ -19,6 +19,7 @@ def _make_coordinator() -> MagicMock:
     """Build a coordinator with no acknowledged PWN meter submission."""
     coordinator = MagicMock()
     coordinator.last_confirmed_meter_reading = None
+    coordinator.confirmed_readings = {}
     coordinator.last_update_success = False
     return coordinator
 
