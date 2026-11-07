@@ -40,9 +40,7 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
 
         self._hass = MagicMock()
         config_entries_manager = self._hass.config_entries
-        config_entries_manager.async_get_known_entry.side_effect = (
-            self._get_entry_by_id
-        )
+        config_entries_manager.async_get_known_entry.side_effect = self._get_entry_by_id
         config_entries_manager.async_entry_for_domain_unique_id.side_effect = (
             self._get_entry_by_unique_id
         )
@@ -63,9 +61,7 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
         """Return only the explicitly selected mock config entry."""
         return self._entries[entry_id]
 
-    def _get_entry_by_unique_id(
-        self, domain: str, unique_id: str
-    ) -> MagicMock | None:
+    def _get_entry_by_unique_id(self, domain: str, unique_id: str) -> MagicMock | None:
         """Resolve configured identities without inventing new accounts."""
         if domain != DOMAIN:
             return None
