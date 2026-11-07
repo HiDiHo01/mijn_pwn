@@ -70,6 +70,24 @@ class TestMeasurementValidation(unittest.IsolatedAsyncioTestCase):
             f"{API_URL}/api/WaterUsage/validate-measurement-request",
         )
 
+    async def test_zero_start_reading_number_is_sent_unchanged(self) -> None:
+        """Use every digit of an existing 11-digit reading identifier as given."""
+        client = self._make_client()
+        response = self._validation_response()
+        with patch.object(client, "_request", new_callable=AsyncMock) as request_mock:
+            request_mock.return_value = response
+
+            result = await client.validate_measurement_request(
+                "01234567890", self._address()
+            )
+
+        self.assertEqual(result, response)
+        request_mock.assert_awaited_once_with(
+            "POST",
+            f"{API_URL}/api/WaterUsage/validate-measurement-request/01234567890",
+            json=self._address(),
+        )
+
     async def test_rejects_invalid_reading_number_without_post(self) -> None:
         """Reject reading numbers that are not exactly 11 ASCII digits."""
         client = self._make_client()
@@ -79,7 +97,6 @@ class TestMeasurementValidation(unittest.IsolatedAsyncioTestCase):
             "read-123",
             "１２３４５６７８９０１",
             "1" * 10,
-            "0" + "1" * 10,
             "1" * 12,
             "1" * 33,
             "123 456",
