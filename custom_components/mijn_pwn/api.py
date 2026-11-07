@@ -356,8 +356,9 @@ class PWNAPI:
     def build_private_confirmation_url(relation_number: str) -> str:
         """Build the 10-digit identifier from three zeroes and seven relation digits.
 
-        This function performs no network request. The confirmation token source
-        remains unknown, so submitting private information is not implemented.
+        This function performs no network request. The confirmation token is
+        returned as additionalDataToken by measurement request validation.
+        Private-information submission is not implemented.
         """
         if (
             not isinstance(relation_number, str)
