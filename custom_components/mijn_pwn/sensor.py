@@ -31,6 +31,7 @@ from .data_parsers import (
     get_notification_count,
     get_water_consumption_status,
 )
+from .reading_request import setup_reading_request_sensors
 from .sensor_helper import PWNEntityDescription, PWNSensor
 
 _LOGGER = logging.getLogger(__name__)
@@ -560,6 +561,8 @@ async def async_setup_entry(
         )
     else:
         _LOGGER.warning("No sensors created for entry: %s", config_entry.entry_id)
+
+    setup_reading_request_sensors(coordinator, config_entry, async_add_entities)
 
 
 def _should_add_sensor(
