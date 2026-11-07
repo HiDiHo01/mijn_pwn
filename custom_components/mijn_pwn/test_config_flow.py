@@ -1,5 +1,6 @@
 """Offline regressions for account-scoped Mijn PWN reconfiguration."""
 
+from secrets import token_urlsafe
 import unittest
 from unittest.mock import AsyncMock, MagicMock
 
@@ -190,7 +191,7 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
     async def test_reauth_updates_only_selected_password_and_reloads(self) -> None:
         """Preserve the other account and unrelated data during password renewal."""
         self._flow.context["source"] = config_entries.SOURCE_REAUTH
-        password = "replacement-synthetic-password"
+        password = token_urlsafe(16)
         result = await self._flow.async_step_reauth_confirm({"password": password})
         self.assertEqual(result["type"], FlowResultType.ABORT)
         self.assertEqual(result["reason"], "reauth_successful")
@@ -216,11 +217,12 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
                 "entry_id": self._first.entry_id,
             }
         )
+        replacement_password = token_urlsafe(16)
         result = await self._flow.async_step_reauth_confirm(
-            {"password": "replacement-first-password"}
+            {"password": replacement_password}
         )
         self.assertEqual(result["type"], FlowResultType.ABORT)
-        self.assertEqual(self._first.data["password"], "replacement-first-password")
+        self.assertEqual(self._first.data["password"], replacement_password)
         self.assertEqual(self._second.data, self._second_original)
         self._hass.config_entries.async_schedule_reload.assert_called_once_with(
             self._first.entry_id
@@ -231,7 +233,7 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
         self._flow.context["source"] = config_entries.SOURCE_REAUTH
         self._flow._validate_user_input.return_value = False
         result = await self._flow.async_step_reauth_confirm(
-            {"password": "rejected-synthetic-password"}
+            {"password": token_urlsafe(16)}
         )
         self.assertEqual(result["type"], FlowResultType.FORM)
         self.assertEqual(result["errors"], {"base": "invalid_auth"})
@@ -245,7 +247,7 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
         self._flow.context["source"] = config_entries.SOURCE_REAUTH
         self._second.unique_id = "other@example.invalid"
         result = await self._flow.async_step_reauth_confirm(
-            {"password": "synthetic-password"}
+            {"password": token_urlsafe(16)}
         )
         self.assertEqual(result["type"], FlowResultType.ABORT)
         self.assertEqual(result["reason"], "reauth_account_mismatch")
