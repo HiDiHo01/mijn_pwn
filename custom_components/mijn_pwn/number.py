@@ -40,6 +40,14 @@ def _get_open_request(
     request = _get_request_for_meter(coordinator.data, meter_number)
     if not isinstance(request, dict) or request.get("openReading") is not True:
         return None
+    reading_number = request.get("readingNumber")
+    if (
+        not isinstance(reading_number, str)
+        or len(reading_number) != 11
+        or not reading_number.isascii()
+        or not reading_number.isdecimal()
+    ):
+        return None
     return request if _wheel_count(request) is not None else None
 
 
@@ -83,7 +91,10 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
         self._attr_native_value: float | None = None
         self._last_entered_at: datetime | None = None
         request = _get_open_request(coordinator, meter_number)
-        self._request_number = request.get("readingNumber") if request else None
+        request_number = request.get("readingNumber") if request else None
+        self._request_number = (
+            request_number if isinstance(request_number, str) else None
+        )
 
     @property
     def available(self) -> bool:
@@ -107,7 +118,12 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
         """Show the padded reading without altering the underlying number."""
         request = _get_open_request(self.coordinator, self._meter_number)
         value = self._attr_native_value
-        if not self.available or request is None or value is None:
+        if (
+            not self.available
+            or request is None
+            or value is None
+            or self._request_number is None
+        ):
             return {}
         wheel_count = _wheel_count(request)
         if wheel_count is None:
