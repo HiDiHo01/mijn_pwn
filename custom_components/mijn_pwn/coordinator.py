@@ -122,6 +122,12 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             f"{config_entry.entry_id}_mijn_pwn_confirmed_readings",
             private=True,
         )
+        self._draft_store = Store[dict[str, object]](
+            hass,
+            1,
+            f"{config_entry.entry_id}_mijn_pwn_meter_drafts",
+            private=True,
+        )
 
     def record_confirmed_meter_submission(
         self,
@@ -170,6 +176,80 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         self.confirmed_readings.setdefault(meter_number, {})[reading_number] = reading
         self.last_confirmed_meter_reading = reading
         self.async_update_listeners()
+
+    def _draft_storage_payload(self) -> dict[str, object]:
+        """Serialize draft values and metadata independently of entity availability."""
+        return {
+            "drafts": [
+                {
+                    "meter_number": meter_number,
+                    "value": draft.value,
+                    "entered_at": draft.entered_at.isoformat(),
+                    "reading_number": draft.reading_number,
+                    "reading_date": (
+                        draft.reading_date.isoformat()
+                        if draft.reading_date is not None
+                        else None
+                    ),
+                }
+                for meter_number, draft in self.draft_readings.items()
+            ]
+        }
+
+    async def async_load_drafts(self) -> None:
+        """Restore unsubmitted drafts even if the reading-request API is offline."""
+        saved = await self._draft_store.async_load()
+        if not isinstance(saved, dict) or not isinstance(saved.get("drafts"), list):
+            return
+        restored: dict[str, PWNReadingDraft] = {}
+        for item in saved["drafts"]:
+            if not isinstance(item, dict):
+                continue
+            meter_number = item.get("meter_number")
+            reading_number = item.get("reading_number")
+            value = item.get("value")
+            timestamp = item.get("entered_at")
+            if (
+                not isinstance(meter_number, str)
+                or not meter_number.strip()
+                or not isinstance(reading_number, str)
+                or len(reading_number) != 11
+                or not reading_number.isascii()
+                or not reading_number.isdecimal()
+                or type(value) is not int
+                or not 0 <= value <= 999999999
+                or not isinstance(timestamp, str)
+            ):
+                continue
+            try:
+                entered_at = datetime.fromisoformat(timestamp)
+            except ValueError:
+                continue
+            if entered_at.tzinfo is None or entered_at.utcoffset() is None:
+                continue
+            reading_date = item.get("reading_date")
+            if reading_date is not None:
+                if not isinstance(reading_date, str):
+                    continue
+                try:
+                    reading_date = date.fromisoformat(reading_date)
+                except ValueError:
+                    continue
+            restored[meter_number] = PWNReadingDraft(
+                value=value,
+                entered_at=entered_at,
+                reading_number=reading_number,
+                reading_date=reading_date,
+            )
+        self.draft_readings = restored
+
+    def schedule_draft_save(self) -> None:
+        """Schedule durable draft metadata storage from synchronous callbacks."""
+        self._draft_store.async_delay_save(self._draft_storage_payload, 1)
+
+    async def async_save_drafts(self) -> None:
+        """Persist the current drafts immediately after explicit user changes."""
+        await self._draft_store.async_save(self._draft_storage_payload())
 
     def was_reading_submitted(self, meter_number: str, reading_number: str) -> bool:
         """Return whether this exact request was previously accepted by PWN."""
@@ -412,6 +492,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         self._unloading = True
         async with self._submission_lock:
             self.async_clear_pending_confirmations()
+            await self.async_save_drafts()
 
     def resume_after_failed_unload(self) -> None:
         """Re-enable submission actions if platform unload could not finish."""
