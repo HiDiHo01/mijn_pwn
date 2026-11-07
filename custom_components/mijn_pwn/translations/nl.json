@@ -172,8 +172,11 @@
       }
     },
     "button": {
+      "prepare_meter_reading": {
+        "name": "Controleer meterstand ({meter_number})"
+      },
       "submit_meter_reading": {
-        "name": "Watermeterstand doorgeven ({meter_number})"
+        "name": "Bevestig verzending meterstand ({meter_number})"
       }
     }
   }
