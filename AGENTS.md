@@ -144,6 +144,11 @@ Use this procedure when the user's task authorizes updating the pull-request bra
   `translation_key` matching `entity.<platform>.<key>.name`. Do not override
   the translated name with `_attr_name` or duplicate translated names in Python;
   log stable entity description keys instead.
+- Never override the `name` property on translated entity classes: doing so
+  bypasses Home Assistant's translation lookup. Leave an untranslated
+  description name at `UNDEFINED`, not `None` (which signals that an entity
+  should use its device's name). Test resolved names through the platform,
+  not just `translation_key` metadata.
 - Keep `strings.json` and `translations/en.json` equivalent, and provide
   matching keys with actual Dutch and Spanish text in `nl.json` and `es.json`.
 - Run `test_naming_translations.py` after changes to these names or translations.
