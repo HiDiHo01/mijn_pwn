@@ -194,5 +194,32 @@
         "name": "Opnamedatum watermeter ({meter_number})"
       }
     }
+  },
+  "issues": {
+    "uncertain_meter_submission": {
+      "title": "Uitkomst verzending meterstand onbekend",
+      "description": "PWN heeft mogelijk een meterstand verwerkt zonder dat Home Assistant een bevestiging ontving. Verstuur hetzelfde verzoek niet opnieuw. Controleer je PWN-account of neem contact op met PWN. Alleen als PWN uitdrukkelijk bevestigt dat de inzending NIET is verwerkt, kan een Home Assistant-beheerder de actie mijn_pwn.release_uncertain_submission uitvoeren voor de exacte integratie, meter en opnamenummer, met pwn_confirmed_not_processed op true. Een nieuw opnamenummer blijft onafhankelijk beschikbaar."
+    }
+  },
+  "services": {
+    "release_uncertain_submission": {
+      "name": "Onzekere meterstandverzending vrijgeven",
+      "description": "Handmatig herstel uitsluitend nadat PWN uitdrukkelijk heeft bevestigd dat de vorige inzending NIET is verwerkt. Deze actie verstuurt geen meterstand.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Configuratie-ID"
+        },
+        "meter_number": {
+          "name": "Watermeternummer"
+        },
+        "reading_number": {
+          "name": "Opnamenummer"
+        },
+        "pwn_confirmed_not_processed": {
+          "name": "PWN bevestigde niet-verwerking",
+          "description": "Gebruik true uitsluitend nadat PWN bevestigt dat de inzending niet is verwerkt."
+        }
+      }
+    }
   }
 }
