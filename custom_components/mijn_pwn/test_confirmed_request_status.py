@@ -91,6 +91,23 @@ class TestConfirmedRequestStatus(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("00012345", coordinator.draft_readings)
         coordinator.schedule_draft_save.assert_called_once_with()
 
+    def test_missing_request_without_confirmation_preserves_draft(self) -> None:
+        """An API gap must not erase an unconfirmed meter-reading draft."""
+        coordinator = _coordinator()
+        number = PWNReadingDraftNumber(coordinator, _entry(), "00012345")
+        original_draft = coordinator.draft_readings["00012345"]
+
+        with patch.object(BaseCoordinatorEntity, "_handle_coordinator_update"):
+            number._handle_coordinator_update()
+            self.assertEqual(number.native_value, 165.0)
+
+            coordinator.data[DATA_READING_REQUESTS] = None
+            number._handle_coordinator_update()
+
+        self.assertIs(coordinator.draft_readings["00012345"], original_draft)
+        self.assertEqual(number.native_value, 165.0)
+        coordinator.schedule_draft_save.assert_not_called()
+
     def test_new_reading_id_and_other_meter_remain_actionable(self) -> None:
         """Old confirmed and new open requests can coexist in a stale poll."""
         coordinator = _coordinator()
