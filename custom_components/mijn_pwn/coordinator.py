@@ -3,10 +3,13 @@ import asyncio
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 import logging
+from typing import Callable
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.event import async_track_point_in_utc_time
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -55,6 +58,7 @@ class PWNReadingDraft:
     value: int
     entered_at: datetime
     reading_number: str
+    reading_date: date | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,6 +113,11 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         self._submission_lock = asyncio.Lock()
         self.draft_readings: dict[str, PWNReadingDraft] = {}
         self._prepared_submissions: dict[str, PWNPreparedSubmission] = {}
+        self._confirmation_cancels: dict[str, Callable[[], None]] = {}
+        self.confirmed_readings: dict[str, dict[str, PWNConfirmedMeterReading]] = {}
+        self._confirmed_store = Store[dict[str, object]](
+            hass, 1, f"{config_entry.entry_id}_mijn_pwn_confirmed_readings", private=True
+        )
 
     def record_confirmed_meter_submission(
         self,
@@ -147,13 +156,15 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         ):
             raise ValueError("Confirmed opname number must contain 11 ASCII digits")
 
-        self.last_confirmed_meter_reading = PWNConfirmedMeterReading(
+        reading = PWNConfirmedMeterReading(
             value=value,
             wheel_count=wheel_count,
             confirmed_at=datetime.now(timezone.utc),
             meter_number=meter_number,
             reading_number=reading_number,
         )
+        self.confirmed_readings.setdefault(meter_number, {})[reading_number] = reading
+        self.last_confirmed_meter_reading = reading
         self.async_update_listeners()
 
     def current_submission_details(
@@ -225,7 +236,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             relation_number=identifier,
             value=draft.value,
             wheel_count=wheels,
-            reading_date=dt_util.as_local(draft.entered_at).date(),
+            reading_date=draft.reading_date,
             entered_at=draft.entered_at,
             postal_code=address["postalCode"],
             street=address["street"],
@@ -257,11 +268,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             self.invalidate_prepared_submission(details.meter_number)
             if self.current_submission_details(details.meter_number) != details:
                 raise ValueError("Meter reading changed; enter and check it again")
-            confirmed = self.last_confirmed_meter_reading
-            if (
-                confirmed is not None
-                and confirmed.reading_number == details.reading_number
-            ):
+            if self.was_reading_submitted(details.meter_number, details.reading_number):
                 raise ValueError("This meter-reading request was already submitted")
 
             result = await self.api.validate_plausible_reading(
@@ -287,13 +294,8 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         async with self._submission_lock:
             if not self.is_prepared_submission(details):
                 raise ValueError("Confirm the unchanged reading within two minutes")
-            self._prepared_submissions.pop(details.meter_number, None)
-            self.async_update_listeners()
-            confirmed = self.last_confirmed_meter_reading
-            if (
-                confirmed is not None
-                and confirmed.reading_number == details.reading_number
-            ):
+            self.invalidate_prepared_submission(details.meter_number)
+            if self.was_reading_submitted(details.meter_number, details.reading_number):
                 raise ValueError("This meter-reading request was already submitted")
 
             response = await self.api.submit_meter_reading(
