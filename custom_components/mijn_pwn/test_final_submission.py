@@ -127,9 +127,7 @@ class TestFinalReadingSubmission(unittest.IsolatedAsyncioTestCase):
         address = self._address()
 
         with self.assertRaises(ConfigEntryAuthFailed):
-            await api.submit_meter_reading(
-                "01234567890", 165, reading_date, address, 5
-            )
+            await api.submit_meter_reading("01234567890", 165, reading_date, address, 5)
 
         api._session.request.assert_called_once()
         self.assertEqual(api._session.request.call_args.args[0], "POST")
