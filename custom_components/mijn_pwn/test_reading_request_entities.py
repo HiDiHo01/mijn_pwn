@@ -49,6 +49,12 @@ def _build_coordinator(
     coordinator.data = {DATA_READING_REQUESTS: reading_requests}
     coordinator.last_update_success = True
     coordinator._closed_reading_requests = {}
+    coordinator.confirmed_readings = {}
+    coordinator.was_reading_submitted.side_effect = (
+        lambda meter_number, reading_number: (
+            reading_number in coordinator.confirmed_readings.get(meter_number, {})
+        )
+    )
     coordinator.is_reading_request_closed.side_effect = (
         lambda meter_number, reading_number: (
             coordinator._closed_reading_requests.get(meter_number) == reading_number
