@@ -168,9 +168,7 @@ class TestReadingEntities(unittest.TestCase):
         """Show address details only on the requested address entity."""
         coordinator = _build_coordinator([_reading_request()])
         entry = _build_entry()
-        descriptions = {
-            item.key: item for item in READING_REQUEST_SENSOR_DESCRIPTIONS
-        }
+        descriptions = {item.key: item for item in READING_REQUEST_SENSOR_DESCRIPTIONS}
         address = PWNReadingRequestSensor(
             coordinator, entry, "00123", descriptions["reading_address"]
         )
