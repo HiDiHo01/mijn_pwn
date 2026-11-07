@@ -41,9 +41,13 @@ def _coordinator() -> MagicMock:
     coordinator._parse_stored_draft.side_effect = (
         PWNDataUpdateCoordinator._parse_stored_draft
     )
+    coordinator._parse_stored_entry_time.side_effect = (
+        PWNDataUpdateCoordinator._parse_stored_entry_time
+    )
     coordinator._prepared_submissions = {}
     coordinator._confirmation_cancels = {}
     coordinator.confirmed_readings = {}
+    coordinator.uncertain_submissions = {}
     coordinator._confirmed_store.async_save = AsyncMock()
     coordinator.last_confirmed_meter_reading = None
     coordinator.draft_readings = {
@@ -143,6 +147,32 @@ def _coordinator() -> MagicMock:
     )
     coordinator._valid_meter_address.side_effect = (
         PWNDataUpdateCoordinator._valid_meter_address
+    )
+    coordinator.is_submission_uncertain.side_effect = (
+        lambda meter_number, reading_number: (
+            PWNDataUpdateCoordinator.is_submission_uncertain(
+                coordinator, meter_number, reading_number
+            )
+        )
+    )
+
+    async def _mark_uncertain(meter_number: str, reading_number: str) -> None:
+        """Write an unresolved marker with production persistence behavior."""
+        await PWNDataUpdateCoordinator._async_mark_submission_uncertain(
+            coordinator, meter_number, reading_number
+        )
+
+    async def _release_uncertain(meter_number: str, reading_number: str) -> None:
+        """Test the real manual release and rollback semantics."""
+        await PWNDataUpdateCoordinator.async_release_uncertain_submission(
+            coordinator, meter_number, reading_number
+        )
+
+    coordinator._async_mark_submission_uncertain = AsyncMock(
+        side_effect=_mark_uncertain
+    )
+    coordinator.async_release_uncertain_submission = AsyncMock(
+        side_effect=_release_uncertain
     )
     coordinator.is_reading_request_closed.side_effect = _is_closed
     coordinator.async_record_closed_reading_request = AsyncMock(
@@ -310,8 +340,16 @@ class TestSubmissionWorkflow(unittest.IsolatedAsyncioTestCase):
 
         self.assertIsNone(coordinator.last_confirmed_meter_reading)
         self.assertEqual(coordinator._prepared_submissions, {})
-        self.assertTrue(check_button.available)
+        self.assertFalse(check_button.available)
         self.assertFalse(confirm_button.available)
+        self.assertTrue(coordinator.is_submission_uncertain("00012345", "01234567890"))
+        coordinator._confirmed_store.async_save.assert_awaited_once()
+        self.assertEqual(
+            coordinator._confirmed_store.async_save.await_args.args[0][
+                "unresolved_submissions"
+            ][0]["reading_number"],
+            "01234567890",
+        )
 
     async def test_second_confirm_press_cannot_repeat_final_post(self) -> None:
         """A completed confirmation cannot be reused even after an API timeout."""
