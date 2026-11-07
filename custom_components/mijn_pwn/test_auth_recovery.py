@@ -193,7 +193,9 @@ class TestSetupAuthenticationRecovery(unittest.IsolatedAsyncioTestCase):
             "password": "synthetic-password",
         }
 
-    async def test_first_refresh_auth_error_propagates_without_stale_entry(self) -> None:
+    async def test_first_refresh_auth_error_propagates_without_stale_entry(
+        self,
+    ) -> None:
         """Leave another account untouched if initial auth cannot succeed."""
         coordinator = MagicMock()
         coordinator.async_load_confirmed_readings = AsyncMock()
@@ -236,8 +238,6 @@ class TestSetupAuthenticationRecovery(unittest.IsolatedAsyncioTestCase):
 
     async def test_missing_credentials_require_reauthentication(self) -> None:
         """Missing saved credentials cannot recover by retrying automatically."""
-        with patch(
-            "custom_components.mijn_pwn._get_credentials", return_value=None
-        ):
+        with patch("custom_components.mijn_pwn._get_credentials", return_value=None):
             with self.assertRaises(ConfigEntryAuthFailed):
                 await _create_coordinator(self._hass, self._entry)
