@@ -47,6 +47,10 @@ class SonarCloudTriageTests(TestCase):
         self.assertEqual(len(requests), 1)
         self.assertEqual(requests[0].get_method(), "GET")
         self.assertIn("pullRequest=9", requests[0].full_url)
+        self.assertIn(
+            "issueStatuses=OPEN%2CCONFIRMED%2CFALSE_POSITIVE",
+            requests[0].full_url,
+        )
         self.assertEqual(
             requests[0].get_header("Authorization"), "Bearer fictional-token"
         )

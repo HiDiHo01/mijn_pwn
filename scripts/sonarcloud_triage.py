@@ -8,7 +8,7 @@ import json
 import os
 import sys
 from typing import Any
-from urllib.error import HTTPError, URLError
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
@@ -53,10 +53,9 @@ def _perform_request(request: Request) -> bytes:
     except HTTPError as error:
         raise TriageError(
             "SonarCloud request failed (HTTP %s); "
-            "check token permissions or API availability"
-            % error.code
+            "check token permissions or API availability" % error.code
         ) from None
-    except (URLError, TimeoutError, OSError):
+    except OSError:
         raise TriageError("SonarCloud request failed (network or timeout)") from None
     if len(body) > MAX_RESPONSE_BYTES:
         raise TriageError("SonarCloud response exceeded the safe size limit")
@@ -92,7 +91,7 @@ def _request_json(
     raw_response = _perform_request(request)
     try:
         result = json.loads(raw_response)
-    except (ValueError, UnicodeDecodeError):
+    except ValueError:
         raise TriageError("SonarCloud returned invalid JSON") from None
     if not isinstance(result, dict):
         raise TriageError("SonarCloud returned an unexpected response object")
@@ -102,7 +101,12 @@ def _request_json(
 def _fetch_issues(token: str) -> dict[str, dict[str, object]]:
     """Read all issues for the exact project and PR without trusting pagination."""
     query = urlencode(
-        {"componentKeys": PROJECT_KEY, "pullRequest": PULL_REQUEST, "ps": 500}
+        {
+            "componentKeys": PROJECT_KEY,
+            "pullRequest": PULL_REQUEST,
+            "issueStatuses": "OPEN,CONFIRMED,FALSE_POSITIVE",
+            "ps": 500,
+        }
     )
     response = _request_json(f"/api/issues/search?{query}", token)
     items = response.get("issues")
