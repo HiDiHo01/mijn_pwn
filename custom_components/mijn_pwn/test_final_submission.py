@@ -123,10 +123,12 @@ class TestFinalReadingSubmission(unittest.IsolatedAsyncioTestCase):
         api._access_token = "synthetic-token"
         response = MagicMock(status=401)
         api._session.request.return_value.__aenter__.return_value = response
+        reading_date = date(2026, 11, 7)
+        address = self._address()
 
         with self.assertRaises(ConfigEntryAuthFailed):
             await api.submit_meter_reading(
-                "01234567890", 165, date(2026, 11, 7), self._address(), 5
+                "01234567890", 165, reading_date, address, 5
             )
 
         api._session.request.assert_called_once()
