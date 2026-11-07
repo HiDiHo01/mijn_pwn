@@ -295,18 +295,13 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
                 return False
         return True
 
-    def current_submission_details(
-        self, meter_number: str
-    ) -> PWNSubmissionDetails | None:
-        """Return a complete, current reading snapshot or None if unsafe to send."""
-        draft = self.draft_readings.get(meter_number)
-        if draft is None or not isinstance(self.data, dict):
+    @staticmethod
+    def _find_open_meter_request(
+        requests: object, meter_number: str
+    ) -> dict[str, object] | None:
+        """Find exactly one open request for a meter without guessing."""
+        if not isinstance(requests, list):
             return None
-        requests = self.data.get(DATA_READING_REQUESTS)
-        account = self.data.get(DATA_USER)
-        if not isinstance(requests, list) or not isinstance(account, dict):
-            return None
-
         matches = [
             item
             for item in requests
@@ -314,24 +309,32 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             and item.get("meterNumber") == meter_number
             and item.get("openReading") is True
         ]
-        if len(matches) != 1:
-            return None
-        request = matches[0]
+        return matches[0] if len(matches) == 1 else None
+
+    @staticmethod
+    def _valid_draft_for_request(
+        draft: PWNReadingDraft, request: dict[str, object]
+    ) -> bool:
+        """Validate the reading and its original request identifiers."""
         reading_number = request.get("readingNumber")
-        wheels = request.get("amountOfWheels")
+        wheel_count = request.get("amountOfWheels")
         if (
             not isinstance(reading_number, str)
             or len(reading_number) != 11
             or not reading_number.isascii()
             or not reading_number.isdecimal()
             or draft.reading_number != reading_number
-            or type(wheels) is not int
-            or not 1 <= wheels <= 9
-            or type(draft.value) is not int
-            or not 0 <= draft.value < 10**wheels
+            or type(wheel_count) is not int
+            or not 1 <= wheel_count <= 9
         ):
-            return None
+            return False
+        return type(draft.value) is int and 0 <= draft.value < 10**wheel_count
 
+    @staticmethod
+    def _extract_relation_number(account: object) -> str | None:
+        """Validate seven relation digits, with optional observed 000 prefix."""
+        if not isinstance(account, dict):
+            return None
         identifier = account.get("relationNumber")
         if (
             not isinstance(identifier, str)
@@ -341,31 +344,52 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             return None
         if len(identifier) == 10 and identifier.startswith("000"):
             identifier = identifier[3:]
-        if len(identifier) != 7:
+        return identifier if len(identifier) == 7 else None
+
+    @staticmethod
+    def _valid_meter_address(address: object) -> bool:
+        """Require all PWN submission address fields as bounded strings."""
+        if not isinstance(address, dict):
+            return False
+        return all(
+            isinstance(address.get(key), str)
+            and len(address[key]) <= 255
+            and (key == "houseNumberAddition" or bool(address[key].strip()))
+            for key in ("postalCode", "street", "houseNumber", "houseNumberAddition")
+        )
+
+    def current_submission_details(
+        self, meter_number: str
+    ) -> PWNSubmissionDetails | None:
+        """Return a validated, immutable snapshot for explicit submission."""
+        draft = self.draft_readings.get(meter_number)
+        if draft is None or not isinstance(self.data, dict):
             return None
 
+        request = self._find_open_meter_request(
+            self.data.get(DATA_READING_REQUESTS), meter_number
+        )
+        if request is None or not self._valid_draft_for_request(draft, request):
+            return None
+
+        identifier = self._extract_relation_number(self.data.get(DATA_USER))
         address = request.get("address")
-        if not isinstance(address, dict):
+        if identifier is None or not self._valid_meter_address(address):
             return None
-        expected_keys = ("postalCode", "street", "houseNumber", "houseNumberAddition")
-        if any(
-            not isinstance(address.get(key), str)
-            or len(address[key]) > 255
-            or (key != "houseNumberAddition" and not address[key].strip())
-            for key in expected_keys
-        ):
-            return None
+
         if draft.entered_at.tzinfo is None or draft.entered_at.utcoffset() is None:
             return None
         if not self._reading_date_in_window(draft.reading_date, request):
             return None
+        if not isinstance(address, dict) or type(draft.reading_date) is not date:
+            return None
 
         return PWNSubmissionDetails(
             meter_number=meter_number,
-            reading_number=reading_number,
+            reading_number=draft.reading_number,
             relation_number=identifier,
             value=draft.value,
-            wheel_count=wheels,
+            wheel_count=request["amountOfWheels"],
             reading_date=draft.reading_date,
             entered_at=draft.entered_at,
             postal_code=address["postalCode"],
