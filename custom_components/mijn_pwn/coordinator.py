@@ -484,52 +484,84 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             ],
         }
 
+    @classmethod
+    def _parse_stored_confirmed_reading(
+        cls, record: object
+    ) -> PWNConfirmedMeterReading | None:
+        """Validate one stored acknowledgement without accepting malformed values."""
+        if not isinstance(record, dict):
+            return None
+        identity = cls._parse_stored_closed_request(record)
+        value = record.get("value")
+        wheel_count = record.get("wheel_count")
+        if (
+            identity is None
+            or type(value) is not int
+            or type(wheel_count) is not int
+            or not 1 <= wheel_count <= 9
+            or not 0 <= value < 10**wheel_count
+        ):
+            return None
+        confirmed_at = cls._parse_stored_entry_time(record.get("confirmed_at"))
+        if confirmed_at is None:
+            return None
+        meter_number, reading_number = identity
+        return PWNConfirmedMeterReading(
+            value=value,
+            wheel_count=wheel_count,
+            confirmed_at=confirmed_at,
+            meter_number=meter_number,
+            reading_number=reading_number,
+        )
+
+    @classmethod
+    def _parse_stored_uncertain_submission(
+        cls, record: object
+    ) -> tuple[str, str, datetime] | None:
+        """Validate a write-ahead marker and its timezone-aware timestamp."""
+        if not isinstance(record, dict):
+            return None
+        identity = cls._parse_stored_closed_request(record)
+        started_at = cls._parse_stored_entry_time(record.get("started_at"))
+        if identity is None or started_at is None:
+            return None
+        meter_number, reading_number = identity
+        return meter_number, reading_number, started_at
+
+    def _restore_uncertain_submissions(self, records: object) -> None:
+        """Restore unresolved requests and recreate their privacy-safe repairs."""
+        restored: dict[str, dict[str, datetime]] = {}
+        if isinstance(records, list):
+            for record in records:
+                parsed = self._parse_stored_uncertain_submission(record)
+                if parsed is None:
+                    continue
+                meter_number, reading_number, started_at = parsed
+                if self.was_reading_submitted(meter_number, reading_number):
+                    continue
+                restored.setdefault(meter_number, {})[reading_number] = started_at
+
+        self.uncertain_submissions = restored
+        for meter_number, requests in restored.items():
+            for reading_number in requests:
+                self._create_uncertain_repair(meter_number, reading_number)
+
     async def async_load_confirmed_readings(self) -> None:
-        """Restore per-meter acknowledgements before platforms are forwarded."""
+        """Restore valid acknowledgements and unresolved submissions before setup."""
         saved = await self._confirmed_store.async_load()
         if not isinstance(saved, dict):
             return
-        records = saved.get("readings")
-        if not isinstance(records, list):
-            records = []
 
         restored: dict[str, dict[str, PWNConfirmedMeterReading]] = {}
-        for record in records:
-            if not isinstance(record, dict):
-                continue
-            meter_number = record.get("meter_number")
-            reading_number = record.get("reading_number")
-            value = record.get("value")
-            wheel_count = record.get("wheel_count")
-            timestamp = record.get("confirmed_at")
-            if (
-                not isinstance(meter_number, str)
-                or not meter_number.strip()
-                or not isinstance(reading_number, str)
-                or len(reading_number) != 11
-                or not reading_number.isascii()
-                or not reading_number.isdecimal()
-                or type(value) is not int
-                or type(wheel_count) is not int
-                or not 1 <= wheel_count <= 9
-                or not 0 <= value < 10**wheel_count
-                or not isinstance(timestamp, str)
-            ):
-                continue
-            try:
-                confirmed_at = datetime.fromisoformat(timestamp)
-            except ValueError:
-                continue
-            if confirmed_at.tzinfo is None or confirmed_at.utcoffset() is None:
-                continue
-            reading = PWNConfirmedMeterReading(
-                value=value,
-                wheel_count=wheel_count,
-                confirmed_at=confirmed_at,
-                meter_number=meter_number,
-                reading_number=reading_number,
-            )
-            restored.setdefault(meter_number, {})[reading_number] = reading
+        records = saved.get("readings")
+        if isinstance(records, list):
+            for record in records:
+                reading = self._parse_stored_confirmed_reading(record)
+                if reading is None:
+                    continue
+                restored.setdefault(reading.meter_number, {})[
+                    reading.reading_number
+                ] = reading
 
         self.confirmed_readings = restored
         all_readings = [
@@ -540,26 +572,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             if all_readings
             else None
         )
-
-        unresolved = saved.get("unresolved_submissions")
-        restored_uncertain: dict[str, dict[str, datetime]] = {}
-        if isinstance(unresolved, list):
-            for item in unresolved:
-                identity = self._parse_stored_closed_request(item)
-                if identity is None:
-                    continue
-                started_at = self._parse_stored_entry_time(item.get("started_at"))
-                if started_at is None:
-                    continue
-                meter_number, reading_number = identity
-                if not self.was_reading_submitted(meter_number, reading_number):
-                    restored_uncertain.setdefault(meter_number, {})[reading_number] = (
-                        started_at
-                    )
-        self.uncertain_submissions = restored_uncertain
-        for meter_number, requests in restored_uncertain.items():
-            for reading_number in requests:
-                self._create_uncertain_repair(meter_number, reading_number)
+        self._restore_uncertain_submissions(saved.get("unresolved_submissions"))
 
     def _schedule_confirmation_expiry(
         self, meter_number: str, expires_at: datetime
