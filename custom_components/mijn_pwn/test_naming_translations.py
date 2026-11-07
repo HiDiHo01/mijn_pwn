@@ -73,10 +73,7 @@ class TestNamingTranslations(unittest.TestCase):
         catalog = json.loads(
             (_COMPONENT_DIR / "translations" / "nl.json").read_text("utf-8")
         )
-        names = {
-            key: item["name"]
-            for key, item in catalog["entity"]["sensor"].items()
-        }
+        names = {key: item["name"] for key, item in catalog["entity"]["sensor"].items()}
         platform_translations = {
             f"component.{DOMAIN}.entity.sensor.{key}.name": name
             for key, name in names.items()
