@@ -17,7 +17,9 @@ _LOGGER = logging.getLogger(__name__)
 # ------------------------------------------------------------------ #
 # Exceptions
 # ------------------------------------------------------------------ #
-INVALID_READING_NUMBER_MESSAGE = "Invalid reading number: expected exactly 11 ASCII digits"
+INVALID_READING_NUMBER_MESSAGE = (
+    "Invalid reading number: expected exactly 11 ASCII digits"
+)
 
 
 class PWNAPIError(Exception):
@@ -662,13 +664,9 @@ class PWNAPI:
         relation_number = payload.get("relationNumber")
         token = payload.get("additionalDataToken")
         if not isinstance(relation_number, str) or not relation_number:
-            raise PWNAPIError(
-                "Invalid measurement validation response: missing fields"
-            )
+            raise PWNAPIError("Invalid measurement validation response: missing fields")
         if not isinstance(token, str) or not token:
-            raise PWNAPIError(
-                "Invalid measurement validation response: missing fields"
-            )
+            raise PWNAPIError("Invalid measurement validation response: missing fields")
         if (
             not relation_number.isascii()
             or not relation_number.isdecimal()
@@ -680,15 +678,11 @@ class PWNAPI:
         return relation_number, token
 
     @staticmethod
-    def _parse_measurement_status_code(
-        payload: dict[str, object], key: str
-    ) -> int:
+    def _parse_measurement_status_code(payload: dict[str, object], key: str) -> int:
         """Read required nonnegative measurement status integers."""
         value = payload.get(key)
         if type(value) is not int or value < 0:
-            raise PWNAPIError(
-                "Invalid measurement validation response: status code"
-            )
+            raise PWNAPIError("Invalid measurement validation response: status code")
         return value
 
     @staticmethod
@@ -698,9 +692,7 @@ class PWNAPI:
         """Validate optional API period boundaries without parsing assumptions."""
         value = payload.get(key)
         if value is not None and (not isinstance(value, str) or not value):
-            raise PWNAPIError(
-                "Invalid measurement validation response: period date"
-            )
+            raise PWNAPIError("Invalid measurement validation response: period date")
         return value
 
     @staticmethod
@@ -715,9 +707,7 @@ class PWNAPI:
 
         relation_number, token = PWNAPI._parse_measurement_identifiers(payload)
         client_type = PWNAPI._parse_measurement_status_code(payload, "clientType")
-        reading_reason = PWNAPI._parse_measurement_status_code(
-            payload, "readingReason"
-        )
+        reading_reason = PWNAPI._parse_measurement_status_code(payload, "readingReason")
         addition = payload.get("houseNumberAddition")
         if not isinstance(addition, str):
             raise PWNAPIError(
