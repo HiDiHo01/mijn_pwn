@@ -21,6 +21,10 @@ class PWNAPIError(Exception):
     """Base exception for PWN API errors."""
 
 
+class PWNReadingSubmissionRejected(PWNAPIError):
+    """PWN explicitly rejected the final water meter reading submission."""
+
+
 class PWNReadingNotPlausibleError(PWNAPIError):
     """The entered reading failed PWN plausibility checks; nothing was submitted."""
 
@@ -47,6 +51,26 @@ class PWNAPICommunicationError(PWNAPIError):
 
 class PWNAPIAuthenticationError(PWNAPIError):
     """Authentication error."""
+
+
+class PWNFinalReadingRequest(TypedDict):
+    """Confirmed case-sensitive JSON keys for the final WaterUsage POST."""
+
+    MeterReading: int
+    AnomalyReason: None
+    ReadingDate: str
+    PostalCode: str
+    Street: str
+    HouseNumber: str
+    HouseNumberAddition: str
+    WaterMeterImage: None
+
+
+class PWNFinalReadingResponse(TypedDict):
+    """Business-level acknowledgement returned after final meter submission."""
+
+    success: bool
+    errorText: str
 
 
 class PWNReadingPlausibilityResponse(TypedDict):
@@ -324,7 +348,13 @@ class PWNAPI:
     ) -> dict[str, object]: ...
 
     async def _request(
-        self, method: str, endpoint: str, *, expect_list: bool = False, **kwargs
+        self,
+        method: str,
+        endpoint: str,
+        *,
+        expect_list: bool = False,
+        expected_status: int | None = None,
+        **kwargs,
     ) -> dict[str, object] | list[dict[str, object]]:
         """Perform an authenticated HTTP request with a validated JSON shape."""
         if self._access_token is None:
@@ -358,11 +388,13 @@ class PWNAPI:
                             **kwargs,
                         ) as retry_resp:
                             await self._raise_for_status(retry_resp)
+                            self._check_expected_status(retry_resp.status, expected_status)
                             return self._parse_json_response(
                                 await retry_resp.json(), expect_list=expect_list
                             )
 
                     await self._raise_for_status(resp)
+                    self._check_expected_status(resp.status, expected_status)
                     return self._parse_json_response(
                         await resp.json(), expect_list=expect_list
                     )
@@ -371,6 +403,12 @@ class PWNAPI:
             raise UpdateFailed("Timeout communicating with API") from exc
         except ClientError as exc:
             raise UpdateFailed("Network error communicating with API") from exc
+
+    @staticmethod
+    def _check_expected_status(status_code: int, expected_status: int | None) -> None:
+        """Reject unexpected successful statuses before parsing protected data."""
+        if expected_status is not None and status_code != expected_status:
+            raise UpdateFailed("Unexpected HTTP status from PWN API")
 
     @staticmethod
     def _parse_json_response(
@@ -526,6 +564,51 @@ class PWNAPI:
             minReading=minimum,
             maxReading=maximum,
         )
+
+    @staticmethod
+    def _build_final_reading_payload(
+        meter_reading: int,
+        reading_date: date,
+        address: dict[str, object],
+        wheel_count: int,
+    ) -> PWNFinalReadingRequest:
+        """Validate and build the exact final PWN submission request body."""
+        validated = PWNAPI._build_plausible_reading_payload(
+            meter_reading, reading_date, address, wheel_count
+        )
+        street = address.get("street")
+        if not isinstance(street, str) or not street.strip() or len(street) > 255:
+            raise ValueError("Invalid meter address: missing or invalid street")
+
+        return PWNFinalReadingRequest(
+            MeterReading=validated["meterReading"],
+            AnomalyReason=None,
+            ReadingDate=validated["readingDate"],
+            PostalCode=validated["postalCode"],
+            Street=street,
+            HouseNumber=validated["houseNumber"],
+            HouseNumberAddition=validated["houseNumberAddition"],
+            WaterMeterImage=None,
+        )
+
+    @staticmethod
+    def parse_final_reading_response(payload: object) -> PWNFinalReadingResponse:
+        """Accept only an unambiguous successful PWN final submission response."""
+        if not isinstance(payload, dict):
+            raise PWNAPIError("Invalid final meter reading response: expected an object")
+
+        success = payload.get("success")
+        error_text = payload.get("errorText")
+        if type(success) is not bool or not isinstance(error_text, str):
+            raise PWNAPIError("Invalid final meter reading response: missing fields")
+        if not success:
+            raise PWNReadingSubmissionRejected(
+                "PWN rejected the meter reading; the previous confirmed state is unchanged"
+            )
+        if error_text:
+            raise PWNAPIError("Invalid final meter reading response: inconsistent fields")
+
+        return PWNFinalReadingResponse(success=True, errorText="")
 
     @staticmethod
     def _build_measurement_validation_payload(
@@ -803,6 +886,40 @@ class PWNAPI:
                 result["minReading"], result["maxReading"]
             )
         return result
+
+    async def submit_meter_reading(
+        self,
+        reading_number: str,
+        meter_reading: int,
+        reading_date: date,
+        address: dict[str, object],
+        wheel_count: int,
+    ) -> PWNFinalReadingResponse:
+        """Submit only an explicitly requested reading to the final PWN API.
+
+        Call this only after a successful plausibility check. HTTP 200 plus a
+        JSON success=true/errorText="" acknowledgement is required.
+        """
+        if (
+            not isinstance(reading_number, str)
+            or len(reading_number) != 11
+            or not reading_number.isascii()
+            or not reading_number.isdecimal()
+        ):
+            raise ValueError("Invalid reading number: expected exactly 11 ASCII digits")
+
+        payload = self._build_final_reading_payload(
+            meter_reading, reading_date, address, wheel_count
+        )
+        endpoint = f"{DATA_ENDPOINTS['water_usage_submit_reading']}/{reading_number}"
+        try:
+            result = await self._request(
+                "POST", endpoint, json=payload, expected_status=200
+            )
+        except UpdateFailed:
+            raise UpdateFailed("Unable to submit meter reading to PWN") from None
+
+        return self.parse_final_reading_response(result)
 
     async def get_reading_request(self) -> list[dict[str, object]]:
         """Return meter-reading requests with their status and meter metadata."""
