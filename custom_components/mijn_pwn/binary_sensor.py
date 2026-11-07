@@ -30,6 +30,7 @@ from .const import (
 )
 from .coordinator import PWNDataUpdateCoordinator
 from .device_identifiers import get_device_identifiers, get_device_translation_key
+from .reading_request import setup_reading_request_binary_sensors
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,6 +61,7 @@ async def async_setup_entry(
         ],
         True,
     )
+    setup_reading_request_binary_sensors(coordinator, config_entry, async_add_entities)
 
 
 @dataclass(frozen=True, slots=True)

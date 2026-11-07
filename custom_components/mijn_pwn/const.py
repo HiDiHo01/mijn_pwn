@@ -61,6 +61,9 @@ SERVICES: Final[Services] = {
 DATA_CONSUMPTION: Final[str] = "consumption_history"
 """Data key for consumption history."""
 
+DATA_READING_REQUESTS: Final[str] = "reading_requests"
+"""Data key for meter-reading requests (list of per-meter entries)."""
+
 DATA_NOTIFICATIONS: Final[str] = "notifications"
 """Data key for account notifications."""
 
@@ -108,6 +111,19 @@ API_ENDPOINTS: Final[dict[str, str]] = {
     "advance": f"{API_URL}/api/advance",
     "notifications": f"{API_URL}/api/Notifications",
     "consumption_history": f"{API_URL}/api/connection/consumption-history/dashboard",
+    "reading_request": (
+        f"{API_URL}/api/connection/reading-request?withReadingNumberOnly=false"
+    ),
+    "move_house_validate_address": f"{API_URL}/api/MoveHouse/validate-address",
+    "supplement_information_private": f"{API_URL}/api/SupplementInformation/private",
+    "water_usage_meter_details": f"{API_URL}/api/WaterUsage/meter-details",
+    "water_usage_submit_reading": f"{API_URL}/api/WaterUsage",
+    "water_usage_validate_measurement_request": (
+        f"{API_URL}/api/WaterUsage/validate-measurement-request"
+    ),
+    "water_usage_validate_plausible_reading": (
+        f"{API_URL}/api/WaterUsage/validate-plausible-reading"
+    ),
 }
 """Dictionary containing API endpoints for various PWN services."""
 
@@ -123,6 +139,17 @@ DATA_ENDPOINTS = {
     "advance": API_ENDPOINTS["advance"],
     "notifications": API_ENDPOINTS["notifications"],
     "consumption_history": API_ENDPOINTS["consumption_history"],
+    "reading_request": API_ENDPOINTS["reading_request"],
+    "move_house_validate_address": API_ENDPOINTS["move_house_validate_address"],
+    "supplement_information_private": API_ENDPOINTS["supplement_information_private"],
+    "water_usage_meter_details": API_ENDPOINTS["water_usage_meter_details"],
+    "water_usage_submit_reading": API_ENDPOINTS["water_usage_submit_reading"],
+    "water_usage_validate_measurement_request": API_ENDPOINTS[
+        "water_usage_validate_measurement_request"
+    ],
+    "water_usage_validate_plausible_reading": API_ENDPOINTS[
+        "water_usage_validate_plausible_reading"
+    ],
 }
 
 # Configuration Constants
@@ -136,6 +163,9 @@ CONFIG_CONSTANTS: Final[dict[str, str]] = {
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.BINARY_SENSOR,
+    Platform.NUMBER,
+    Platform.BUTTON,
+    Platform.DATE,
 ]
 """List of platforms supported by this integration."""
 

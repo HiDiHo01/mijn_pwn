@@ -32,4 +32,17 @@ jobs:
             custom_components.mijn_pwn.test_device_identifiers \
             custom_components.mijn_pwn.test_naming_translations \
             custom_components.mijn_pwn.test_data_parsers \
-            custom_components.mijn_pwn.test_sensor_expansion
+            custom_components.mijn_pwn.test_sensor_expansion \
+            custom_components.mijn_pwn.test_reading_request \
+            custom_components.mijn_pwn.test_reading_request_entities \
+            custom_components.mijn_pwn.test_move_house_endpoint \
+            custom_components.mijn_pwn.test_private_confirmation \
+            custom_components.mijn_pwn.test_water_meter_details \
+            custom_components.mijn_pwn.test_measurement_validation \
+            custom_components.mijn_pwn.test_closed_reading_request \
+            custom_components.mijn_pwn.test_reading_draft_number \
+            custom_components.mijn_pwn.test_confirmed_reading \
+            custom_components.mijn_pwn.test_plausible_reading \
+            custom_components.mijn_pwn.test_final_submission \
+            custom_components.mijn_pwn.test_submit_workflow \
+            custom_components.mijn_pwn.test_review_fixes
