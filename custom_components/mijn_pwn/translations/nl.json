@@ -3,7 +3,8 @@
   "config": {
     "abort": {
       "already_configured": "Account is al toegevoegd",
-      "reauth_successful": "Opnieuw inloggen gelukt"
+      "reauth_successful": "Opnieuw inloggen gelukt",
+      "unique_id_mismatch": "Dit is een ander Mijn PWN-account. Voeg dit afzonderlijk toe in plaats van het geselecteerde account opnieuw te configureren."
     },
     "error": {
       "invalid_auth": "Inloggegevens niet geaccepteerd. Controleer de gegevens en probeer het opnieuw."
