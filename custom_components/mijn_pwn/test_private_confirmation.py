@@ -13,9 +13,7 @@ class TestPrivateConfirmationUrl(unittest.TestCase):
         """Build a 10-digit identifier with exactly three leading zeroes."""
         url = PWNAPI.build_private_confirmation_url("1234567")
 
-        self.assertEqual(
-            url, f"{API_URL}/api/SupplementInformation/private/0001234567"
-        )
+        self.assertEqual(url, f"{API_URL}/api/SupplementInformation/private/0001234567")
         self.assertEqual(
             DATA_ENDPOINTS["supplement_information_private"],
             f"{API_URL}/api/SupplementInformation/private",
