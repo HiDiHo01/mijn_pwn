@@ -90,11 +90,42 @@ LF line endings to prevent formatting-only failures.
 - Quote YAML `run:` values containing a colon followed by a space (for example
   the `:all:` pip option), or use a block scalar. An invalid workflow may
   produce a failed run with **zero jobs**, which is not a test failure.
+- Validate GitHub Actions expression **result types** before using them for
+  `runs-on`, job conditions, matrices, permissions, or other workflow settings.
+  The expression `${{ (matrix.language == 'python') || 'ubuntu-latest' }}`
+  evaluates to boolean `true` for Python, **not** a runner label. Prefer a
+  literal `runs-on: ubuntu-latest` for a single runner; when choosing runners
+  dynamically, make every branch return a valid runner label or label list.
+- When a job reports `Waiting for a runner to pick up this job`, inspect
+  the evaluated `runs-on` value, runner-group and label availability,
+  and the job's workflow ref **before** diagnosing GitHub runner capacity.
+  Differentiate `queued`, `in_progress`, `completed`, and `skipped`;
+  confirm the job actually reached its analysis step after any runner fix.
+- For new or changed GitHub Actions `uses:` references, pin each action to
+  a **verified immutable full commit SHA** with a readable version comment,
+  following the repository's dependency-update policy. Do not introduce or
+  preserve floating version tags in newly modified action references,
+  downgrade actions, or broaden permissions merely to make a check pass.
+  Existing unrelated unpinned actions require a separately scoped change.
 - Read individual SonarCloud findings, verify them against the current code,
   and fix the cause rather than suppressing the rule. For cognitive complexity,
   extract focused pure helpers while preserving behavior and tests. Recheck the
   SonarCloud **Quality Gate on the final head** after every workflow revision;
   a green check from an earlier commit is insufficient.
+- Review each SonarCloud finding against the actual source and framework
+  contract before fixing or classifying it. For example,
+  `"password": "Wachtwoord"` in a Home Assistant translation catalog
+  describes a form field, not a hard-coded credential; preserve required
+  translation keys and classify a verified false positive through authorized
+  SonarCloud triage rather than deleting or obfuscating it. Keep exception
+  assertions limited to one potentially throwing invocation, and refactor
+  overly complex coordinator methods into focused, tested helpers.
+- Recheck **every required check against the exact latest PR-head SHA**
+  after *any* change, including documentation or workflow changes. Verify
+  actual workflow-run and step conclusions, not only the `success()`
+  condition, a previous commit's green badge, or the absence of new findings.
+  Record pending, skipped and blocked checks separately; do not mark a PR
+  merge-ready before the mandatory checks and human review are complete.
 - Evaluate GitHub Actions, SonarCloud and external status contexts separately.
   Passing Ruff, tests, images and dependency review does not imply Snyk passed.
   Report missing, skipped and external-error checks explicitly, and never claim
