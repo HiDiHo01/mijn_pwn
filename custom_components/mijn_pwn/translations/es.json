@@ -1,0 +1,188 @@
+{
+  "title": "Mijn PWN",
+  "config": {
+    "abort": {
+      "already_configured": "La cuenta ya está configurada",
+      "reauth_successful": "Se ha iniciado sesión de nuevo correctamente"
+    },
+    "error": {
+      "invalid_auth": "Credenciales incorrectas. Comprueba los datos e inténtalo de nuevo."
+    },
+    "step": {
+      "login": {
+        "title": "Iniciar sesión en Mijn PWN",
+        "data": {
+          "username": "Correo electrónico",
+          "password": "Contraseña"
+        }
+      },
+      "user": {
+        "title": "Iniciar sesión en Mijn PWN",
+        "description": "Inicia sesión con tu cuenta de Mijn PWN.",
+        "data": {
+          "authentication": "Usar las credenciales de Mijn PWN",
+          "username": "Correo electrónico",
+          "password": "Contraseña"
+        }
+      },
+      "reconfigure": {
+        "title": "Actualizar credenciales de Mijn PWN",
+        "data": {
+          "username": "Correo electrónico",
+          "password": "Contraseña"
+        }
+      }
+    }
+  },
+  "device": {
+    "consumption": {
+      "name": "Mijn PWN - Consumo"
+    },
+    "invoices": {
+      "name": "Mijn PWN - Facturas"
+    },
+    "user": {
+      "name": "Mijn PWN - Usuario"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "last_submitted_meter_reading": {
+        "name": "Última lectura de contador comunicada"
+      },
+      "last_submitted_meter_reading_date": {
+        "name": "Fecha de la última lectura de contador comunicada"
+      },
+      "total_open_amount": {
+        "name": "Importe total pendiente"
+      },
+      "open_invoices_document_numbers": {
+        "name": "Números de documento de facturas pendientes"
+      },
+      "number_of_open_items": {
+        "name": "Número de facturas pendientes"
+      },
+      "total_costs": {
+        "name": "Costes totales"
+      },
+      "total_costs_current_year": {
+        "name": "Costes totales de este año"
+      },
+      "expected_costs_current_year": {
+        "name": "Costes previstos de este año"
+      },
+      "total_cost_previous_year": {
+        "name": "Costes totales del año pasado"
+      },
+      "costs_per_month_current_year": {
+        "name": "Costes mensuales de este año"
+      },
+      "invoice_quarter_current_year": {
+        "name": "Trimestre de facturación de este año"
+      },
+      "contract_account_number": {
+        "name": "Número de cuenta del contrato"
+      },
+      "relation_number": {
+        "name": "Número de cliente"
+      },
+      "full_name": {
+        "name": "Nombre completo"
+      },
+      "birth_place": {
+        "name": "Lugar de nacimiento"
+      },
+      "date_of_birth": {
+        "name": "Fecha de nacimiento"
+      },
+      "correspondence_address": {
+        "name": "Dirección de correspondencia"
+      },
+      "latest_meter_reading": {
+        "name": "Última lectura del contador"
+      },
+      "total_consumption": {
+        "name": "Consumo total"
+      },
+      "consumption_last_year": {
+        "name": "Consumo del año pasado"
+      },
+      "last_update": {
+        "name": "Última actualización"
+      },
+      "last_update2": {
+        "name": "Marca temporal de la última actualización"
+      },
+      "notification_count": {
+        "name": "Número de notificaciones"
+      },
+      "water_consumption_status": {
+        "name": "Estado del consumo de agua",
+        "state": {
+          "no_reported_anomaly": "Sin anomalías notificadas",
+          "anomaly_reported": "Anomalía notificada"
+        }
+      },
+      "last_meter_reading_date": {
+        "name": "Fecha de la última lectura real"
+      },
+      "reading_number": {
+        "name": "Número de lectura ({meter_number})"
+      },
+      "reading_start_date": {
+        "name": "Inicio de solicitud de lectura ({meter_number})"
+      },
+      "reading_date": {
+        "name": "Fecha de lectura ({meter_number})"
+      },
+      "reading_reason": {
+        "name": "Código de motivo de lectura ({meter_number})"
+      },
+      "reading_wheel_count": {
+        "name": "Número de dígitos del contador ({meter_number})"
+      },
+      "reading_meter_number": {
+        "name": "Número de contador ({meter_number})"
+      },
+      "reading_address": {
+        "name": "Dirección de suministro ({meter_number})"
+      },
+      "reading_contract_status": {
+        "name": "Código de estado del contrato ({meter_number})"
+      }
+    },
+    "binary_sensor": {
+      "open_invoices": {
+        "name": "Facturas pendientes",
+        "state": {
+          "on": "Facturas pendientes",
+          "off": "Sin facturas pendientes"
+        }
+      },
+      "reading_request_open": {
+        "name": "Solicitud de lectura abierta ({meter_number})"
+      },
+      "reading_requests_open": {
+        "name": "Solicitudes de lectura abiertas"
+      }
+    },
+    "number": {
+      "meter_reading_draft": {
+        "name": "Lectura del contador (borrador, sin enviar) ({meter_number})"
+      }
+    },
+    "button": {
+      "prepare_meter_reading": {
+        "name": "Comprobar lectura del contador ({meter_number})"
+      },
+      "submit_meter_reading": {
+        "name": "Confirmar envío de lectura ({meter_number})"
+      }
+    },
+    "date": {
+      "meter_reading_date_input": {
+        "name": "Fecha de lectura ({meter_number})"
+      }
+    }
+  }
+}
