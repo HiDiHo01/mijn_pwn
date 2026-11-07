@@ -47,6 +47,12 @@
   },
   "entity": {
     "sensor": {
+      "last_submitted_meter_reading": {
+        "name": "Laatst doorgegeven meterstand"
+      },
+      "last_submitted_meter_reading_date": {
+        "name": "Datum laatst doorgegeven meterstand"
+      },
       "total_open_amount": {
         "name": "Totaal openstaand bedrag"
       },
