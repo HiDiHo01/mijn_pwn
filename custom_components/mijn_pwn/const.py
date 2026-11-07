@@ -109,8 +109,7 @@ API_ENDPOINTS: Final[dict[str, str]] = {
     "notifications": f"{API_URL}/api/Notifications",
     "consumption_history": f"{API_URL}/api/connection/consumption-history/dashboard",
     "reading_request": (
-        f"{API_URL}/api/connection/reading-request"
-        "?withReadingNumberOnly=false"
+        f"{API_URL}/api/connection/reading-request?withReadingNumberOnly=false"
     ),
 }
 """Dictionary containing API endpoints for various PWN services."""
