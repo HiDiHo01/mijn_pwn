@@ -123,17 +123,29 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
-    """Handle removal of an entry."""
-    if unloaded := await hass.config_entries.async_unload_platforms(
-        config_entry, PLATFORMS
-    ):
-        coordinator = hass.data[DOMAIN].pop(config_entry.entry_id, None)
+    """Wait for ongoing submissions before unloading the PWN platforms."""
+    coordinator = hass.data.get(DOMAIN, {}).get(config_entry.entry_id)
+    if coordinator is not None:
+        await coordinator.async_prepare_for_unload()
+
+    try:
+        unloaded = await hass.config_entries.async_unload_platforms(
+            config_entry, PLATFORMS
+        )
+    except Exception:
         if coordinator is not None:
-            coordinator.async_clear_pending_confirmations()
-        # If no more entries exist, remove the DOMAIN data entirely
-        if not hass.data[DOMAIN]:
-            hass.data.pop(DOMAIN)
-    return unloaded
+            coordinator.resume_after_failed_unload()
+        raise
+
+    if not unloaded:
+        if coordinator is not None:
+            coordinator.resume_after_failed_unload()
+        return False
+
+    hass.data[DOMAIN].pop(config_entry.entry_id, None)
+    if not hass.data[DOMAIN]:
+        hass.data.pop(DOMAIN)
+    return True
 
 
 async def async_reload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
