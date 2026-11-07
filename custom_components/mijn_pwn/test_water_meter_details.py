@@ -138,6 +138,7 @@ class TestWaterMeterDetailsRequest(unittest.IsolatedAsyncioTestCase):
     async def test_untrusted_api_error_is_redacted(self) -> None:
         """Do not expose upstream response bodies that may include addresses."""
         client = self._make_client()
+        address = self._address()
         with patch.object(
             client,
             "_request",
@@ -147,5 +148,5 @@ class TestWaterMeterDetailsRequest(unittest.IsolatedAsyncioTestCase):
             with self.assertRaisesRegex(
                 UpdateFailed, "Unable to retrieve water meter details"
             ) as captured:
-                await client.get_water_meter_details(self._address())
+                await client.get_water_meter_details(address)
         self.assertNotIn("private street", str(captured.exception))
