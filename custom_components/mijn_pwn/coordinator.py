@@ -237,9 +237,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             return None
 
     @classmethod
-    def _parse_stored_draft(
-        cls, item: object
-    ) -> tuple[str, PWNReadingDraft] | None:
+    def _parse_stored_draft(cls, item: object) -> tuple[str, PWNReadingDraft] | None:
         """Restore one valid draft without allowing malformed metadata through."""
         if not isinstance(item, dict) or not cls._valid_stored_draft_identity(item):
             return None
