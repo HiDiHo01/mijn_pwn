@@ -196,51 +196,83 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             ]
         }
 
+    @staticmethod
+    def _valid_stored_draft_identity(item: dict[str, object]) -> bool:
+        """Check persisted meter identifiers and numeric reading limits."""
+        meter_number = item.get("meter_number")
+        reading_number = item.get("reading_number")
+        value = item.get("value")
+        return (
+            isinstance(meter_number, str)
+            and bool(meter_number.strip())
+            and isinstance(reading_number, str)
+            and len(reading_number) == 11
+            and reading_number.isascii()
+            and reading_number.isdecimal()
+            and type(value) is int
+            and 0 <= value <= 999999999
+        )
+
+    @staticmethod
+    def _parse_stored_entry_time(value: object) -> datetime | None:
+        """Only restore a valid, timezone-aware draft entry timestamp."""
+        if not isinstance(value, str):
+            return None
+        try:
+            entered_at = datetime.fromisoformat(value)
+        except ValueError:
+            return None
+        if entered_at.tzinfo is None or entered_at.utcoffset() is None:
+            return None
+        return entered_at
+
+    @staticmethod
+    def _parse_stored_reading_date(value: object) -> date | None:
+        """Parse a stored observation date, returning None for invalid values."""
+        if not isinstance(value, str):
+            return None
+        try:
+            return date.fromisoformat(value)
+        except ValueError:
+            return None
+
+    @classmethod
+    def _parse_stored_draft(
+        cls, item: object
+    ) -> tuple[str, PWNReadingDraft] | None:
+        """Restore one valid draft without allowing malformed metadata through."""
+        if not isinstance(item, dict) or not cls._valid_stored_draft_identity(item):
+            return None
+
+        entered_at = cls._parse_stored_entry_time(item.get("entered_at"))
+        if entered_at is None:
+            return None
+
+        date_value = item.get("reading_date")
+        reading_date = cls._parse_stored_reading_date(date_value)
+        if date_value is not None and reading_date is None:
+            return None
+
+        meter_number = item["meter_number"]
+        return meter_number, PWNReadingDraft(
+            value=item["value"],
+            entered_at=entered_at,
+            reading_number=item["reading_number"],
+            reading_date=reading_date,
+        )
+
     async def async_load_drafts(self) -> None:
-        """Restore unsubmitted drafts even if the reading-request API is offline."""
+        """Restore validated local drafts independently of API availability."""
         saved = await self._draft_store.async_load()
         if not isinstance(saved, dict) or not isinstance(saved.get("drafts"), list):
             return
+
         restored: dict[str, PWNReadingDraft] = {}
         for item in saved["drafts"]:
-            if not isinstance(item, dict):
-                continue
-            meter_number = item.get("meter_number")
-            reading_number = item.get("reading_number")
-            value = item.get("value")
-            timestamp = item.get("entered_at")
-            if (
-                not isinstance(meter_number, str)
-                or not meter_number.strip()
-                or not isinstance(reading_number, str)
-                or len(reading_number) != 11
-                or not reading_number.isascii()
-                or not reading_number.isdecimal()
-                or type(value) is not int
-                or not 0 <= value <= 999999999
-                or not isinstance(timestamp, str)
-            ):
-                continue
-            try:
-                entered_at = datetime.fromisoformat(timestamp)
-            except ValueError:
-                continue
-            if entered_at.tzinfo is None or entered_at.utcoffset() is None:
-                continue
-            reading_date = item.get("reading_date")
-            if reading_date is not None:
-                if not isinstance(reading_date, str):
-                    continue
-                try:
-                    reading_date = date.fromisoformat(reading_date)
-                except ValueError:
-                    continue
-            restored[meter_number] = PWNReadingDraft(
-                value=value,
-                entered_at=entered_at,
-                reading_number=reading_number,
-                reading_date=reading_date,
-            )
+            parsed = self._parse_stored_draft(item)
+            if parsed is not None:
+                meter_number, draft = parsed
+                restored[meter_number] = draft
         self.draft_readings = restored
 
     def schedule_draft_save(self) -> None:
@@ -344,37 +376,47 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
 
     def async_clear_pending_confirmations(self) -> None:
         """Cancel pending expiry callbacks during config-entry unload."""
-        for meter_number in list(self._prepared_submissions):
+        while self._prepared_submissions:
+            meter_number = next(iter(self._prepared_submissions))
             self.invalidate_prepared_submission(meter_number)
         for cancel in self._confirmation_cancels.values():
             cancel()
         self._confirmation_cancels.clear()
 
     @staticmethod
+    def _date_satisfies_request_bound(
+        reading_date: date, value: object, *, is_start: bool
+    ) -> bool:
+        """Reject malformed PWN bounds and compare against local calendar dates."""
+        if value is None:
+            return True
+        if not isinstance(value, str):
+            return False
+        try:
+            limit = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return False
+        if limit.tzinfo is None or limit.utcoffset() is None:
+            return False
+        limit_date = dt_util.as_local(limit).date()
+        return reading_date >= limit_date if is_start else reading_date <= limit_date
+
+    @staticmethod
     def _reading_date_in_window(
         reading_date: date | None, request: dict[str, object]
     ) -> bool:
-        """Validate an actual read date against PWN's requested date interval."""
+        """Validate an observed date against PWN's start, end and today's date."""
         if type(reading_date) is not date or reading_date > dt_util.now().date():
             return False
-        for key, is_start in (("readingStartDate", True), ("readingDate", False)):
-            value = request.get(key)
-            if value is None:
-                continue
-            if not isinstance(value, str):
-                return False
-            try:
-                limit = datetime.fromisoformat(value.replace("Z", "+00:00"))
-            except ValueError:
-                return False
-            if limit.tzinfo is None or limit.utcoffset() is None:
-                return False
-            limit_date = dt_util.as_local(limit).date()
-            if is_start and reading_date < limit_date:
-                return False
-            if not is_start and reading_date > limit_date:
-                return False
-        return True
+        return all(
+            PWNDataUpdateCoordinator._date_satisfies_request_bound(
+                reading_date, request.get(key), is_start=is_start
+            )
+            for key, is_start in (
+                ("readingStartDate", True),
+                ("readingDate", False),
+            )
+        )
 
     @staticmethod
     def _find_open_meter_request(
