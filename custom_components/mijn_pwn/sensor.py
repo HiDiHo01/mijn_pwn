@@ -28,6 +28,7 @@ from .const import (
 from .coordinator import PWNDataUpdateCoordinator
 from .data_parsers import (
     get_last_meter_reading_date,
+    get_last_reported_meter_reading,
     get_notification_count,
     get_water_consumption_status,
 )
@@ -74,6 +75,27 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
         available_fn=lambda data: (
             get_last_meter_reading_date(data.get(DATA_CONSUMPTION)) is not None
         ),
+    ),
+    PWNEntityDescription(
+        key="last_submitted_meter_reading",
+        translation_key="last_submitted_meter_reading",
+        native_unit_of_measurement=UnitOfVolume.CUBIC_METERS,
+        suggested_display_precision=0,
+        service_name=SERVICE_NAME_CONSUMPTION,
+        icon="mdi:counter",
+        device_class=SensorDeviceClass.WATER,
+        state_class=SensorStateClass.TOTAL,
+        value_fn=lambda data: get_last_reported_meter_reading(
+            data.get(DATA_CONSUMPTION)
+        ),
+    ),
+    PWNEntityDescription(
+        key="last_submitted_meter_reading_date",
+        translation_key="last_submitted_meter_reading_date",
+        service_name=SERVICE_NAME_CONSUMPTION,
+        icon="mdi:calendar-check",
+        device_class=SensorDeviceClass.DATE,
+        value_fn=lambda data: get_last_meter_reading_date(data.get(DATA_CONSUMPTION)),
     ),
     PWNEntityDescription(
         key="total_open_amount",
