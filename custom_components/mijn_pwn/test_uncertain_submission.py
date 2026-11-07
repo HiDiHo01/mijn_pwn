@@ -125,9 +125,7 @@ class TestUncertainSubmission(unittest.IsolatedAsyncioTestCase):
         coordinator._delete_uncertain_repair.assert_not_called()
 
         coordinator._confirmed_store.async_save.side_effect = None
-        await coordinator.async_release_uncertain_submission(
-            "00012345", "01234567890"
-        )
+        await coordinator.async_release_uncertain_submission("00012345", "01234567890")
         self.assertFalse(coordinator.is_submission_uncertain("00012345", "01234567890"))
         coordinator._delete_uncertain_repair.assert_called_once_with(
             "00012345", "01234567890"
