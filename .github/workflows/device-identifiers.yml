@@ -40,4 +40,5 @@ jobs:
             custom_components.mijn_pwn.test_water_meter_details \
             custom_components.mijn_pwn.test_measurement_validation \
             custom_components.mijn_pwn.test_reading_draft_number \
-            custom_components.mijn_pwn.test_confirmed_reading
+            custom_components.mijn_pwn.test_confirmed_reading \
+            custom_components.mijn_pwn.test_plausible_reading
