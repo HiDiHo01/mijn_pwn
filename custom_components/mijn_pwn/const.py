@@ -108,6 +108,10 @@ API_ENDPOINTS: Final[dict[str, str]] = {
     "advance": f"{API_URL}/api/advance",
     "notifications": f"{API_URL}/api/Notifications",
     "consumption_history": f"{API_URL}/api/connection/consumption-history/dashboard",
+    "reading_request": (
+        f"{API_URL}/api/connection/reading-request"
+        "?withReadingNumberOnly=false"
+    ),
 }
 """Dictionary containing API endpoints for various PWN services."""
 
@@ -123,6 +127,7 @@ DATA_ENDPOINTS = {
     "advance": API_ENDPOINTS["advance"],
     "notifications": API_ENDPOINTS["notifications"],
     "consumption_history": API_ENDPOINTS["consumption_history"],
+    "reading_request": API_ENDPOINTS["reading_request"],
 }
 
 # Configuration Constants
