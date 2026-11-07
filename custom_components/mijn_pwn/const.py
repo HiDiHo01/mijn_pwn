@@ -115,6 +115,7 @@ API_ENDPOINTS: Final[dict[str, str]] = {
         f"{API_URL}/api/connection/reading-request?withReadingNumberOnly=false"
     ),
     "move_house_validate_address": f"{API_URL}/api/MoveHouse/validate-address",
+    "supplement_information_private": f"{API_URL}/api/SupplementInformation/private",
 }
 """Dictionary containing API endpoints for various PWN services."""
 
@@ -132,6 +133,7 @@ DATA_ENDPOINTS = {
     "consumption_history": API_ENDPOINTS["consumption_history"],
     "reading_request": API_ENDPOINTS["reading_request"],
     "move_house_validate_address": API_ENDPOINTS["move_house_validate_address"],
+    "supplement_information_private": API_ENDPOINTS["supplement_information_private"],
 }
 
 # Configuration Constants
