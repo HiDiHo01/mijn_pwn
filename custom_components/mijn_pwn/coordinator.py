@@ -1,5 +1,6 @@
 # coordinator.py
 import asyncio
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import logging
 
@@ -32,6 +33,16 @@ _LOGGER.info("Effective logging level: %s", _LOGGER.getEffectiveLevel())
 _LOGGER.debug("Update interval set to %s", DEFAULT_UPDATE_INTERVAL)
 
 
+@dataclass(frozen=True, slots=True)
+class PWNLocalMeterReading:
+    """A reading recorded in Home Assistant, not submitted to PWN."""
+
+    value: int
+    wheel_count: int
+    recorded_at: datetime
+    meter_number: str
+
+
 class PWNDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching data from the PWN API."""
 
@@ -46,6 +57,23 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             config_entry=config_entry,
         )
         self.api = api
+        self.last_local_meter_reading: PWNLocalMeterReading | None = None
+
+    def record_local_meter_reading(
+        self,
+        value: int,
+        wheel_count: int,
+        meter_number: str,
+        recorded_at: datetime,
+    ) -> None:
+        """Save a local input and notify entities, without contacting PWN."""
+        self.last_local_meter_reading = PWNLocalMeterReading(
+            value=value,
+            wheel_count=wheel_count,
+            recorded_at=recorded_at,
+            meter_number=meter_number,
+        )
+        self.async_update_listeners()
 
     async def _async_update_data(self) -> dict[str, object]:
         """Fetch fresh data from Mijn PWN.
