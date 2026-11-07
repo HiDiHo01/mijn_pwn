@@ -166,3 +166,25 @@ Het veld `amountOfWheels` komt uit het meterstandverzoek; de HTML en de
 `meter-details`-API bevestigen vijf zwarte en nul rode telwielen voor de
 onderzochte meter, maar dit is geen garantie voor andere watermeters.
 
+## Plausibiliteitscontrole na invoer (voorbereid)
+
+Direct na invoer van de watermeterstand gebruikt de website
+`POST /api/WaterUsage/validate-plausible-reading/{readingNumber}/{relationNumber}`.
+Het `readingNumber` is exact **11 cijfers**, zonder conversie of aanpassing
+(ook een eerste `0` blijft behouden). De URL bevat daarnaast een
+**10-cijferige** relationele identifier die in de waargenomen aanvraag
+bestaat uit de prefix `000` en **zeven cijfers** van het relatienummer.
+Dit URL-formaat is niet automatisch uitwisselbaar met het
+`relationNumber` dat de eerdere `validate-measurement-request`-response
+retourneert; daar is een tiencijferige waarde gezien.
+
+`PWNAPI.build_plausible_reading_url(reading_number, relation_number)`
+valideert de beide ruwe invoerwaarden en bouwt uitsluitend de URL. De
+requestbody, statuscode en responsevorm van deze plausibiliteitscontrole
+zijn nog onbekend. Er wordt daarom **geen POST uitgevoerd**.
+
+De plausibiliteitscontrole **bevestigt nooit de definitieve verzending**.
+Ook een eventuele HTTP `200` of `204` van dit endpoint mag de sensoren
+**Laatst doorgegeven meterstand** en **Datum laatst doorgegeven meterstand**
+niet wijzigen. Die sensoren krijgen pas nieuwe waarden als de *aparte,
+definitieve verzendaanvraag* door PWN is geaccepteerd.
