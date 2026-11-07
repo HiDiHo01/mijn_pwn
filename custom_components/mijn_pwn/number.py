@@ -13,7 +13,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import ATTRIBUTION, DOMAIN
 from .coordinator import PWNDataUpdateCoordinator, PWNReadingDraft
 from .reading_request import (
-    _get_request_for_meter,
+    _get_pending_request_for_meter,
     _reading_device_info,
     _register_meter_entities,
 )
@@ -37,7 +37,7 @@ def _get_open_request(
     coordinator: PWNDataUpdateCoordinator, meter_number: str
 ) -> dict[str, object] | None:
     """Return an open request with a usable number of black/white digits."""
-    request = _get_request_for_meter(coordinator.data, meter_number)
+    request = _get_pending_request_for_meter(coordinator, meter_number)
     if not isinstance(request, dict) or request.get("openReading") is not True:
         return None
     reading_number = request.get("readingNumber")
@@ -266,6 +266,18 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
         """Reconcile stored drafts when the request or confirmation changes."""
         request = _get_open_request(self.coordinator, self._meter_number)
         if request is None:
+            if (
+                self._request_number is not None
+                and self.coordinator.was_reading_submitted(
+                    self._meter_number, self._request_number
+                )
+            ):
+                self._attr_native_value = None
+                self._last_entered_at = None
+                draft = self.coordinator.draft_readings.get(self._meter_number)
+                if draft is not None and draft.reading_number == self._request_number:
+                    self.coordinator.draft_readings.pop(self._meter_number, None)
+                    self.coordinator.schedule_draft_save()
             super()._handle_coordinator_update()
             return
 
