@@ -72,7 +72,7 @@ class TestOptionalSensors(unittest.TestCase):
         binary_icons = {
             description.key: description.icon for description in SENSOR_TYPES
         }
-        self.assertEqual(len(sensor_icons), 23)
+        self.assertEqual(len(sensor_icons), 25)
         self.assertEqual(
             binary_icons, {"open_invoices": "mdi:file-document-alert-outline"}
         )
@@ -91,6 +91,8 @@ class TestOptionalSensors(unittest.TestCase):
             "date_of_birth": "mdi:cake-variant",
             "correspondence_address": "mdi:map-marker-outline",
             "latest_meter_reading": "mdi:gauge",
+            "last_submitted_meter_reading": "mdi:counter",
+            "last_submitted_meter_reading_date": "mdi:calendar-check",
             "total_consumption": "mdi:water",
             "consumption_last_year": "mdi:water-circle",
             "water_consumption_status": "mdi:water-outline",
