@@ -17,6 +17,9 @@ _LOGGER = logging.getLogger(__name__)
 # ------------------------------------------------------------------ #
 # Exceptions
 # ------------------------------------------------------------------ #
+INVALID_READING_NUMBER_MESSAGE = "Invalid reading number: expected exactly 11 ASCII digits"
+
+
 class PWNAPIError(Exception):
     """Base exception for PWN API errors."""
 
@@ -472,7 +475,7 @@ class PWNAPI:
             or not reading_number.isascii()
             or not reading_number.isdecimal()
         ):
-            raise ValueError("Invalid reading number: expected exactly 11 ASCII digits")
+            raise ValueError(INVALID_READING_NUMBER_MESSAGE)
         if (
             not isinstance(relation_number, str)
             or len(relation_number) != 7
@@ -654,23 +657,18 @@ class PWNAPI:
         )
 
     @staticmethod
-    def parse_measurement_validation(
-        payload: object,
-    ) -> PWNMeasurementValidationResponse:
-        """Validate a measurement response without logging the returned token."""
-        if not isinstance(payload, dict):
+    def _parse_measurement_identifiers(payload: dict[str, object]) -> tuple[str, str]:
+        """Require a valid relation number and an opaque non-empty token."""
+        relation_number = payload.get("relationNumber")
+        token = payload.get("additionalDataToken")
+        if not isinstance(relation_number, str) or not relation_number:
             raise PWNAPIError(
-                "Invalid measurement validation response: expected an object"
+                "Invalid measurement validation response: missing fields"
             )
-
-        for key in ("relationNumber", "additionalDataToken"):
-            value = payload.get(key)
-            if not isinstance(value, str) or not value:
-                raise PWNAPIError(
-                    "Invalid measurement validation response: missing fields"
-                )
-
-        relation_number = payload["relationNumber"]
+        if not isinstance(token, str) or not token:
+            raise PWNAPIError(
+                "Invalid measurement validation response: missing fields"
+            )
         if (
             not relation_number.isascii()
             or not relation_number.isdecimal()
@@ -679,36 +677,64 @@ class PWNAPI:
             raise PWNAPIError(
                 "Invalid measurement validation response: relation number"
             )
+        return relation_number, token
 
-        for key in ("clientType", "readingReason"):
-            value = payload.get(key)
-            if type(value) is not int or value < 0:
-                raise PWNAPIError(
-                    "Invalid measurement validation response: status code"
-                )
+    @staticmethod
+    def _parse_measurement_status_code(
+        payload: dict[str, object], key: str
+    ) -> int:
+        """Read required nonnegative measurement status integers."""
+        value = payload.get(key)
+        if type(value) is not int or value < 0:
+            raise PWNAPIError(
+                "Invalid measurement validation response: status code"
+            )
+        return value
 
+    @staticmethod
+    def _parse_measurement_period_date(
+        payload: dict[str, object], key: str
+    ) -> str | None:
+        """Validate optional API period boundaries without parsing assumptions."""
+        value = payload.get(key)
+        if value is not None and (not isinstance(value, str) or not value):
+            raise PWNAPIError(
+                "Invalid measurement validation response: period date"
+            )
+        return value
+
+    @staticmethod
+    def parse_measurement_validation(
+        payload: object,
+    ) -> PWNMeasurementValidationResponse:
+        """Validate a measurement response without logging its private token."""
+        if not isinstance(payload, dict):
+            raise PWNAPIError(
+                "Invalid measurement validation response: expected an object"
+            )
+
+        relation_number, token = PWNAPI._parse_measurement_identifiers(payload)
+        client_type = PWNAPI._parse_measurement_status_code(payload, "clientType")
+        reading_reason = PWNAPI._parse_measurement_status_code(
+            payload, "readingReason"
+        )
         addition = payload.get("houseNumberAddition")
         if not isinstance(addition, str):
             raise PWNAPIError(
                 "Invalid measurement validation response: address addition"
             )
 
-        for key in ("periodStartDate", "periodEndDate"):
-            date_value = payload.get(key)
-            if date_value is not None and (
-                not isinstance(date_value, str) or not date_value
-            ):
-                raise PWNAPIError(
-                    "Invalid measurement validation response: period date"
-                )
-
         return PWNMeasurementValidationResponse(
             relationNumber=relation_number,
-            clientType=payload["clientType"],
-            additionalDataToken=payload["additionalDataToken"],
-            readingReason=payload["readingReason"],
-            periodStartDate=payload.get("periodStartDate"),
-            periodEndDate=payload.get("periodEndDate"),
+            clientType=client_type,
+            additionalDataToken=token,
+            readingReason=reading_reason,
+            periodStartDate=PWNAPI._parse_measurement_period_date(
+                payload, "periodStartDate"
+            ),
+            periodEndDate=PWNAPI._parse_measurement_period_date(
+                payload, "periodEndDate"
+            ),
             houseNumberAddition=addition,
         )
 
@@ -854,7 +880,7 @@ class PWNAPI:
             or not reading_number.isascii()
             or not reading_number.isdecimal()
         ):
-            raise ValueError("Invalid reading number: expected exactly 11 ASCII digits")
+            raise ValueError(INVALID_READING_NUMBER_MESSAGE)
         payload = self._build_measurement_validation_payload(address)
         endpoint = (
             f"{DATA_ENDPOINTS['water_usage_validate_measurement_request']}"
@@ -920,7 +946,7 @@ class PWNAPI:
             or not reading_number.isascii()
             or not reading_number.isdecimal()
         ):
-            raise ValueError("Invalid reading number: expected exactly 11 ASCII digits")
+            raise ValueError(INVALID_READING_NUMBER_MESSAGE)
 
         payload = self._build_final_reading_payload(
             meter_reading, reading_date, address, wheel_count
