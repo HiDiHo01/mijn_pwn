@@ -117,6 +117,7 @@ API_ENDPOINTS: Final[dict[str, str]] = {
     "move_house_validate_address": f"{API_URL}/api/MoveHouse/validate-address",
     "supplement_information_private": f"{API_URL}/api/SupplementInformation/private",
     "water_usage_meter_details": f"{API_URL}/api/WaterUsage/meter-details",
+    "water_usage_submit_reading": f"{API_URL}/api/WaterUsage",
     "water_usage_validate_measurement_request": (
         f"{API_URL}/api/WaterUsage/validate-measurement-request"
     ),
@@ -142,6 +143,7 @@ DATA_ENDPOINTS = {
     "move_house_validate_address": API_ENDPOINTS["move_house_validate_address"],
     "supplement_information_private": API_ENDPOINTS["supplement_information_private"],
     "water_usage_meter_details": API_ENDPOINTS["water_usage_meter_details"],
+    "water_usage_submit_reading": API_ENDPOINTS["water_usage_submit_reading"],
     "water_usage_validate_measurement_request": API_ENDPOINTS[
         "water_usage_validate_measurement_request"
     ],
