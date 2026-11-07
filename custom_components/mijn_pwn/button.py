@@ -4,7 +4,7 @@ from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import datetime as dt
+from homeassistant.util import dt as dt_util
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, UpdateFailed
 
@@ -99,7 +99,7 @@ class PWNSubmitMeterReadingButton(CoordinatorEntity, ButtonEntity):
                 meter_number=self._meter_number,
                 meter_reading=draft.value,
                 wheel_count=request["amountOfWheels"],
-                reading_date=dt.as_local(draft.entered_at).date(),
+                reading_date=dt_util.as_local(draft.entered_at).date(),
                 address=address,
             )
         except PWNReadingNotPlausibleError:
