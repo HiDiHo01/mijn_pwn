@@ -16,6 +16,7 @@ from .api import PWNAPI
 from .const import DOMAIN, PLATFORMS
 from .coordinator import PWNDataUpdateCoordinator
 from .device_identifiers import migrate_legacy_device_identifiers
+from .submission_recovery import async_register_submission_recovery
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -122,6 +123,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         return False
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
+    async_register_submission_recovery(hass)
     return True
 
 
