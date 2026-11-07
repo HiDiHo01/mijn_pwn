@@ -21,6 +21,22 @@ class PWNAPIError(Exception):
     """Base exception for PWN API errors."""
 
 
+class PWNReadingNotPlausibleError(PWNAPIError):
+    """The entered reading failed PWN plausibility checks; nothing was submitted."""
+
+    def __init__(
+        self,
+        min_reading: int | float | None,
+        max_reading: int | float | None,
+    ) -> None:
+        """Preserve optional limits without exposing account data in the error."""
+        self.min_reading = min_reading
+        self.max_reading = max_reading
+        super().__init__(
+            "PWN marked the meter reading as implausible; no reading was submitted"
+        )
+
+
 class PWNAPIServerError(PWNAPIError):
     """Server-side API error."""
 
@@ -766,7 +782,9 @@ class PWNAPI:
         """Check a draft for plausibility without recording a submitted reading.
 
         This method is opt-in and is not called by setup, polling, or entities.
-        A true plausibility flag is not a final submission acknowledgement.
+        A false flag raises PWNReadingNotPlausibleError and blocks callers
+        from progressing to final submission. A true flag is not proof
+        that the reading has been submitted.
         """
         endpoint = self.build_plausible_reading_url(reading_number, relation_number)
         payload = self._build_plausible_reading_payload(
@@ -779,7 +797,12 @@ class PWNAPI:
                 "Unable to validate meter-reading plausibility"
             ) from None
 
-        return self.parse_plausible_reading_response(response)
+        result = self.parse_plausible_reading_response(response)
+        if not result["isPlausible"]:
+            raise PWNReadingNotPlausibleError(
+                result["minReading"], result["maxReading"]
+            )
+        return result
 
     async def get_reading_request(self) -> list[dict[str, object]]:
         """Return meter-reading requests with their status and meter metadata."""
