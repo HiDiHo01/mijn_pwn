@@ -196,8 +196,10 @@ class TestConfirmedRequestStatus(unittest.IsolatedAsyncioTestCase):
         restored._draft_store.async_save.assert_awaited_once()
         persisted = restored._draft_store.async_save.await_args.args[0]
         self.assertEqual(
-            [(draft["meter_number"], draft["reading_number"])
-             for draft in persisted["drafts"]],
+            [
+                (draft["meter_number"], draft["reading_number"])
+                for draft in persisted["drafts"]
+            ],
             [("00054321", "01234567890")],
         )
         self.assertIsNone(
