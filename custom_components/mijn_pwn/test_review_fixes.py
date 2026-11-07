@@ -298,14 +298,18 @@ class TestSubmissionReviewLifecycle(unittest.IsolatedAsyncioTestCase):
         entered_post = asyncio.Event()
         release_post = asyncio.Event()
 
-        async def _slow_response(*_args: object, **_kwargs: object) -> dict[str, object]:
+        async def _slow_response(
+            *_args: object, **_kwargs: object
+        ) -> dict[str, object]:
             """Simulate PWN processing a write while an unload is requested."""
             entered_post.set()
             await release_post.wait()
             return {"success": True, "errorText": ""}
 
         coordinator.api.submit_meter_reading.side_effect = _slow_response
-        confirmation = asyncio.create_task(coordinator.async_confirm_meter_reading(details))
+        confirmation = asyncio.create_task(
+            coordinator.async_confirm_meter_reading(details)
+        )
         await asyncio.wait_for(entered_post.wait(), timeout=2)
         unload = asyncio.create_task(
             PWNDataUpdateCoordinator.async_prepare_for_unload(coordinator)
