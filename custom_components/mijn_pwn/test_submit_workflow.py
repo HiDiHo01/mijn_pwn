@@ -44,6 +44,18 @@ def _coordinator() -> MagicMock:
     coordinator._parse_stored_entry_time.side_effect = (
         PWNDataUpdateCoordinator._parse_stored_entry_time
     )
+    coordinator._parse_stored_confirmed_reading.side_effect = (
+        PWNDataUpdateCoordinator._parse_stored_confirmed_reading
+    )
+    coordinator._parse_stored_uncertain_submission.side_effect = (
+        PWNDataUpdateCoordinator._parse_stored_uncertain_submission
+    )
+
+    def _restore_uncertain(records: object) -> None:
+        """Use production per-request recovery with the synthetic coordinator."""
+        PWNDataUpdateCoordinator._restore_uncertain_submissions(coordinator, records)
+
+    coordinator._restore_uncertain_submissions.side_effect = _restore_uncertain
     coordinator._prepared_submissions = {}
     coordinator._confirmation_cancels = {}
     coordinator.confirmed_readings = {}
