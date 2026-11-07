@@ -4,6 +4,7 @@ from datetime import date
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from .api import PWNAPI, PWNAPIError, PWNReadingSubmissionRejected
@@ -115,6 +116,21 @@ class TestFinalReadingSubmission(unittest.IsolatedAsyncioTestCase):
                     "01234567890", 165, reading_date, address, 5
                 )
         self.assertNotIn("fictional-account-data", str(error.exception))
+
+    async def test_auth_failure_does_not_replay_final_post(self) -> None:
+        """Never replay an irreversible POST when its response is HTTP 401."""
+        api = self._api()
+        api._access_token = "synthetic-token"
+        response = MagicMock(status=401)
+        api._session.request.return_value.__aenter__.return_value = response
+
+        with self.assertRaises(ConfigEntryAuthFailed):
+            await api.submit_meter_reading(
+                "01234567890", 165, date(2026, 11, 7), self._address(), 5
+            )
+
+        api._session.request.assert_called_once()
+        self.assertEqual(api._session.request.call_args.args[0], "POST")
 
     async def test_invalid_reading_and_address_never_post(self) -> None:
         """Check the full request before any final submission API call."""
