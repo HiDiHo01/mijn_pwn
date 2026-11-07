@@ -375,7 +375,9 @@ class PWNAPI:
                 or len(value) > 255
                 or (key != "houseNumberAddition" and not value.strip())
             ):
-                raise ValueError("Invalid water meter address: missing or invalid fields")
+                raise ValueError(
+                    "Invalid water meter address: missing or invalid fields"
+                )
             validated[key] = value
 
         return PWNWaterMeterDetailsRequest(
