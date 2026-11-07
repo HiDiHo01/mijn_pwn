@@ -56,13 +56,13 @@ class TestMeasurementValidation(unittest.IsolatedAsyncioTestCase):
             mock_request.return_value = {**data, "other": "ignored"}
 
             result = await client.validate_measurement_request(
-                "00000000001", supplied_address
+                "99999999991", supplied_address
             )
 
         self.assertEqual(result, data)
         mock_request.assert_awaited_once_with(
             "POST",
-            f"{API_URL}/api/WaterUsage/validate-measurement-request/00000000001",
+            f"{API_URL}/api/WaterUsage/validate-measurement-request/99999999991",
             json=self._address(),
         )
         self.assertEqual(
@@ -75,10 +75,11 @@ class TestMeasurementValidation(unittest.IsolatedAsyncioTestCase):
         client = self._make_client()
         cases: tuple[object, ...] = (
             "",
-            "00000000001/",
+            "99999999991/",
             "read-123",
             "１２３４５６７８９０１",
             "1" * 10,
+            "0" + "1" * 10,
             "1" * 12,
             "1" * 33,
             "123 456",
@@ -114,7 +115,7 @@ class TestMeasurementValidation(unittest.IsolatedAsyncioTestCase):
                         ValueError, "Invalid measurement validation address"
                     ):
                         await client.validate_measurement_request(
-                            "00000000001", invalid_address
+                            "99999999991", invalid_address
                         )
 
         mock_request.assert_not_awaited()
@@ -157,6 +158,6 @@ class TestMeasurementValidation(unittest.IsolatedAsyncioTestCase):
                 UpdateFailed, "Unable to validate meter-reading request"
             ) as error:
                 await client.validate_measurement_request(
-                    "00000000001", self._address()
+                    "99999999991", self._address()
                 )
         self.assertNotIn("synthetic-not-a-live-token", str(error.exception))
