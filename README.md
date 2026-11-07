@@ -56,9 +56,12 @@ teruggegeven `relationNumber` bestaat in het voorbeeld echter uit tien cijfers.
 De precieze relatie tussen beide nummers is **niet bevestigd**; de integratie
 mag ze niet automatisch gelijkstellen.
 
-`additionalDataToken` uit de meterstandvalidatie is de vermoedelijke bron van
-het `token` in deze bevestigingsaanvraag, maar dit is nog niet met een
-letterlijke vergelijking van de twee browseraanvragen bevestigd.
+De tokenwaarden zijn in de browser vergeleken en **exact gelijk** bevonden.
+Het veld `additionalDataToken` uit
+`POST /api/WaterUsage/validate-measurement-request/{reading_number}`
+wordt ongewijzigd doorgestuurd als `{"token": "<additionalDataToken>"}` naar
+`POST /api/SupplementInformation/private/{identifier}`. Het is dus een
+afzonderlijk bevestigingstoken, niet het Bearer-toegangstoken.
 
 **De integratie voert de bevestigings-POST niet uit.** Het invoeren en
 verzenden van een watermeterstand is een aparte, nog niet bevestigde API-stap.
@@ -104,5 +107,5 @@ specificatie.
 API-aanvraag uitsluitend uit wanneer de methode expliciet wordt aangeroepen.
 Zij controleert het responseformaat en geeft het `additionalDataToken`
 uitsluitend terug aan de aanroeper: het wordt niet gelogd, in entiteiten
-gepubliceerd of blijvend opgeslagen. De exacte koppeling met het token voor
-`SupplementInformation/private` is nog te verifiëren.
+gepubliceerd of blijvend opgeslagen. De koppeling is bevestigd: de PWN-website gebruikt precies deze waarde
+als `token` voor `SupplementInformation/private`.
