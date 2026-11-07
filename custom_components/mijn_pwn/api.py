@@ -379,7 +379,9 @@ class PWNAPI:
     ) -> PWNMeasurementValidationRequest:
         """Extract only the confirmed address fields for validation."""
         if not isinstance(address, dict):
-            raise ValueError("Invalid measurement validation address: expected an object")
+            raise ValueError(
+                "Invalid measurement validation address: expected an object"
+            )
 
         validated: dict[str, str] = {}
         for key in ("houseNumber", "houseNumberAddition", "postalCode"):
@@ -406,12 +408,16 @@ class PWNAPI:
     ) -> PWNMeasurementValidationResponse:
         """Validate a measurement response without logging the returned token."""
         if not isinstance(payload, dict):
-            raise PWNAPIError("Invalid measurement validation response: expected an object")
+            raise PWNAPIError(
+                "Invalid measurement validation response: expected an object"
+            )
 
         for key in ("relationNumber", "additionalDataToken"):
             value = payload.get(key)
             if not isinstance(value, str) or not value:
-                raise PWNAPIError("Invalid measurement validation response: missing fields")
+                raise PWNAPIError(
+                    "Invalid measurement validation response: missing fields"
+                )
 
         relation_number = payload["relationNumber"]
         if (
@@ -419,23 +425,31 @@ class PWNAPI:
             or not relation_number.isdecimal()
             or len(relation_number) > 32
         ):
-            raise PWNAPIError("Invalid measurement validation response: relation number")
+            raise PWNAPIError(
+                "Invalid measurement validation response: relation number"
+            )
 
         for key in ("clientType", "readingReason"):
             value = payload.get(key)
             if type(value) is not int or value < 0:
-                raise PWNAPIError("Invalid measurement validation response: status code")
+                raise PWNAPIError(
+                    "Invalid measurement validation response: status code"
+                )
 
         addition = payload.get("houseNumberAddition")
         if not isinstance(addition, str):
-            raise PWNAPIError("Invalid measurement validation response: address addition")
+            raise PWNAPIError(
+                "Invalid measurement validation response: address addition"
+            )
 
         for key in ("periodStartDate", "periodEndDate"):
             date_value = payload.get(key)
             if date_value is not None and (
                 not isinstance(date_value, str) or not date_value
             ):
-                raise PWNAPIError("Invalid measurement validation response: period date")
+                raise PWNAPIError(
+                    "Invalid measurement validation response: period date"
+                )
 
         return PWNMeasurementValidationResponse(
             relationNumber=relation_number,
@@ -590,9 +604,7 @@ class PWNAPI:
             or not reading_number.isascii()
             or not reading_number.isdecimal()
         ):
-            raise ValueError(
-                "Invalid reading number: expected up to 32 ASCII digits"
-            )
+            raise ValueError("Invalid reading number: expected up to 32 ASCII digits")
         payload = self._build_measurement_validation_payload(address)
         endpoint = (
             f"{DATA_ENDPOINTS['water_usage_validate_measurement_request']}"
