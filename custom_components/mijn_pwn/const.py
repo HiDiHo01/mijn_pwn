@@ -155,6 +155,7 @@ CONFIG_CONSTANTS: Final[dict[str, str]] = {
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.BINARY_SENSOR,
+    Platform.NUMBER,
 ]
 """List of platforms supported by this integration."""
 
