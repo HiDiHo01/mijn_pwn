@@ -337,7 +337,15 @@ class TestSubmissionReviewLifecycle(unittest.IsolatedAsyncioTestCase):
         await confirmation
         await unload
         self.assertEqual(coordinator.last_confirmed_meter_reading.value, 165)
-        coordinator._confirmed_store.async_save.assert_awaited_once()
+        saves = coordinator._confirmed_store.async_save.await_args_list
+        self.assertEqual(len(saves), 2)
+        self.assertEqual(
+            saves[0].args[0]["unresolved_submissions"][0]["reading_number"],
+            "01234567890",
+        )
+        self.assertEqual(saves[0].args[0]["readings"], [])
+        self.assertEqual(saves[1].args[0]["unresolved_submissions"], [])
+        self.assertEqual(len(saves[1].args[0]["readings"]), 1)
         coordinator.async_save_drafts.assert_awaited_once()
         with self.assertRaisesRegex(ValueError, "unloading"):
             await coordinator.async_prepare_meter_reading(details)
