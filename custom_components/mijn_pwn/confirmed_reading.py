@@ -155,10 +155,7 @@ class PWNConfirmedReadingSensor(CoordinatorEntity, RestoreSensor):
         ):
             return
 
-        if (
-            not is_date
-            and int(formatted_reading) != restored_value
-        ):
+        if not is_date and int(formatted_reading) != restored_value:
             return
 
         self._restored_value = restored_value
