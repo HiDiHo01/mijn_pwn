@@ -27,8 +27,14 @@ onbeschikbaar. Bij een lege respons is de algemene binaire sensor uit; bij een
 mislukte API-aanroep is deze onbeschikbaar. Statuscodes worden als getal getoond:
 de exacte betekenis van `readingReason` en `contractStatus` is nog niet vastgesteld.
 
-**Opmerking:** deze functionaliteit bevestigt geen klantgegevens en verzendt
-nog geen meterstanden. Het invoer- en verzendendpoint is niet geverifieerd.
+**Opmerking:** het ophalen van meterstandverzoeken is alleen-lezen. De
+afzonderlijke `number`- en `date`-entiteiten bewaren lokaal een concept.
+Een watermeterstand wordt uitsluitend naar PWN verstuurd nadat de gebruiker
+eerst **Controleer meterstand** en vervolgens binnen twee minuten expliciet
+**Bevestig verzending meterstand** indrukt. De definitieve API-client
+vereist HTTP `200` én `{"success": true, "errorText": ""}`.
+De werkelijke HTTP-statuscode bij de geobserveerde finale POST is nog
+niet afzonderlijk met een live account geverifieerd.
 
 ## Verhuizing: adresvalidatie (voorbereid)
 
@@ -187,7 +193,10 @@ relatienummer en aansluitadres onveranderd blijven. Wanneer de termijn
 verstrijkt, ververst Home Assistant de knoppen automatisch; de bevestigingsknop
 wordt onbeschikbaar zonder te wachten op een coordinator-refresh.
 Bij een wijziging, nieuw meterstandverzoek, verstreken termijn of herstart
-vervalt de bevestiging; controleer dan opnieuw. De bevestiging wordt **niet** op schijf bewaard.
+vervalt de bevestiging; controleer dan opnieuw. De tijdelijke goedkeuring wordt
+**niet** op schijf bewaard. De onvoltooide conceptstand en opnamedatum worden
+daarentegen afzonderlijk opgeslagen, ook wanneer de meterstand-entiteit
+tijdelijk onbeschikbaar is doordat de API een fout geeft.
 Een wijziging van de `number`-entiteit **verstuurt niets**.
 
 Het `ReadingDate`-veld gebruikt uitsluitend de afzonderlijk gekozen
