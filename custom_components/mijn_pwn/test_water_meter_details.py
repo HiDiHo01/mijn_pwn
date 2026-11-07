@@ -61,7 +61,5 @@ class TestWaterMeterDetails(unittest.TestCase):
         )
         for payload in cases:
             with self.subTest(payload_type=type(payload).__name__):
-                with self.assertRaisesRegex(
-                    PWNAPIError, "Invalid water meter details"
-                ):
+                with self.assertRaisesRegex(PWNAPIError, "Invalid water meter details"):
                     PWNAPI.parse_water_meter_details(payload)
