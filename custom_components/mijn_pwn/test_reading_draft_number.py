@@ -1,11 +1,13 @@
 """Tests for local, non-submitting PWN water meter reading drafts."""
 
+from datetime import datetime
 import math
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.components.number import NumberMode
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.update_coordinator import BaseCoordinatorEntity
 
 from .const import DATA_READING_REQUESTS, DOMAIN
 from .number import PWNReadingDraftNumber, async_setup_entry, format_meter_reading
@@ -116,8 +118,92 @@ class TestReadingDraftNumber(unittest.IsolatedAsyncioTestCase):
             write_state.assert_called_once()
 
         self.assertEqual(entity.native_value, 123)
-        self.assertEqual(entity.extra_state_attributes, {"formatted_reading": "00123"})
+        attributes = entity.extra_state_attributes
+        self.assertEqual(attributes["formatted_reading"], "00123")
+        self.assertEqual(attributes["reading_number"], "12345678901")
+        entered_at = datetime.fromisoformat(attributes["entered_at"])
+        self.assertIsNotNone(entered_at.tzinfo)
         coordinator.api.assert_not_called()
+
+    async def test_restore_draft_only_for_same_open_request(self) -> None:
+        """Restore both the value and timestamp after a Home Assistant restart."""
+        entity, _ = _make_number()
+        prior_state = MagicMock()
+        prior_state.attributes = {
+            "reading_number": "12345678901",
+            "entered_at": "2026-11-07T09:00:00+01:00",
+        }
+        previous_number = MagicMock()
+        previous_number.native_value = 123.0
+
+        with (
+            patch.object(
+                BaseCoordinatorEntity,
+                "async_added_to_hass",
+                new_callable=AsyncMock,
+            ),
+            patch.object(
+                entity,
+                "async_get_last_state",
+                new_callable=AsyncMock,
+                return_value=prior_state,
+            ),
+            patch.object(
+                entity,
+                "async_get_last_number_data",
+                new_callable=AsyncMock,
+                return_value=previous_number,
+            ),
+        ):
+            await entity.async_added_to_hass()
+
+        self.assertEqual(entity.native_value, 123.0)
+        self.assertEqual(
+            entity.extra_state_attributes["entered_at"],
+            "2026-11-07T09:00:00+01:00",
+        )
+
+    async def test_does_not_restore_a_different_or_invalid_reading(self) -> None:
+        """Prevent restoring old, out-of-range, or malformed stored readings."""
+        for reading_number, value, timestamp in (
+            ("98765432109", 123.0, "2026-11-07T09:00:00+01:00"),
+            ("12345678901", 100000.0, "2026-11-07T09:00:00+01:00"),
+            ("12345678901", 123.5, "2026-11-07T09:00:00+01:00"),
+            ("12345678901", float("nan"), "2026-11-07T09:00:00+01:00"),
+            ("12345678901", 123.0, "2026-11-07T09:00:00"),
+            ("12345678901", 123.0, "not-a-date"),
+        ):
+            with self.subTest(reading_number=reading_number, timestamp=timestamp):
+                entity, _ = _make_number()
+                prior_state = MagicMock()
+                prior_state.attributes = {
+                    "reading_number": reading_number,
+                    "entered_at": timestamp,
+                }
+                previous_number = MagicMock()
+                previous_number.native_value = value
+
+                with (
+                    patch.object(
+                        BaseCoordinatorEntity,
+                        "async_added_to_hass",
+                        new_callable=AsyncMock,
+                    ),
+                    patch.object(
+                        entity,
+                        "async_get_last_state",
+                        new_callable=AsyncMock,
+                        return_value=prior_state,
+                    ),
+                    patch.object(
+                        entity,
+                        "async_get_last_number_data",
+                        new_callable=AsyncMock,
+                        return_value=previous_number,
+                    ),
+                ):
+                    await entity.async_added_to_hass()
+                self.assertIsNone(entity.native_value)
 
     async def test_refuse_invalid_values_and_closed_requests(self) -> None:
         """Reject fractional, nonfinite, and out-of-range values without writes."""
