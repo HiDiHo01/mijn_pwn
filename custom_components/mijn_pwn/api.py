@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Optional
+from typing import Literal, Optional, overload
 
 from aiohttp import ClientError, ClientResponse, ClientSession
 
@@ -224,8 +224,25 @@ class PWNAPI:
                     refresh_token if isinstance(refresh_token, str) else None
                 )
 
-    async def _request(self, method: str, endpoint: str, **kwargs) -> dict[str, object]:
-        """Perform authenticated HTTP request."""
+    @overload
+    async def _request(
+        self, method: str, endpoint: str, *, expect_list: Literal[True], **kwargs
+    ) -> list[dict[str, object]]: ...
+
+    @overload
+    async def _request(
+        self,
+        method: str,
+        endpoint: str,
+        *,
+        expect_list: Literal[False] = False,
+        **kwargs,
+    ) -> dict[str, object]: ...
+
+    async def _request(
+        self, method: str, endpoint: str, *, expect_list: bool = False, **kwargs
+    ) -> dict[str, object] | list[dict[str, object]]:
+        """Perform an authenticated HTTP request with a validated JSON shape."""
         if self._access_token is None:
             async with self._auth_lock:
                 if self._access_token is None:
@@ -257,15 +274,35 @@ class PWNAPI:
                             **kwargs,
                         ) as retry_resp:
                             await self._raise_for_status(retry_resp)
-                            return await retry_resp.json()
+                            return self._parse_json_response(
+                                await retry_resp.json(), expect_list=expect_list
+                            )
 
                     await self._raise_for_status(resp)
-                    return await resp.json()
+                    return self._parse_json_response(
+                        await resp.json(), expect_list=expect_list
+                    )
 
         except asyncio.TimeoutError as exc:
             raise UpdateFailed("Timeout communicating with API") from exc
         except ClientError as exc:
             raise UpdateFailed("Network error communicating with API") from exc
+
+    @staticmethod
+    def _parse_json_response(
+        payload: object, *, expect_list: bool
+    ) -> dict[str, object] | list[dict[str, object]]:
+        """Validate the JSON container without exposing account response data."""
+        if expect_list:
+            if not isinstance(payload, list) or not all(
+                isinstance(item, dict) for item in payload
+            ):
+                raise PWNAPIError("Invalid PWN API response: expected an array")
+            return payload
+
+        if not isinstance(payload, dict):
+            raise PWNAPIError("Invalid PWN API response: expected an object")
+        return payload
 
     # ------------------------------------------------------------------
     # Public API methods
@@ -282,9 +319,22 @@ class PWNAPI:
         """Return consumption history."""
         return await self._request("GET", DATA_ENDPOINTS["consumption_history"])
 
-    async def get_reading_request(self) -> dict[str, object]:
-        """Return the current full meter-reading request from Mijn PWN."""
-        return await self._request("GET", DATA_ENDPOINTS["reading_request"])
+    async def get_reading_request(self) -> list[dict[str, object]]:
+        """Return meter-reading requests with their status and meter metadata."""
+        requests = await self._request(
+            "GET", DATA_ENDPOINTS["reading_request"], expect_list=True
+        )
+        for request in requests:
+            if not isinstance(request.get("openReading"), bool):
+                raise PWNAPIError("Invalid meter-reading request: missing open status")
+            if request["openReading"]:
+                reading_number = request.get("readingNumber")
+                wheel_count = request.get("amountOfWheels")
+                if not isinstance(reading_number, str) or not reading_number:
+                    raise PWNAPIError("Invalid open meter-reading request: number")
+                if type(wheel_count) is not int or wheel_count <= 0:
+                    raise PWNAPIError("Invalid open meter-reading request: wheel count")
+        return requests
 
     async def get_payment_info(self) -> dict[str, object]:
         """Return payment information."""
