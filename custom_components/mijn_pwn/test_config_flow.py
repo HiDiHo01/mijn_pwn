@@ -251,8 +251,8 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
     async def test_reauth_real_validator_distinguishes_http_failures(self) -> None:
         """401 and 403 reject credentials; 503 and 429 report temporary failures."""
         self._flow.context["source"] = config_entries.SOURCE_REAUTH
-        self._flow._validate_user_input = (
-            PWNConfigFlow._validate_user_input.__get__(self._flow)
+        self._flow._validate_user_input = PWNConfigFlow._validate_user_input.__get__(
+            self._flow
         )
 
         for status, expected_error in (
@@ -290,8 +290,8 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
     ) -> None:
         """Transport failures must keep existing entries unchanged."""
         self._flow.context["source"] = config_entries.SOURCE_REAUTH
-        self._flow._validate_user_input = (
-            PWNConfigFlow._validate_user_input.__get__(self._flow)
+        self._flow._validate_user_input = PWNConfigFlow._validate_user_input.__get__(
+            self._flow
         )
         for exception in (
             ClientConnectionError("fictional-offline"),
@@ -322,8 +322,8 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
 
     async def test_reconfigure_real_validator_reports_temporary_outage(self) -> None:
         """Reconfiguration must not mistake an outage for changed credentials."""
-        self._flow._validate_user_input = (
-            PWNConfigFlow._validate_user_input.__get__(self._flow)
+        self._flow._validate_user_input = PWNConfigFlow._validate_user_input.__get__(
+            self._flow
         )
         session = MagicMock()
         context = MagicMock()
@@ -350,8 +350,8 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
     async def test_new_account_real_validator_reports_temporary_outage(self) -> None:
         """A failed sign-in must not create a config entry."""
         self._flow.context["source"] = config_entries.SOURCE_USER
-        self._flow._validate_user_input = (
-            PWNConfigFlow._validate_user_input.__get__(self._flow)
+        self._flow._validate_user_input = PWNConfigFlow._validate_user_input.__get__(
+            self._flow
         )
         session = MagicMock()
         response = MagicMock()
