@@ -103,8 +103,8 @@ def _coordinator() -> MagicMock:
             )
         )
     )
-    coordinator._confirmed_storage_payload.side_effect = (
-        lambda: PWNDataUpdateCoordinator._confirmed_storage_payload(coordinator)
+    coordinator._confirmed_storage_payload.side_effect = lambda: (
+        PWNDataUpdateCoordinator._confirmed_storage_payload(coordinator)
     )
     coordinator.current_submission_details.side_effect = _details
     coordinator.is_prepared_submission.side_effect = _is_prepared
