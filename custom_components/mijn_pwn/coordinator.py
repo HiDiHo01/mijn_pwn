@@ -319,6 +319,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         if not isinstance(saved, dict):
             return
 
+        removed_confirmed = False
         drafts = saved.get("drafts")
         if isinstance(drafts, list):
             restored: dict[str, PWNReadingDraft] = {}
@@ -327,7 +328,12 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
                 if parsed is not None:
                     meter_number, draft = parsed
                     restored[meter_number] = draft
-            self.draft_readings = restored
+            self.draft_readings = {
+                meter_number: draft
+                for meter_number, draft in restored.items()
+                if not self.was_reading_submitted(meter_number, draft.reading_number)
+            }
+            removed_confirmed = len(self.draft_readings) != len(restored)
 
         closed_requests = saved.get("closed_requests")
         if isinstance(closed_requests, list):
@@ -338,6 +344,11 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
                     meter_number, reading_number = parsed
                     restored_closed[meter_number] = reading_number
             self._closed_reading_requests = restored_closed
+
+        if removed_confirmed:
+            # Confirmations were restored first; persist the cleaned draft store
+            # before registering entities or accepting any new meter input.
+            await self.async_save_drafts()
 
     def schedule_draft_save(self) -> None:
         """Schedule durable draft metadata storage from synchronous callbacks."""
