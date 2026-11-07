@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from homeassistant.exceptions import HomeAssistantError
 
 from .button import PWNPrepareMeterReadingButton
-from .const import DATA_READING_REQUESTS
+from .const import DATA_READING_REQUESTS, DATA_USER
 from .coordinator import PWNDataUpdateCoordinator, PWNReadingDraft
 from .date import PWNReadingDate
 from .test_submit_workflow import _coordinator
@@ -186,7 +186,7 @@ class TestSubmissionValidation(unittest.TestCase):
     def test_invalid_relation_number_blocks_submission(self) -> None:
         """Require exactly seven digits or the observed ten-digit prefix."""
         coordinator = _coordinator()
-        account = coordinator.data["user"]
+        account = coordinator.data[DATA_USER]
         for relation_number in ("0", "000123", "00012345678", "12345/7", 1234567):
             with self.subTest(value=relation_number):
                 account["relationNumber"] = relation_number
