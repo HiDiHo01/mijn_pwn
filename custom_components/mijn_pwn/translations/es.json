@@ -159,6 +159,11 @@
       "reading_requests_open": {
         "name": "Solicitudes de lectura abiertas"
       }
+    },
+    "number": {
+      "meter_reading_draft": {
+        "name": "Lectura del contador (borrador, sin enviar) ({meter_number})"
+      }
     }
   }
 }
