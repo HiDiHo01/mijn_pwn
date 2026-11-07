@@ -19,7 +19,8 @@ jobs:
           python-version: "3.14"
 
       - name: Install image validators
-        run: python -m pip install Pillow==12.3.0 defusedxml==0.7.1
+        run: |
+          python -m pip install --only-binary :all: Pillow==12.3.0 defusedxml==0.7.1
 
       - name: Validate PNG and SVG images
         run: python scripts/validate_images.py
