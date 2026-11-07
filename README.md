@@ -112,3 +112,34 @@ Zij controleert het responseformaat en geeft het `additionalDataToken`
 uitsluitend terug aan de aanroeper: het wordt niet gelogd, in entiteiten
 gepubliceerd of blijvend opgeslagen. De koppeling is bevestigd: de PWN-website gebruikt precies deze waarde
 als `token` voor `SupplementInformation/private`.
+## Watermeterstand invoeren in Home Assistant (concept, niet versturen)
+
+De webpagina voor **Watermeterstand doorgeven** toont drie stappen:
+**Uw gegevens**, **Watermeterstand**, en **Controleren & versturen**.
+Bij stap twee zijn zowel een verplichte **datum opname** in het formaat
+`dd-mm-jjjj` als de zwarte/witte telwielcijfers verplicht. In de aangetroffen
+HTML stonden vijf afzonderlijke cijfervelden, plus de instructie dat alle
+cijfers **inclusief voorloopnullen** moeten worden ingevuld. Dit betreft de
+**meterstand**, niet het 11-cijferige `readingNumber`.
+
+De integratie heeft nu een `number`-entiteit per gevonden meter:
+`Watermeterstand (concept, niet verzonden) ({meter_number})`.
+De waarde is een geheel getal van `0` tot `10**amountOfWheels - 1` met stap
+`1`, zolang er een open meterstandverzoek is. Voor de waargenomen meter met
+vijf telwielen betekent invoer `123` de weergegeven tekst `00123`.
+De exacte tekst is zichtbaar via het attribuut `formatted_reading`.
+De entiteit is niet beschikbaar bij gesloten, ontbrekende of onduidelijke
+meterstandverzoeken, en bij onbruikbare aantallen telwielen.
+
+De numerieke waarde is een **concept in Home Assistant** en wordt **niet naar
+PWN verzonden** bij het wijzigen. De conceptwaarde begint leeg, wordt niet
+hersteld na een herstart en wordt gewist wanneer een nieuw opnamenummer voor
+dezelfde meter verschijnt. Daarmee wordt vermeden dat een oude waarde
+automatisch bij een nieuwe opname terechtkomt.
+
+Voor de afronding van het doorgeven ontbreekt nog de bevestigde API-aanvraag
+met de meterstand en opnamedatum, inclusief de daadwerkelijke verzendactie.
+Het veld `amountOfWheels` komt uit het meterstandverzoek; de HTML en de
+`meter-details`-API bevestigen vijf zwarte en nul rode telwielen voor de
+onderzochte meter, maar dit is geen garantie voor andere watermeters.
+
