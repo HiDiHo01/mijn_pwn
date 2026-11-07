@@ -60,6 +60,13 @@ previous releases **before** changing the generated identifiers:
   unrelated identifiers, and mixed valid/unknown legacy identifiers. Distinguish
   fake-registry unit tests from tests against actual Home Assistant storage.
 
+## Mandatory latest stable Home Assistant version
+
+- Before every integration change or review, verify the **latest officially released stable Home Assistant Core patch version** against upstream release notes; never assume that last month's version is current. Do not use beta, release-candidate or development releases as the primary compatibility target.
+- Implement and test against that latest stable release, including Home Assistant integration tests in CI. When a newer stable release is available, upgrade the pinned test runtime and independently verify its **immutable container digest** before using it; do not use floating tags as the only pin.
+- If upstream API changes require updating the minimum supported Home Assistant version, do so explicitly with documentation, tests and a justified compatibility change. Do not raise the minimum merely because the CI test version was updated.
+- If a verified latest-stable runtime cannot be used, document the blocker and actual tested versions; do not claim latest-version compatibility without testing.
+
 ## Mijn PWN CI and SonarCloud lessons
 
 The repository uses Home Assistant-aligned Ruff formatting with Python 3.14
