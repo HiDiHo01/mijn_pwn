@@ -496,7 +496,9 @@ class PWNAPI:
             elif type(value) is float and isfinite(value) and value >= 0:
                 bounds[key] = value
             else:
-                raise PWNAPIError("Invalid plausibility response: invalid reading bound")
+                raise PWNAPIError(
+                    "Invalid plausibility response: invalid reading bound"
+                )
 
         minimum = bounds["minReading"]
         maximum = bounds["maxReading"]
@@ -773,7 +775,9 @@ class PWNAPI:
         try:
             response = await self._request("POST", endpoint, json=payload)
         except UpdateFailed:
-            raise UpdateFailed("Unable to validate meter-reading plausibility") from None
+            raise UpdateFailed(
+                "Unable to validate meter-reading plausibility"
+            ) from None
 
         return self.parse_plausible_reading_response(response)
 
