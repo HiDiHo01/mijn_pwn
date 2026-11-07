@@ -168,12 +168,8 @@ class TestReadingRequest(unittest.IsolatedAsyncioTestCase):
                 "GET", DATA_ENDPOINTS["notifications"], expect_list=None
             )
 
-        self.assertEqual(
-            PWNAPI._parse_json_response([], expect_list=None), []
-        )
-        self.assertEqual(
-            PWNAPI._parse_json_response([{}], expect_list=None), [{}]
-        )
+        self.assertEqual(PWNAPI._parse_json_response([], expect_list=None), [])
+        self.assertEqual(PWNAPI._parse_json_response([{}], expect_list=None), [{}])
         self.assertEqual(
             PWNAPI._parse_json_response(["synthetic notice"], expect_list=None),
             ["synthetic notice"],
