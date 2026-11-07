@@ -103,6 +103,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         # coordinator = await _create_api_and_coordinator(hass, config_entry, username, password)
 
         coordinator = await _create_coordinator(hass, config_entry)
+        await coordinator.async_load_confirmed_readings()
         hass.data[DOMAIN][config_entry.entry_id] = coordinator
 
         _LOGGER.debug("Calling config_entry_first_refresh")
@@ -126,7 +127,9 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
     if unloaded := await hass.config_entries.async_unload_platforms(
         config_entry, PLATFORMS
     ):
-        hass.data[DOMAIN].pop(config_entry.entry_id, None)
+        coordinator = hass.data[DOMAIN].pop(config_entry.entry_id, None)
+        if coordinator is not None:
+            coordinator.async_clear_pending_confirmations()
         # If no more entries exist, remove the DOMAIN data entirely
         if not hass.data[DOMAIN]:
             hass.data.pop(DOMAIN)
