@@ -81,15 +81,11 @@ def _coordinator() -> MagicMock:
 
     async def _prepare(details: PWNSubmissionDetails) -> None:
         """Run production plausibility-check orchestration."""
-        await PWNDataUpdateCoordinator.async_prepare_meter_reading(
-            coordinator, details
-        )
+        await PWNDataUpdateCoordinator.async_prepare_meter_reading(coordinator, details)
 
     async def _confirm(details: PWNSubmissionDetails) -> None:
         """Run production final-submission orchestration."""
-        await PWNDataUpdateCoordinator.async_confirm_meter_reading(
-            coordinator, details
-        )
+        await PWNDataUpdateCoordinator.async_confirm_meter_reading(coordinator, details)
 
     coordinator.current_submission_details.side_effect = _details
     coordinator.is_prepared_submission.side_effect = _is_prepared
