@@ -176,13 +176,17 @@ class PWNConfirmedReadingSensor(CoordinatorEntity, RestoreSensor):
                 return
             if confirmed_at.tzinfo is None or confirmed_at.utcoffset() is None:
                 return
-            self.coordinator.last_confirmed_meter_reading = PWNConfirmedMeterReading(
+            reading = PWNConfirmedMeterReading(
                 value=restored_value,
                 wheel_count=len(formatted_reading),
                 confirmed_at=confirmed_at,
                 meter_number=meter_number,
                 reading_number=reading_number,
             )
+            self.coordinator.confirmed_readings.setdefault(meter_number, {})[
+                reading_number
+            ] = reading
+            self.coordinator.last_confirmed_meter_reading = reading
             self.coordinator.async_update_listeners()
 
 
