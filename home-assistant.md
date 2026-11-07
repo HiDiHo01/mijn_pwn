@@ -31,6 +31,7 @@ Use these additional rules when working on a Home Assistant custom integration. 
 - Never log credentials, tokens, personal data, or other secrets.
 - Validate API responses before using them and provide useful, sanitized error messages.
 - Avoid `Any` in internal helpers when a more precise type or `object` is suitable; use Home Assistant's required public types where necessary.
+- Preserve the Home Assistant platform contract: `async_setup_entry(hass, entry, async_add_entities)` must remain an `async def` coroutine even if its body only registers entities. `AddEntitiesCallback`/`async_add_entities` is a synchronous scheduling callback, not an awaitable; never remove `async`, `await` the callback, or insert artificial `asyncio.sleep(0)` to silence a linter. Verify the contract against the supported Home Assistant version.
 
 ## Testing and quality
 - Test config-entry setup and unload, coordinator success and failure, entity availability, and registry behavior where relevant.
@@ -39,6 +40,9 @@ Use these additional rules when working on a Home Assistant custom integration. 
 - Run the project's test suite, linting, type checking, and Home Assistant validation when available.
 - Do not guess the current Home Assistant API. Check the installed version, pinned test dependencies, or official source when compatibility is in question.
 - Do not update dependency pins arbitrarily; follow the project's dependency-management workflow.
+- For `unittest.TestCase.assertRaises` and `assertRaisesRegex`, put **only the single operation expected to raise** inside the context manager. Instantiate the API client, prepare mocks/arguments, and arrange fixtures **before** entering it; make assertions on the captured exception or mocks **after** it. Apply this in each `subTest` iteration. This prevents SonarCloud `python:S5778` findings and makes the exception source unambiguous.
+- Verify SonarCloud findings against the current PR head before deciding their disposition. Fix real defects in code; for `python:S7503` on a required Home Assistant `async_setup_entry` coroutine with no `await`, confirm the framework contract, keep a regression test such as `inspect.iscoroutinefunction(platform.async_setup_entry)`, and classify the issue **False Positive** using an authorized SonarCloud account or guarded triage workflow. Do not weaken the Home Assistant API contract or introduce fake asynchronous work to appease the rule.
+- Check the **final-head** SonarCloud issue statuses independently of the Quality Gate. A passing Quality Gate does **not** mean all issues are resolved; distinguish fixed findings, confirmed false positives, and issues still awaiting classification. Do not claim that an issue was marked False Positive until SonarCloud confirms the transition.
 
 ## Pull-request review focus
 Prioritize event-loop blocking, lifecycle leaks, invalid device identifiers, unstable unique IDs, incorrect entity metadata, unsupported/deprecated APIs, incorrect availability, duplicate requests, race conditions, and regressions in config-entry or registry migration logic.
