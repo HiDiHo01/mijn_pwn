@@ -63,6 +63,18 @@ class TestReadingRequest(unittest.IsolatedAsyncioTestCase):
             "GET", DATA_ENDPOINTS["reading_request"], expect_list=True
         )
 
+    async def test_zero_starting_reading_number_is_preserved(self) -> None:
+        """Accept an existing initial zero without adding or removing digits."""
+        api = self._build_api()
+        sample = self._reading_request()
+        sample["readingNumber"] = "01234567890"
+
+        with patch.object(api, "_request", new_callable=AsyncMock) as request_mock:
+            request_mock.return_value = [sample]
+            result = await api.get_reading_request()
+
+        self.assertEqual(result[0]["readingNumber"], "01234567890")
+
     async def test_empty_and_closed_requests_are_supported(self) -> None:
         """Allow no pending requests and a closed entry without a reading number."""
         api = self._build_api()
@@ -102,7 +114,6 @@ class TestReadingRequest(unittest.IsolatedAsyncioTestCase):
             {"openReading": "true"},
             {"openReading": True, "readingNumber": None, "amountOfWheels": 5},
             {"openReading": True, "readingNumber": "1" * 10, "amountOfWheels": 5},
-            {"openReading": True, "readingNumber": "0" + "1" * 10, "amountOfWheels": 5},
             {"openReading": True, "readingNumber": "1" * 12, "amountOfWheels": 5},
             {"openReading": True, "readingNumber": "abcdefghijk", "amountOfWheels": 5},
             {"openReading": True, "readingNumber": "99999999991"},
