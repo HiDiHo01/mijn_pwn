@@ -176,7 +176,5 @@ class TestMeasurementValidation(unittest.IsolatedAsyncioTestCase):
             with self.assertRaisesRegex(
                 UpdateFailed, "Unable to validate meter-reading request"
             ) as error:
-                await client.validate_measurement_request(
-                    "99999999991", address
-                )
+                await client.validate_measurement_request("99999999991", address)
         self.assertNotIn("synthetic-not-a-live-token", str(error.exception))
