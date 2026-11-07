@@ -86,7 +86,7 @@ SENSOR_DESCRIPTIONS: tuple[PWNEntityDescription, ...] = (
         device_class=SensorDeviceClass.WATER,
         state_class=SensorStateClass.TOTAL,
         value_fn=lambda data: get_last_reported_meter_reading(
-            data.get(DATA_CONSUMPTION)
+            data.get(DATA_CONSUMPTION) if data else None
         ),
     ),
     PWNEntityDescription(
