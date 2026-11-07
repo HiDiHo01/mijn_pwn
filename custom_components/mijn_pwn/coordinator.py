@@ -1,7 +1,7 @@
 # coordinator.py
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -59,6 +59,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         )
         self.api = api
         self.last_confirmed_meter_reading: PWNConfirmedMeterReading | None = None
+        self._submission_lock = asyncio.Lock()
 
     def record_confirmed_meter_submission(
         self,
@@ -71,9 +72,9 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
     ) -> None:
         """Record only a successful response from the final submission API.
 
-        The meter-reading submission endpoint has not yet been identified.
-        No existing caller invokes this method. Preliminary validation and
-        private-information confirmation must never invoke it.
+        Only invoke after the final WaterUsage POST returns HTTP 200 with
+        success=true and an empty errorText. Plausibility and earlier API
+        responses must never count as submission acknowledgements.
         """
         if type(status_code) is not int or status_code not in (200, 204):
             raise ValueError(
@@ -105,6 +106,50 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             reading_number=reading_number,
         )
         self.async_update_listeners()
+
+    async def async_submit_meter_reading(
+        self,
+        *,
+        reading_number: str,
+        relation_number: str,
+        meter_number: str,
+        meter_reading: int,
+        wheel_count: int,
+        reading_date: date,
+        address: dict[str, object],
+    ) -> None:
+        """Check plausibility, submit once, then update confirmed sensors.
+
+        This action must be explicitly triggered by the user. On errors or
+        unknown results, the last confirmed reading remains unchanged.
+        """
+        async with self._submission_lock:
+            previous = self.last_confirmed_meter_reading
+            if previous is not None and previous.reading_number == reading_number:
+                raise ValueError("This meter-reading request was already submitted")
+
+            await self.api.validate_plausible_reading(
+                reading_number,
+                relation_number,
+                meter_reading,
+                reading_date,
+                address,
+                wheel_count,
+            )
+            await self.api.submit_meter_reading(
+                reading_number,
+                meter_reading,
+                reading_date,
+                address,
+                wheel_count,
+            )
+            self.record_confirmed_meter_submission(
+                status_code=200,
+                value=meter_reading,
+                wheel_count=wheel_count,
+                meter_number=meter_number,
+                reading_number=reading_number,
+            )
 
     async def _async_update_data(self) -> dict[str, object]:
         """Fetch fresh data from Mijn PWN.
