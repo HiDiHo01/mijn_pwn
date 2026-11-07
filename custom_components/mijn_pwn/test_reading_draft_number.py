@@ -40,6 +40,9 @@ def _make_number(
     }
     coordinator.last_update_success = True
     coordinator.draft_readings = {}
+    coordinator.async_save_drafts = AsyncMock()
+    coordinator.schedule_draft_save = MagicMock()
+    coordinator.was_reading_submitted.return_value = False
     entry = MagicMock()
     entry.unique_id = "synthetic-account"
     entry.entry_id = "synthetic-entry"
