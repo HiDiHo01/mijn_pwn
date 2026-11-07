@@ -132,6 +132,44 @@ class TestConfirmedReading(unittest.IsolatedAsyncioTestCase):
                 )
             self.assertIsNone(coordinator.last_confirmed_meter_reading)
 
+    def test_failed_retry_preserves_previous_confirmed_reading(self) -> None:
+        """Keep the last confirmed value and timestamp when a later POST fails."""
+        coordinator = _make_coordinator()
+        reading_sensor = _make_sensor(
+            coordinator, "last_submitted_meter_reading"
+        )
+        date_sensor = _make_sensor(
+            coordinator, "last_submitted_meter_reading_date"
+        )
+        PWNDataUpdateCoordinator.record_confirmed_meter_submission(
+            coordinator,
+            status_code=204,
+            value=165,
+            wheel_count=5,
+            meter_number="00012345",
+            reading_number="01234567890",
+        )
+        previous = coordinator.last_confirmed_meter_reading
+        previous_date = date_sensor.native_value
+        coordinator.async_update_listeners.reset_mock()
+
+        for status_code in (400, 409, 500):
+            with self.subTest(status_code=status_code):
+                with self.assertRaises(ValueError):
+                    PWNDataUpdateCoordinator.record_confirmed_meter_submission(
+                        coordinator,
+                        status_code=status_code,
+                        value=175,
+                        wheel_count=5,
+                        meter_number="00012345",
+                        reading_number="01234567890",
+                    )
+                self.assertIs(coordinator.last_confirmed_meter_reading, previous)
+                self.assertEqual(reading_sensor.native_value, 165)
+                self.assertEqual(date_sensor.native_value, previous_date)
+
+        coordinator.async_update_listeners.assert_not_called()
+
     def test_restored_value_validation(self) -> None:
         """Reject untrusted and timezone-naive values from restored states."""
         self.assertEqual(_valid_restored_value(123.0, False), 123)
