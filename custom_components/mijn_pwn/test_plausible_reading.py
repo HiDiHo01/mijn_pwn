@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from .api import PWNAPI, PWNAPIError
+from .api import PWNAPI, PWNAPIError, PWNReadingNotPlausibleError
 from .const import API_URL, DATA_ENDPOINTS
 
 
@@ -280,6 +280,78 @@ class TestPlausibilityAPI(unittest.IsolatedAsyncioTestCase):
                 **self._address(),
             },
         )
+        mock_record.assert_not_called()
+
+    async def test_implausible_reading_blocks_submission(self) -> None:
+        """Do not accept HTTP success when the PWN business decision is false."""
+        from .coordinator import PWNDataUpdateCoordinator
+
+        api = self._make_client()
+        responses = (
+            {"isPlausible": False, "minReading": None, "maxReading": None},
+            {"isPlausible": False, "minReading": 160, "maxReading": 200},
+        )
+        with (
+            patch.object(api, "_request", new_callable=AsyncMock) as mock_request,
+            patch.object(
+                PWNDataUpdateCoordinator,
+                "record_confirmed_meter_submission",
+            ) as mock_record,
+        ):
+            for response in responses:
+                with self.subTest(response=response):
+                    mock_request.return_value = response
+                    with self.assertRaises(PWNReadingNotPlausibleError) as error:
+                        await api.validate_plausible_reading(
+                            "01234567890",
+                            "0012345",
+                            165,
+                            date(2026, 11, 7),
+                            self._address(),
+                            5,
+                        )
+                    self.assertEqual(
+                        error.exception.min_reading, response["minReading"]
+                    )
+                    self.assertEqual(
+                        error.exception.max_reading, response["maxReading"]
+                    )
+                    self.assertIn("no reading was submitted", str(error.exception))
+                    self.assertNotIn("0000 AA", str(error.exception))
+
+        self.assertEqual(mock_request.await_count, 2)
+        mock_record.assert_not_called()
+
+    async def test_invalid_response_never_counts_as_success(self) -> None:
+        """Fail closed on missing or contradictory API response fields."""
+        from .coordinator import PWNDataUpdateCoordinator
+
+        api = self._make_client()
+        invalid_responses = (
+            {"isPlausible": "false", "minReading": None, "maxReading": None},
+            {"isPlausible": True, "minReading": 10},
+            {"isPlausible": True, "minReading": 200, "maxReading": 100},
+        )
+        with (
+            patch.object(api, "_request", new_callable=AsyncMock) as mock_request,
+            patch.object(
+                PWNDataUpdateCoordinator,
+                "record_confirmed_meter_submission",
+            ) as mock_record,
+        ):
+            for response in invalid_responses:
+                with self.subTest(response=response):
+                    mock_request.return_value = response
+                    with self.assertRaises(PWNAPIError):
+                        await api.validate_plausible_reading(
+                            "01234567890",
+                            "0012345",
+                            165,
+                            date(2026, 11, 7),
+                            self._address(),
+                            5,
+                        )
+
         mock_record.assert_not_called()
 
     async def test_upstream_error_redacts_private_data(self) -> None:
