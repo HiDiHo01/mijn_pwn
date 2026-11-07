@@ -15,6 +15,7 @@ from .const import (
     SERVICE_NAME_USER,
 )
 from .device_identifiers import get_device_identifiers, get_device_translation_key
+from .reading_request import READING_REQUEST_SENSOR_DESCRIPTIONS
 from .sensor import SENSOR_DESCRIPTIONS
 from .sensor_helper import PWNEntityDescription, PWNSensor
 
@@ -99,7 +100,9 @@ class TestNamingTranslations(unittest.TestCase):
     def test_locales_have_matching_translation_keys(self) -> None:
         """Every shipped language covers all entity and service device names."""
         sensor_keys = {description.key for description in SENSOR_DESCRIPTIONS}
+        sensor_keys.update(item.key for item in READING_REQUEST_SENSOR_DESCRIPTIONS)
         binary_keys = {description.key for description in SENSOR_TYPES}
+        binary_keys.update({"reading_request_open", "reading_requests_open"})
         english = json.loads((_COMPONENT_DIR / "strings.json").read_text("utf-8"))
         for locale in ("en", "nl", "es"):
             with self.subTest(locale=locale):
@@ -111,6 +114,17 @@ class TestNamingTranslations(unittest.TestCase):
                 self.assertEqual(set(catalog["device"]), _DEVICE_KEYS)
                 self.assertEqual(set(catalog["entity"]["sensor"]), sensor_keys)
                 self.assertEqual(set(catalog["entity"]["binary_sensor"]), binary_keys)
+                for field_key in sensor_keys - {
+                    description.key for description in SENSOR_DESCRIPTIONS
+                }:
+                    self.assertIn(
+                        "{meter_number}",
+                        catalog["entity"]["sensor"][field_key]["name"],
+                    )
+                self.assertIn(
+                    "{meter_number}",
+                    catalog["entity"]["binary_sensor"]["reading_request_open"]["name"],
+                )
                 for device in catalog["device"].values():
                     self.assertTrue(device["name"])
                 for sensor in catalog["entity"]["sensor"].values():
