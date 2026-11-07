@@ -207,8 +207,10 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
             SERVICE_NAME_USER: DATA_USER,
             SERVICE_NAME_CONSUMPTION: DATA_CONSUMPTION,
         }.get(self.entity_description.service_name)
-        return source_key is not None and isinstance(data.get(source_key), dict) and bool(
-            data[source_key]
+        return (
+            source_key is not None
+            and isinstance(data.get(source_key), dict)
+            and bool(data[source_key])
         )
 
     async def async_added_to_hass(self) -> None:
@@ -934,7 +936,11 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
     @property
     def available(self) -> bool:
         """Return availability for the coordinator and supported account data."""
-        return super().available and self._source_available() and self.native_value is not None
+        return (
+            super().available
+            and self._source_available()
+            and self.native_value is not None
+        )
 
     @property
     def native_value(self) -> Optional[object]:
