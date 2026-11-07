@@ -126,9 +126,7 @@ class TestReadingDraftNumber(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(entity.native_max_value, 9999)
         self.assertIsNone(entity.native_value)
 
-        coordinator.data = {
-            DATA_READING_REQUESTS: [_reading_request(wheel_count=10)]
-        }
+        coordinator.data = {DATA_READING_REQUESTS: [_reading_request(wheel_count=10)]}
         self.assertFalse(entity.available)
         coordinator.data = {
             DATA_READING_REQUESTS: [{**_reading_request(), "openReading": False}]
