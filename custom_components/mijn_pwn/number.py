@@ -269,15 +269,10 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
 
         reading_number = request.get("readingNumber")
         draft = self.coordinator.draft_readings.get(self._meter_number)
-        submitted = (
-            isinstance(reading_number, str)
-            and self.coordinator.was_reading_submitted(
-                self._meter_number, reading_number
-            )
-        )
-        if submitted or (
-            draft is not None and draft.reading_number != reading_number
-        ):
+        submitted = isinstance(
+            reading_number, str
+        ) and self.coordinator.was_reading_submitted(self._meter_number, reading_number)
+        if submitted or (draft is not None and draft.reading_number != reading_number):
             self._attr_native_value = None
             self._last_entered_at = None
             self.coordinator.draft_readings.pop(self._meter_number, None)
