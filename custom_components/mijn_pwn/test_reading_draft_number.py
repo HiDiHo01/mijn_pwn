@@ -85,9 +85,7 @@ class TestReadingDraftNumber(unittest.IsolatedAsyncioTestCase):
         coordinator.data = {
             DATA_READING_REQUESTS: [
                 _reading_request(),
-                _reading_request(
-                    meter_number="00054321", reading_number="01234567890"
-                ),
+                _reading_request(meter_number="00054321", reading_number="01234567890"),
             ]
         }
         callback()
