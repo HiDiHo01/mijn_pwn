@@ -102,11 +102,11 @@ class PWNSubmitMeterReadingButton(CoordinatorEntity, ButtonEntity):
                 reading_date=dt.as_local(draft.entered_at).date(),
                 address=address,
             )
-        except PWNReadingNotPlausibleError as exc:
+        except PWNReadingNotPlausibleError:
             raise HomeAssistantError(
                 "PWN rejected the reading as implausible; please check the reading and date"
             ) from None
-        except (PWNAPIError, UpdateFailed, ValueError) as exc:
+        except (PWNAPIError, UpdateFailed, ValueError):
             raise HomeAssistantError(
                 "PWN has not confirmed the reading; check your PWN account before retrying"
             ) from None
