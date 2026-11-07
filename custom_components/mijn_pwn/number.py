@@ -63,6 +63,32 @@ def format_meter_reading(value: int, wheel_count: int) -> str:
     return f"{value:0{wheel_count}d}"
 
 
+def _restored_draft_value(value: object, maximum: float) -> int | None:
+    """Accept only a finite, integral draft within the current meter range."""
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (float, int))
+        or not isfinite(value)
+        or not 0 <= value <= maximum
+        or not float(value).is_integer()
+    ):
+        return None
+    return int(value)
+
+
+def _restored_entry_timestamp(value: object) -> datetime | None:
+    """Restore the original entry timestamp only when timezone-aware."""
+    if not isinstance(value, str):
+        return None
+    try:
+        timestamp = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+        return None
+    return timestamp
+
+
 class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
     """Keep an editable meter-reading draft locally in Home Assistant."""
 
@@ -140,7 +166,7 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
         return attributes
 
     async def async_added_to_hass(self) -> None:
-        """Restore a draft only for the same open meter-reading request."""
+        """Restore a draft only if its meter and open request still match."""
         await super().async_added_to_hass()
         previous_state = await self.async_get_last_state()
         restored = await self.async_get_last_number_data()
@@ -154,24 +180,13 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
         ):
             return
 
-        value = restored.native_value
-        if (
-            isinstance(value, bool)
-            or not isinstance(value, (float, int))
-            or not isfinite(value)
-            or not 0 <= value <= self.native_max_value
-            or not float(value).is_integer()
-        ):
-            return
-
-        timestamp = previous_state.attributes.get("entered_at")
-        if not isinstance(timestamp, str):
-            return
-        try:
-            entered_at = datetime.fromisoformat(timestamp)
-        except ValueError:
-            return
-        if entered_at.tzinfo is None or entered_at.utcoffset() is None:
+        restored_value = _restored_draft_value(
+            restored.native_value, self.native_max_value
+        )
+        entered_at = _restored_entry_timestamp(
+            previous_state.attributes.get("entered_at")
+        )
+        if restored_value is None or entered_at is None:
             return
 
         restored_date: date | None = None
@@ -186,11 +201,11 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
             ):
                 restored_date = candidate
 
-        self._attr_native_value = float(value)
+        self._attr_native_value = float(restored_value)
         self._last_entered_at = entered_at
         self.coordinator.invalidate_prepared_submission(self._meter_number)
         self.coordinator.draft_readings[self._meter_number] = PWNReadingDraft(
-            value=int(value),
+            value=restored_value,
             entered_at=entered_at,
             reading_number=self._request_number,
             reading_date=restored_date,
