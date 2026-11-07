@@ -31,6 +31,4 @@ class TestReadingRequest(unittest.IsolatedAsyncioTestCase):
             result = await api.get_reading_request()
 
         self.assertEqual(result, response_data)
-        request_mock.assert_awaited_once_with(
-            "GET", DATA_ENDPOINTS["reading_request"]
-        )
+        request_mock.assert_awaited_once_with("GET", DATA_ENDPOINTS["reading_request"])
