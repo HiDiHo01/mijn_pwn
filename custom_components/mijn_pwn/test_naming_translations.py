@@ -121,8 +121,8 @@ class TestNamingTranslations(unittest.TestCase):
                     "{meter_number}",
                     catalog["entity"]["number"]["meter_reading_draft"]["name"],
                 )
-                for field_key in sensor_keys - {
-                    description.key for description in SENSOR_DESCRIPTIONS
+                for field_key in {
+                    description.key for description in READING_REQUEST_SENSOR_DESCRIPTIONS
                 }:
                     self.assertIn(
                         "{meter_number}",
