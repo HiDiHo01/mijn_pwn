@@ -178,6 +178,11 @@
       "submit_meter_reading": {
         "name": "Confirm sending meter reading ({meter_number})"
       }
+    },
+    "date": {
+      "meter_reading_date_input": {
+        "name": "Meter reading date ({meter_number})"
+      }
     }
   }
 }
