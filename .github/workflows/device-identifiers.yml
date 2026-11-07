@@ -45,4 +45,5 @@ jobs:
             custom_components.mijn_pwn.test_plausible_reading \
             custom_components.mijn_pwn.test_final_submission \
             custom_components.mijn_pwn.test_submit_workflow \
-            custom_components.mijn_pwn.test_review_fixes
+            custom_components.mijn_pwn.test_review_fixes \
+            custom_components.mijn_pwn.test_config_flow
