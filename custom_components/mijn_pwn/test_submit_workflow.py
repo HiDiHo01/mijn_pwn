@@ -30,12 +30,16 @@ def _coordinator() -> MagicMock:
     )
     coordinator._submission_lock = asyncio.Lock()
     coordinator._prepared_submissions = {}
+    coordinator._confirmation_cancels = {}
+    coordinator.confirmed_readings = {}
+    coordinator._confirmed_store.async_save = AsyncMock()
     coordinator.last_confirmed_meter_reading = None
     coordinator.draft_readings = {
         "00012345": PWNReadingDraft(
             value=165,
             entered_at=datetime(2026, 11, 7, 9, 0, tzinfo=timezone.utc),
             reading_number="01234567890",
+            reading_date=datetime(2026, 11, 7, tzinfo=timezone.utc).date(),
         )
     }
     coordinator.data = {
@@ -46,6 +50,8 @@ def _coordinator() -> MagicMock:
                 "readingNumber": "01234567890",
                 "amountOfWheels": 5,
                 "meterNumber": "00012345",
+                "readingStartDate": "2026-10-25T00:00:00.0000000Z",
+                "readingDate": "2026-11-21T00:00:00.0000000Z",
                 "address": {
                     "postalCode": "0000 AA",
                     "street": "Synthetic Lane",
@@ -87,6 +93,16 @@ def _coordinator() -> MagicMock:
         """Run production final-submission orchestration."""
         await PWNDataUpdateCoordinator.async_confirm_meter_reading(coordinator, details)
 
+    coordinator._reading_date_in_window.side_effect = (
+        PWNDataUpdateCoordinator._reading_date_in_window
+    )
+    coordinator.was_reading_submitted.side_effect = (
+        lambda meter_number, reading_number: (
+            PWNDataUpdateCoordinator.was_reading_submitted(
+                coordinator, meter_number, reading_number
+            )
+        )
+    )
     coordinator.current_submission_details.side_effect = _details
     coordinator.is_prepared_submission.side_effect = _is_prepared
     coordinator.invalidate_prepared_submission.side_effect = _invalidate
@@ -179,6 +195,7 @@ class TestSubmissionWorkflow(unittest.IsolatedAsyncioTestCase):
             value=166,
             entered_at=old_draft.entered_at + timedelta(seconds=1),
             reading_number=old_draft.reading_number,
+            reading_date=old_draft.reading_date,
         )
         self.assertFalse(confirm_button.available)
         with self.assertRaises(HomeAssistantError):
