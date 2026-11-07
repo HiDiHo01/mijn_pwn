@@ -120,6 +120,9 @@ API_ENDPOINTS: Final[dict[str, str]] = {
     "water_usage_validate_measurement_request": (
         f"{API_URL}/api/WaterUsage/validate-measurement-request"
     ),
+    "water_usage_validate_plausible_reading": (
+        f"{API_URL}/api/WaterUsage/validate-plausible-reading"
+    ),
 }
 """Dictionary containing API endpoints for various PWN services."""
 
@@ -141,6 +144,9 @@ DATA_ENDPOINTS = {
     "water_usage_meter_details": API_ENDPOINTS["water_usage_meter_details"],
     "water_usage_validate_measurement_request": API_ENDPOINTS[
         "water_usage_validate_measurement_request"
+    ],
+    "water_usage_validate_plausible_reading": API_ENDPOINTS[
+        "water_usage_validate_plausible_reading"
     ],
 }
 
