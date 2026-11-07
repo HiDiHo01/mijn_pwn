@@ -336,9 +336,7 @@ class PWNReadingRequestBinarySensor(CoordinatorEntity, BinarySensorEntity):
             return False
         if self._meter_number is None:
             return _get_request_list(self.coordinator.data) is not None
-        pending = _get_pending_request_for_meter(
-            self.coordinator, self._meter_number
-        )
+        pending = _get_pending_request_for_meter(self.coordinator, self._meter_number)
         if pending is not None:
             return True
         requests = _get_request_list(self.coordinator.data)
