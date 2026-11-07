@@ -16,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .coordinator import PWNDataUpdateCoordinator
+from .coordinator import PWNConfirmedMeterReading, PWNDataUpdateCoordinator
 from .number import format_meter_reading
 from .reading_request import _reading_device_info
 
@@ -109,6 +109,7 @@ class PWNConfirmedReadingSensor(CoordinatorEntity, RestoreSensor):
                 "formatted_reading": format_meter_reading(
                     reading.value, reading.wheel_count
                 ),
+                "confirmed_at": reading.confirmed_at.isoformat(),
             }
         if self._restored_value is None:
             return {}
@@ -164,6 +165,25 @@ class PWNConfirmedReadingSensor(CoordinatorEntity, RestoreSensor):
             "meter_number": meter_number,
             "formatted_reading": formatted_reading,
         }
+
+        if not is_date:
+            confirmation_date = previous_state.attributes.get("confirmed_at")
+            if not isinstance(confirmation_date, str):
+                return
+            try:
+                confirmed_at = datetime.fromisoformat(confirmation_date)
+            except ValueError:
+                return
+            if confirmed_at.tzinfo is None or confirmed_at.utcoffset() is None:
+                return
+            self.coordinator.last_confirmed_meter_reading = PWNConfirmedMeterReading(
+                value=restored_value,
+                wheel_count=len(formatted_reading),
+                confirmed_at=confirmed_at,
+                meter_number=meter_number,
+                reading_number=reading_number,
+            )
+            self.coordinator.async_update_listeners()
 
 
 def setup_confirmed_reading_sensors(
