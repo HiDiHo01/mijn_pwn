@@ -53,8 +53,10 @@ class PWNReadingDate(CoordinatorEntity, DateEntity):
         """Persist a selected date in the draft without submitting to PWN."""
         request = _get_open_request(self.coordinator, self._meter_number)
         draft = self.coordinator.draft_readings.get(self._meter_number)
-        if request is None or draft is None or draft.reading_number != request.get(
-            "readingNumber"
+        if (
+            request is None
+            or draft is None
+            or draft.reading_number != request.get("readingNumber")
         ):
             raise HomeAssistantError("Enter a valid PWN meter reading first")
         if not self.coordinator._reading_date_in_window(value, request):
