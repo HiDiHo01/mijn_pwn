@@ -132,12 +132,19 @@ De entiteit is niet beschikbaar bij gesloten, ontbrekende of onduidelijke
 meterstandverzoeken, en bij onbruikbare aantallen telwielen.
 
 De numerieke waarde is een **concept in Home Assistant** en wordt **niet naar
-PWN verzonden** bij het wijzigen. Home Assistant bewaart de conceptstand en
-de tijd van invoer via de officiële `RestoreNumber`-voorziening. Na een
-herstart wordt de waarde uitsluitend hersteld als **hetzelfde opnamenummer**
-nog openstaat, de waarde binnen het huidige aantal telwielen past en de
-opgeslagen invoerdatum geldig is. Het tijdstip staat in het attribuut
-`entered_at`. Bij een nieuw opnamenummer wordt het concept gewist.
+PWN verzonden** bij het wijzigen. Home Assistant biedt daarnaast per meter
+een afzonderlijke `date`-entiteit **Opnamedatum watermeter ({meter_number})**.
+Vul eerst de conceptmeterstand en daarna de **werkelijke opnamedatum** in.
+Een leeg datumveld blokkeert de verzending. De datum moet binnen de door
+PWN opgegeven opnameperiode vallen en mag niet in de toekomst liggen.
+Bij een wijziging van de meterstand blijft de eerder gekozen opnamedatum
+staan, maar vervalt een eventuele reeds uitgevoerde plausibiliteitscontrole.
+
+De conceptstand, oorspronkelijke invoertijd (`entered_at`) en gekozen
+opnamedatum (`reading_date`) worden met `RestoreNumber` opgeslagen.
+Na een herstart worden ze uitsluitend hersteld wanneer hetzelfde opnamenummer
+nog openstaat en de stand en datum geldig zijn. Bij een nieuw opnamenummer
+wordt het concept gewist.
 Home Assistant bewaart de herstelstatus periodiek en bij een normale stop,
 dus dit is geen garantie tegen een plotselinge stroomonderbreking.
 
@@ -145,17 +152,21 @@ Twee aanvullende sensoren heten **Laatst doorgegeven meterstand** en
 **Datum laatst doorgegeven meterstand**. Ze zijn strikt gescheiden van de
 reeds bestaande sensor **Laatste meterstand**, die uit de PWN-verbruikshistorie
 komt. Beide nieuwe sensoren worden **uitsluitend na een geslaagde definitieve
-meterstandverzending** bijgewerkt. De laatste verzendstatus van dat specifieke
-API-endpoint moet dan `200` of `204` zijn (andere codes pas na afzonderlijke
-verificatie). De datum is het tijdstip waarop de definitieve API-reactie als
+meterstandverzending** bijgewerkt. Voor het aangetroffen JSON-antwoord
+vereist de client HTTP `200` én `success: true` met een lege `errorText`. De datum is het tijdstip waarop de definitieve API-reactie als
 succesvol is verwerkt, niet de opnamedatum.
 
-Zolang er nog geen bewezen verzendendpoint is, zijn deze twee sensoren
-**niet beschikbaar**. De bestaande `number`-entiteit bewaart wel een lokaal
-concept maar mag deze sensoren niet wijzigen. Ook voorbereidende API-aanvragen
+Zolang nog geen meterstand definitief is bevestigd, zijn deze twee sensoren
+**niet beschikbaar**. De `number`- en `date`-entiteiten bewaren alleen
+lokale conceptgegevens en mogen deze sensoren niet wijzigen. Ook voorbereidende API-aanvragen
 (`validate-measurement-request` en `SupplementInformation/private`) gelden
-niet als meterstandbevestiging. Na een echte geslaagde verzending blijven beide
-waarden behouden na een herstart via Home Assistant `RestoreSensor`.
+niet als meterstandbevestiging. Na een echte geslaagde verzending blijven de laatste
+sensorwaarden behouden via `RestoreSensor`. Daarnaast bewaart de integratie
+**alle bevestigde opnamenummers per watermeter** in een eigen
+Home Assistant-opslagbestand (`Store`, per configuratie-entry). Deze
+bevestigingen worden vóór het instellen van de entiteiten geladen, zodat een
+nieuwere bevestiging van een andere meter een eerdere blokkade tegen dubbel
+verzenden niet overschrijft.
 Het attribuut `pwn_confirmed: true` markeert bevestigde waarden; reeds uit
 historie afkomstige sensorstatussen mogen niet als een bevestiging worden
 hersteld.
@@ -172,15 +183,15 @@ knoppen** bij elk gevonden meterstandverzoek:
 
 De bevestiging geldt maximaal **twee minuten** en blijft alleen geldig zolang
 de volledige conceptstand, opnamedatum, het 11-cijferige opnamenummer,
-relatienummer en aansluitadres onveranderd blijven. Bij een wijziging, nieuw
-meterstandverzoek, verstreken termijn of herstart vervalt de bevestiging;
-controleer dan opnieuw. De bevestiging wordt **niet** op schijf bewaard.
+relatienummer en aansluitadres onveranderd blijven. Wanneer de termijn
+verstrijkt, ververst Home Assistant de knoppen automatisch; de bevestigingsknop
+wordt onbeschikbaar zonder te wachten op een coordinator-refresh.
+Bij een wijziging, nieuw meterstandverzoek, verstreken termijn of herstart
+vervalt de bevestiging; controleer dan opnieuw. De bevestiging wordt **niet** op schijf bewaard.
 Een wijziging van de `number`-entiteit **verstuurt niets**.
 
-Het `ReadingDate`-veld is de lokale kalenderdatum waarop de conceptstand is
-ingevuld, afgeleid van `entered_at` in de Home Assistant-tijdzone. Controleer
-dit voordat je de knop indrukt: voor historische opnamedatums is nog geen
-aparte datumkiezer aanwezig.
+Het `ReadingDate`-veld gebruikt uitsluitend de afzonderlijk gekozen
+**werkelijke opnamedatum**; het wordt niet meer uit `entered_at` afgeleid.
 Het veld `amountOfWheels` komt uit het meterstandverzoek; de HTML en de
 `meter-details`-API bevestigen vijf zwarte en nul rode telwielen voor de
 onderzochte meter, maar dit is geen garantie voor andere watermeters.
@@ -276,8 +287,9 @@ Na een bevestigde finale API-reactie worden de sensoren
 stand en het UTC-tijdstip van bevestiging. De bestaande sensor
 **Laatste meterstand** uit de PWN-verbruikshistorie blijft ongewijzigd.
 De bevestigde sensorwaarden worden via `RestoreSensor` bewaard.
-De bevestigingsknop blokkeert verdere verzending van hetzelfde
-opnamenummer na bevestiging door PWN. Bij een onzekere netwerkuitkomst
+De bevestigingsknop blokkeert na een PWN-bevestiging iedere nieuwe
+verzendpoging voor hetzelfde opnamenummer van dezelfde meter, ook wanneer
+daarna een andere watermeter is doorgegeven of Home Assistant is herstart. Bij een onzekere netwerkuitkomst
 wordt de tijdelijke bevestiging **eenmalig verbruikt**, zodat opnieuw
 verzenden alleen via een nieuwe plausibiliteitscontrole en een nieuwe
 expliciete bevestiging mogelijk is. Controleer vóór een nieuwe poging het
