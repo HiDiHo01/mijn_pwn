@@ -31,6 +31,15 @@ class PWNAPIAuthenticationError(PWNAPIError):
     """Authentication error."""
 
 
+class PWNWaterMeterDetailsRequest(TypedDict):
+    """Address fields accepted by the PWN water meter details endpoint."""
+
+    postalCode: str
+    street: str
+    houseNumber: str
+    houseNumberAddition: str
+
+
 class PWNWaterMeterDetails(TypedDict):
     """Meter dial configuration from the Mijn PWN WaterUsage API."""
 
@@ -345,6 +354,38 @@ class PWNAPI:
         )
 
     @staticmethod
+    def build_water_meter_details_payload(
+        address: dict[str, object],
+    ) -> PWNWaterMeterDetailsRequest:
+        """Validate address fields and omit unrelated account information."""
+        if not isinstance(address, dict):
+            raise ValueError("Invalid water meter address: expected an object")
+
+        address_keys = (
+            "postalCode",
+            "street",
+            "houseNumber",
+            "houseNumberAddition",
+        )
+        validated: dict[str, str] = {}
+        for key in address_keys:
+            value = address.get(key)
+            if (
+                not isinstance(value, str)
+                or len(value) > 255
+                or (key != "houseNumberAddition" and not value.strip())
+            ):
+                raise ValueError("Invalid water meter address: missing or invalid fields")
+            validated[key] = value
+
+        return PWNWaterMeterDetailsRequest(
+            postalCode=validated["postalCode"],
+            street=validated["street"],
+            houseNumber=validated["houseNumber"],
+            houseNumberAddition=validated["houseNumberAddition"],
+        )
+
+    @staticmethod
     def parse_water_meter_details(payload: object) -> PWNWaterMeterDetails:
         """Validate the WaterUsage meter-details response without network access.
 
@@ -419,6 +460,24 @@ class PWNAPI:
     async def get_consumption_history(self) -> dict[str, object]:
         """Return consumption history."""
         return await self._request("GET", DATA_ENDPOINTS["consumption_history"])
+
+    async def get_water_meter_details(
+        self, address: dict[str, object]
+    ) -> PWNWaterMeterDetails:
+        """Retrieve meter dial configuration for an explicitly supplied address.
+
+        This POST is not called by the coordinator or during setup.
+        """
+        payload = self.build_water_meter_details_payload(address)
+        try:
+            response = await self._request(
+                "POST", DATA_ENDPOINTS["water_usage_meter_details"], json=payload
+            )
+        except UpdateFailed:
+            # Upstream error bodies can contain personally identifying addresses.
+            raise UpdateFailed("Unable to retrieve water meter details") from None
+
+        return self.parse_water_meter_details(response)
 
     async def get_reading_request(self) -> list[dict[str, object]]:
         """Return meter-reading requests with their status and meter metadata."""
