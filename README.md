@@ -29,3 +29,15 @@ de exacte betekenis van `readingReason` en `contractStatus` is nog niet vastgest
 
 **Opmerking:** deze functionaliteit bevestigt geen klantgegevens en verzendt
 nog geen meterstanden. Het invoer- en verzendendpoint is niet geverifieerd.
+
+## Verhuizing: adresvalidatie (voorbereid)
+
+De URL `/api/MoveHouse/validate-address` is geregistreerd voor toekomstig
+gebruik. Het bevestigde responseformaat is een JSON-object met de tekstvelden
+`street`, `houseNumber`, `houseNumberAddition`, `postalCode`, `city` en
+`country`. `houseNumberAddition` mag een lege tekenreeks zijn.
+
+`PWNAPI.parse_move_house_address()` controleert deze response zonder het adres
+te loggen of andere onbekende velden te bewaren. **Er wordt geen API-aanroep
+gedaan:** de HTTP-methode en requestbody zijn nog niet bevestigd. De integratie
+kan nog geen verhuizing doorgeven.
