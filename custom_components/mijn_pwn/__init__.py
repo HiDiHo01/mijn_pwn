@@ -111,7 +111,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             device_registry.async_get(hass), config_entry.entry_id
         )
         hass.data[DOMAIN][config_entry.entry_id] = coordinator
-    except (ConfigEntryAuthFailed, ConfigEntryNotReady):
+    except ConfigEntryAuthFailed, ConfigEntryNotReady:
         # Propagate auth/retry outcomes to Home Assistant's config-entry manager.
         raise
     except ClientError as e:
