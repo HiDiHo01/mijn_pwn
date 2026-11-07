@@ -204,7 +204,12 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        """Clear an old draft when a different reading request opens."""
+        """Clear a draft after server confirmation or a request change."""
+        confirmed = self.coordinator.last_confirmed_meter_reading
+        if confirmed is not None and confirmed.reading_number == self._request_number:
+            self._attr_native_value = None
+            self._last_entered_at = None
+            self.coordinator.draft_readings.pop(self._meter_number, None)
         request = _get_open_request(self.coordinator, self._meter_number)
         if request is not None:
             reading_number = request.get("readingNumber")
