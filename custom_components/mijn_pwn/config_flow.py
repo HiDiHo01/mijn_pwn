@@ -1,6 +1,7 @@
 """Handle the config flow for PWN."""
 # config_flow
 
+import asyncio
 from collections.abc import Mapping
 import logging
 from typing import Any
@@ -12,6 +13,7 @@ from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import COMPONENT_TITLE, DOMAIN, NETWORK_CONFIG
@@ -19,6 +21,10 @@ from .const import COMPONENT_TITLE, DOMAIN, NETWORK_CONFIG
 _LOGGER = logging.getLogger(__name__)
 AUTH_URL = f"{NETWORK_CONFIG['API_URL']}/api/auth/login"
 TIMEOUT = NETWORK_CONFIG["API_TIMEOUT"]
+
+
+class CannotConnect(HomeAssistantError):
+    """Mijn PWN authentication is temporarily unavailable."""
 
 
 @callback
@@ -67,9 +73,13 @@ class PWNConfigFlow(config_entries.ConfigFlow):
             await self.async_set_unique_id(username)
             self._abort_if_unique_id_configured()
 
-            if await self._validate_user_input(user_input):
-                return self.async_create_entry(title=COMPONENT_TITLE, data=user_input)
-            errors["base"] = "invalid_auth"
+            try:
+                if await self._validate_user_input(user_input):
+                    return self.async_create_entry(title=COMPONENT_TITLE, data=user_input)
+            except CannotConnect:
+                errors["base"] = "cannot_connect"
+            else:
+                errors["base"] = "invalid_auth"
 
         return self.async_show_form(
             step_id="user", data_schema=data_schema, errors=errors
@@ -100,11 +110,17 @@ class PWNConfigFlow(config_entries.ConfigFlow):
             password = user_input.get(CONF_PASSWORD)
             if isinstance(password, str) and password:
                 credentials = {CONF_USERNAME: username, CONF_PASSWORD: password}
-                if await self._validate_user_input(credentials):
-                    return self.async_update_reload_and_abort(
-                        entry, data_updates={CONF_PASSWORD: password}
-                    )
-            errors["base"] = "invalid_auth"
+                try:
+                    if await self._validate_user_input(credentials):
+                        return self.async_update_reload_and_abort(
+                            entry, data_updates={CONF_PASSWORD: password}
+                        )
+                except CannotConnect:
+                    errors["base"] = "cannot_connect"
+                else:
+                    errors["base"] = "invalid_auth"
+            else:
+                errors["base"] = "invalid_auth"
 
         return self.async_show_form(
             step_id="reauth_confirm", data_schema=data_schema, errors=errors
@@ -136,72 +152,55 @@ class PWNConfigFlow(config_entries.ConfigFlow):
                 await self.async_set_unique_id(username)
                 self._abort_if_unique_id_mismatch()
 
-                if await self._validate_user_input(user_input):
-                    return self.async_update_reload_and_abort(
-                        self._get_reconfigure_entry(),
-                        data_updates={
-                            CONF_USERNAME: username,
-                            CONF_PASSWORD: password,
-                        },
-                    )
-
-            errors["base"] = "invalid_auth"
+                try:
+                    if await self._validate_user_input(user_input):
+                        return self.async_update_reload_and_abort(
+                            self._get_reconfigure_entry(),
+                            data_updates={
+                                CONF_USERNAME: username,
+                                CONF_PASSWORD: password,
+                            },
+                        )
+                except CannotConnect:
+                    errors["base"] = "cannot_connect"
+                else:
+                    errors["base"] = "invalid_auth"
+            else:
+                errors["base"] = "invalid_auth"
 
         return self.async_show_form(
             step_id="reconfigure", data_schema=data_schema, errors=errors
         )
 
-    async def _validate_user_input(self, user_input):
-        """Validate user input by performing authentication."""
-        username = user_input.get("username")
-        password = user_input.get("password")
+    async def _validate_user_input(self, user_input: dict[str, str]) -> bool:
+        """Reject invalid credentials; raise CannotConnect for temporary failures."""
+        username = user_input.get(CONF_USERNAME)
+        password = user_input.get(CONF_PASSWORD)
 
         if not username or not password:
-            _LOGGER.error("Username or password not provided")
             return False
 
         try:
             session = async_get_clientsession(self.hass)
-            payload = {"user": username, "password": password}
             async with session.post(
-                AUTH_URL, json=payload, timeout=TIMEOUT
+                AUTH_URL,
+                json={"user": username, "password": password},
+                timeout=TIMEOUT,
             ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    if data.get("accessToken") is not None:
-                        _LOGGER.info("Authentication successful for user: %s", username)
-                        return True
-                    _LOGGER.error("No access token received for user: %s", username)
-                elif response.status == 401:
-                    _LOGGER.error(
-                        "Authentication failed for user: %s, invalid credentials",
-                        username,
-                    )
-                else:
-                    _LOGGER.error(
-                        "Authentication failed for user: %s, status code: %s",
-                        username,
-                        response.status,
-                    )
-                return False
+                if response.status in (401, 403):
+                    return False
+                if response.status != 200:
+                    raise CannotConnect("Mijn PWN authentication service unavailable")
+
+                data = await response.json()
+                if not isinstance(data, dict):
+                    raise CannotConnect("Invalid authentication response")
+                return isinstance(data.get("accessToken"), str) and bool(
+                    data["accessToken"]
+                )
         except aiohttp.ClientResponseError as error:
-            _LOGGER.error(
-                "HTTP error occurred during authentication for user: %s, error: %s",
-                username,
-                error,
-            )
-            return False
-        except aiohttp.ClientError as error:
-            _LOGGER.error(
-                "Network error occurred during authentication for user: %s, error: %s",
-                username,
-                error,
-            )
-            return False
-        except Exception as error:
-            _LOGGER.error(
-                "Unexpected error occurred during authentication for user: %s, error: %s",
-                username,
-                error,
-            )
-            return False
+            if error.status in (401, 403):
+                return False
+            raise CannotConnect("Mijn PWN authentication service unavailable") from None
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, TypeError):
+            raise CannotConnect("Mijn PWN authentication service unavailable") from None
