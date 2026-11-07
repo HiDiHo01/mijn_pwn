@@ -8,7 +8,6 @@ from homeassistant.components.sensor import (
     RestoreSensor,
     SensorDeviceClass,
     SensorEntityDescription,
-    SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfVolume
@@ -27,7 +26,6 @@ CONFIRMED_READING_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         translation_key="last_submitted_meter_reading",
         icon="mdi:counter",
         device_class=SensorDeviceClass.WATER,
-        state_class=SensorStateClass.TOTAL,
         native_unit_of_measurement=UnitOfVolume.CUBIC_METERS,
         suggested_display_precision=0,
     ),
@@ -73,7 +71,7 @@ def _restored_confirmation_ids(
         or not reading_number.isascii()
         or not reading_number.isdecimal()
         or not isinstance(meter_number, str)
-        or not 0 < len(meter_number) <= 64
+        or not meter_number.strip()
         or not isinstance(formatted_reading, str)
         or not 1 <= len(formatted_reading) <= 9
         or not formatted_reading.isascii()
