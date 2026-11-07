@@ -247,6 +247,24 @@ class TestSensorErrorLogging(unittest.IsolatedAsyncioTestCase):
             self.assertIn("total_costs", log_entry)
             self.assertIn("ValueError", log_entry)
 
+    async def test_native_value_logs_no_private_exception_details(self) -> None:
+        """Keep sensor-value errors diagnostic without exposing private API text."""
+        private_marker = "synthetic-private-api-secret"
+        sensor = self._failing_sensor(ValueError(private_marker))
+
+        with self.assertLogs(
+            "custom_components.mijn_pwn.sensor_helper", level="WARNING"
+        ) as recorded:
+            value = sensor.native_value
+
+        self.assertIsNone(value)
+        self.assertEqual(len(recorded.output), 1)
+        self.assertIn("total_costs", recorded.output[0])
+        self.assertIn("ValueError", recorded.output[0])
+        self.assertNotIn(private_marker, recorded.output[0])
+        self.assertNotIn("Traceback", recorded.output[0])
+        self.assertIsNone(recorded.records[0].exc_info)
+
     async def test_type_error_does_not_log_private_messages(self) -> None:
         """Keep invalid-data diagnostics without disclosing payload contents."""
         private_marker = "synthetic-secret-type-error"
