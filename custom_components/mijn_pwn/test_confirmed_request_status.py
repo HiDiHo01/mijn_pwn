@@ -163,6 +163,66 @@ class TestConfirmedRequestStatus(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(status.is_on)
         self.assertFalse(PWNReadingRequestBinarySensor(restored, entry).is_on)
 
+    async def test_startup_cleans_and_persists_only_confirmed_drafts(self) -> None:
+        """An acknowledged draft cannot survive a restart or erase another meter."""
+        original = _coordinator()
+        _acknowledge(original)
+        other_draft = PWNReadingDraft(
+            value=171,
+            entered_at=datetime.now(timezone.utc),
+            reading_number="01234567890",
+            reading_date=datetime.now(timezone.utc).date(),
+        )
+        original.draft_readings["00054321"] = other_draft
+        saved_drafts = PWNDataUpdateCoordinator._draft_storage_payload(original)
+        saved_confirmations = PWNDataUpdateCoordinator._confirmed_storage_payload(
+            original
+        )
+        restored = _coordinator()
+        restored._draft_store.async_load = AsyncMock(return_value=saved_drafts)
+        restored._confirmed_store.async_load = AsyncMock(
+            return_value=saved_confirmations
+        )
+        restored.async_save_drafts = AsyncMock(
+            wraps=PWNDataUpdateCoordinator.async_save_drafts.__get__(restored)
+        )
+
+        await PWNDataUpdateCoordinator.async_load_confirmed_readings(restored)
+        await PWNDataUpdateCoordinator.async_load_drafts(restored)
+
+        self.assertNotIn("00012345", restored.draft_readings)
+        self.assertEqual(restored.draft_readings["00054321"], other_draft)
+        restored.async_save_drafts.assert_awaited_once_with()
+        restored._draft_store.async_save.assert_awaited_once()
+        persisted = restored._draft_store.async_save.await_args.args[0]
+        self.assertEqual(
+            [(draft["meter_number"], draft["reading_number"])
+             for draft in persisted["drafts"]],
+            [("00054321", "01234567890")],
+        )
+        self.assertIsNone(
+            PWNReadingDraftNumber(restored, _entry(), "00012345")._request_number
+        )
+        restored._draft_store.async_load.return_value = persisted
+        await PWNDataUpdateCoordinator.async_load_drafts(restored)
+        restored.async_save_drafts.assert_awaited_once_with()
+
+    def test_callback_cleans_confirmed_draft_without_request_number(self) -> None:
+        """Even without a selected open ID, an acknowledged draft is removable."""
+        coordinator = _coordinator()
+        _acknowledge(coordinator)
+        number = PWNReadingDraftNumber(coordinator, _entry(), "00012345")
+        self.assertIsNone(number._request_number)
+        self.assertIn("00012345", coordinator.draft_readings)
+
+        with patch.object(BaseCoordinatorEntity, "_handle_coordinator_update"):
+            number._handle_coordinator_update()
+
+        self.assertNotIn("00012345", coordinator.draft_readings)
+        self.assertIsNone(number.native_value)
+        coordinator.schedule_draft_save.assert_called_once_with()
+        coordinator.api.submit_meter_reading.assert_not_awaited()
+
     async def test_refresh_finishing_after_acknowledgement_cannot_reopen(self) -> None:
         """An in-flight stale poll must not override per-request confirmation."""
         coordinator = _coordinator()
