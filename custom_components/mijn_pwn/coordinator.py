@@ -266,7 +266,9 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         self._confirmation_cancels.clear()
 
     @staticmethod
-    def _reading_date_in_window(reading_date: date, request: dict[str, object]) -> bool:
+    def _reading_date_in_window(
+        reading_date: date | None, request: dict[str, object]
+    ) -> bool:
         """Validate an actual read date against PWN's requested date interval."""
         if type(reading_date) is not date or reading_date > dt_util.now().date():
             return False
