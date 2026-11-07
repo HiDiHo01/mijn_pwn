@@ -9,6 +9,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from homeassistant.util import dt as dt_util
+
 from .api import (
     PWNAPI,
     PWNAPIAuthenticationError,
@@ -16,6 +18,7 @@ from .api import (
     PWNAPIError,
     PWNAPIServerError,
 )
+from .const import DATA_READING_REQUESTS, DATA_USER
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,6 +27,8 @@ _LOGGER.setLevel(logging.INFO)  # Change to logging.DEBUG for testing
 
 # Default update interval
 DEFAULT_UPDATE_INTERVAL = timedelta(hours=12)
+
+CONFIRMATION_WINDOW = timedelta(minutes=2)
 
 # Adjust the interval if logging level is set to DEBUG
 if _LOGGER.getEffectiveLevel() == logging.DEBUG:
@@ -53,6 +58,40 @@ class PWNReadingDraft:
     reading_number: str
 
 
+@dataclass(frozen=True, slots=True)
+class PWNSubmissionDetails:
+    """Immutable snapshot of the exact draft and account data to submit."""
+
+    meter_number: str
+    reading_number: str
+    relation_number: str
+    value: int
+    wheel_count: int
+    reading_date: date
+    entered_at: datetime
+    postal_code: str
+    street: str
+    house_number: str
+    house_number_addition: str
+
+    def as_address(self) -> dict[str, object]:
+        """Build only the expected address fields for the PWN API."""
+        return {
+            "postalCode": self.postal_code,
+            "street": self.street,
+            "houseNumber": self.house_number,
+            "houseNumberAddition": self.house_number_addition,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class PWNPreparedSubmission:
+    """Short-lived confirmation for a validated and unchanged reading."""
+
+    details: PWNSubmissionDetails
+    expires_at: datetime
+
+
 class PWNDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching data from the PWN API."""
 
@@ -70,6 +109,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         self.last_confirmed_meter_reading: PWNConfirmedMeterReading | None = None
         self._submission_lock = asyncio.Lock()
         self.draft_readings: dict[str, PWNReadingDraft] = {}
+        self._prepared_submissions: dict[str, PWNPreparedSubmission] = {}
 
     def record_confirmed_meter_submission(
         self,
@@ -117,48 +157,156 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         )
         self.async_update_listeners()
 
-    async def async_submit_meter_reading(
-        self,
-        *,
-        reading_number: str,
-        relation_number: str,
-        meter_number: str,
-        meter_reading: int,
-        wheel_count: int,
-        reading_date: date,
-        address: dict[str, object],
-    ) -> None:
-        """Check plausibility, submit once, then update confirmed sensors.
+    def current_submission_details(self, meter_number: str) -> PWNSubmissionDetails | None:
+        """Return a complete, current reading snapshot or None if unsafe to send."""
+        draft = self.draft_readings.get(meter_number)
+        if draft is None or not isinstance(self.data, dict):
+            return None
+        requests = self.data.get(DATA_READING_REQUESTS)
+        account = self.data.get(DATA_USER)
+        if not isinstance(requests, list) or not isinstance(account, dict):
+            return None
 
-        This action must be explicitly triggered by the user. On errors or
-        unknown results, the last confirmed reading remains unchanged.
+        matches = [
+            item
+            for item in requests
+            if isinstance(item, dict)
+            and item.get("meterNumber") == meter_number
+            and item.get("openReading") is True
+        ]
+        if len(matches) != 1:
+            return None
+        request = matches[0]
+        reading_number = request.get("readingNumber")
+        wheels = request.get("amountOfWheels")
+        if (
+            not isinstance(reading_number, str)
+            or len(reading_number) != 11
+            or not reading_number.isascii()
+            or not reading_number.isdecimal()
+            or draft.reading_number != reading_number
+            or type(wheels) is not int
+            or not 1 <= wheels <= 9
+            or type(draft.value) is not int
+            or not 0 <= draft.value < 10**wheels
+        ):
+            return None
+
+        identifier = account.get("relationNumber")
+        if (
+            not isinstance(identifier, str)
+            or not identifier.isascii()
+            or not identifier.isdecimal()
+        ):
+            return None
+        if len(identifier) == 10 and identifier.startswith("000"):
+            identifier = identifier[3:]
+        if len(identifier) != 7:
+            return None
+
+        address = request.get("address")
+        if not isinstance(address, dict):
+            return None
+        expected_keys = ("postalCode", "street", "houseNumber", "houseNumberAddition")
+        if any(
+            not isinstance(address.get(key), str)
+            or len(address[key]) > 255
+            or (key != "houseNumberAddition" and not address[key].strip())
+            for key in expected_keys
+        ):
+            return None
+        if (
+            draft.entered_at.tzinfo is None
+            or draft.entered_at.utcoffset() is None
+        ):
+            return None
+
+        return PWNSubmissionDetails(
+            meter_number=meter_number,
+            reading_number=reading_number,
+            relation_number=identifier,
+            value=draft.value,
+            wheel_count=wheels,
+            reading_date=dt_util.as_local(draft.entered_at).date(),
+            entered_at=draft.entered_at,
+            postal_code=address["postalCode"],
+            street=address["street"],
+            house_number=address["houseNumber"],
+            house_number_addition=address["houseNumberAddition"],
+        )
+
+    def is_prepared_submission(self, details: PWNSubmissionDetails) -> bool:
+        """Check if the exact draft still has a live, approved confirmation."""
+        prepared = self._prepared_submissions.get(details.meter_number)
+        return (
+            prepared is not None
+            and prepared.details == details
+            and datetime.now(timezone.utc) < prepared.expires_at
+            and self.current_submission_details(details.meter_number) == details
+        )
+
+    def invalidate_prepared_submission(self, meter_number: str) -> None:
+        """Revoke a pending confirmation when the user changes their draft."""
+        if self._prepared_submissions.pop(meter_number, None) is not None:
+            self.async_update_listeners()
+
+    async def async_prepare_meter_reading(self, details: PWNSubmissionDetails) -> None:
+        """Run PWN plausibility check and arm a short-lived confirmation.
+
+        This action never calls the final meter submission endpoint.
         """
         async with self._submission_lock:
-            previous = self.last_confirmed_meter_reading
-            if previous is not None and previous.reading_number == reading_number:
+            self.invalidate_prepared_submission(details.meter_number)
+            if self.current_submission_details(details.meter_number) != details:
+                raise ValueError("Meter reading changed; enter and check it again")
+            confirmed = self.last_confirmed_meter_reading
+            if confirmed is not None and confirmed.reading_number == details.reading_number:
                 raise ValueError("This meter-reading request was already submitted")
 
-            await self.api.validate_plausible_reading(
-                reading_number,
-                relation_number,
-                meter_reading,
-                reading_date,
-                address,
-                wheel_count,
+            result = await self.api.validate_plausible_reading(
+                details.reading_number,
+                details.relation_number,
+                details.value,
+                details.reading_date,
+                details.as_address(),
+                details.wheel_count,
             )
-            await self.api.submit_meter_reading(
-                reading_number,
-                meter_reading,
-                reading_date,
-                address,
-                wheel_count,
+            if result.get("isPlausible") is not True:
+                raise ValueError("PWN did not approve this meter reading")
+            if self.current_submission_details(details.meter_number) != details:
+                raise ValueError("Meter reading changed during plausibility check")
+            self._prepared_submissions[details.meter_number] = PWNPreparedSubmission(
+                details=details,
+                expires_at=datetime.now(timezone.utc) + CONFIRMATION_WINDOW,
             )
+            self.async_update_listeners()
+
+    async def async_confirm_meter_reading(self, details: PWNSubmissionDetails) -> None:
+        """Submit only an unchanged and explicitly confirmed prepared reading."""
+        async with self._submission_lock:
+            if not self.is_prepared_submission(details):
+                raise ValueError("Confirm the unchanged reading within two minutes")
+            self._prepared_submissions.pop(details.meter_number, None)
+            self.async_update_listeners()
+            confirmed = self.last_confirmed_meter_reading
+            if confirmed is not None and confirmed.reading_number == details.reading_number:
+                raise ValueError("This meter-reading request was already submitted")
+
+            response = await self.api.submit_meter_reading(
+                details.reading_number,
+                details.value,
+                details.reading_date,
+                details.as_address(),
+                details.wheel_count,
+            )
+            if response.get("success") is not True or response.get("errorText") != "":
+                raise ValueError("PWN did not confirm the final meter reading submission")
             self.record_confirmed_meter_submission(
                 status_code=200,
-                value=meter_reading,
-                wheel_count=wheel_count,
-                meter_number=meter_number,
-                reading_number=reading_number,
+                value=details.value,
+                wheel_count=details.wheel_count,
+                meter_number=details.meter_number,
+                reading_number=details.reading_number,
             )
 
     async def _async_update_data(self) -> dict[str, object]:
