@@ -171,6 +171,64 @@ class TestPerMeterSubmissionHistory(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(coordinator.last_confirmed_meter_reading)
 
 
+class TestSubmissionValidation(unittest.TestCase):
+    """Check independently validated identifiers and submission details."""
+
+    def test_ambiguous_open_meter_requests_are_rejected(self) -> None:
+        """Never guess which of two matching requests should be submitted."""
+        coordinator = _coordinator()
+        requests = coordinator.data[DATA_READING_REQUESTS]
+        self.assertIsNotNone(coordinator.current_submission_details("00012345"))
+        requests.append({**requests[0]})
+
+        self.assertIsNone(coordinator.current_submission_details("00012345"))
+
+    def test_invalid_relation_number_blocks_submission(self) -> None:
+        """Require exactly seven digits or the observed ten-digit prefix."""
+        coordinator = _coordinator()
+        account = coordinator.data["user"]
+        for relation_number in ("0", "000123", "00012345678", "12345/7", 1234567):
+            with self.subTest(value=relation_number):
+                account["relationNumber"] = relation_number
+                self.assertIsNone(
+                    coordinator.current_submission_details("00012345")
+                )
+        account["relationNumber"] = "0000012345"
+        self.assertIsNotNone(coordinator.current_submission_details("00012345"))
+
+    def test_invalid_meter_address_blocks_submission(self) -> None:
+        """Reject empty or unsupported address types before posting to PWN."""
+        coordinator = _coordinator()
+        address = coordinator.data[DATA_READING_REQUESTS][0]["address"]
+        for key, value in (
+            ("postalCode", ""),
+            ("street", ""),
+            ("houseNumber", 1),
+            ("houseNumberAddition", None),
+        ):
+            with self.subTest(field=key):
+                original = address[key]
+                address[key] = value
+                self.assertIsNone(
+                    coordinator.current_submission_details("00012345")
+                )
+                address[key] = original
+
+    def test_wheel_count_and_recorded_date_must_be_valid(self) -> None:
+        """Keep invalid wheel counts and missing dates out of API requests."""
+        coordinator = _coordinator()
+        request = coordinator.data[DATA_READING_REQUESTS][0]
+        request["amountOfWheels"] = True
+        self.assertIsNone(coordinator.current_submission_details("00012345"))
+        request["amountOfWheels"] = 5
+
+        draft = coordinator.draft_readings["00012345"]
+        coordinator.draft_readings["00012345"] = replace(
+            draft, reading_date=None
+        )
+        self.assertIsNone(coordinator.current_submission_details("00012345"))
+
+
 class TestConfirmationExpiry(unittest.IsolatedAsyncioTestCase):
     """Refresh Home Assistant button availability when the timer expires."""
 
