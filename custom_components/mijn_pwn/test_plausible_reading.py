@@ -48,9 +48,7 @@ class TestPlausibleReadingURL(unittest.TestCase):
         for opname_number in invalid:
             with self.subTest(value_type=type(opname_number).__name__):
                 with self.assertRaisesRegex(ValueError, "Invalid reading number"):
-                    PWNAPI.build_plausible_reading_url(
-                        opname_number, "1234567"
-                    )
+                    PWNAPI.build_plausible_reading_url(opname_number, "1234567")
 
     def test_reject_invalid_relation_numbers(self) -> None:
         """Reject already-prefixed IDs rather than silently double-prefixing."""
@@ -67,6 +65,4 @@ class TestPlausibleReadingURL(unittest.TestCase):
         for relation_number in invalid:
             with self.subTest(value_type=type(relation_number).__name__):
                 with self.assertRaisesRegex(ValueError, "Invalid relation number"):
-                    PWNAPI.build_plausible_reading_url(
-                        "12345678901", relation_number
-                    )
+                    PWNAPI.build_plausible_reading_url("12345678901", relation_number)
