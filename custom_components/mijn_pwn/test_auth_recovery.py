@@ -108,22 +108,69 @@ class TestCoordinatorAuthRecovery(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(data["contact_preferences"])
         self.assertTrue(data["invoices"])
 
-    async def test_required_endpoints_are_checked_before_optional_fetch(self) -> None:
-        """Missing required data must retain the existing empty-result behavior."""
-        required_endpoints = (
-            ("get_invoices", []),
-            ("get_relation_data", {}),
-            ("get_consumption_history", []),
-        )
-        for endpoint_name, empty_response in required_endpoints:
+    async def test_reading_requests_survive_missing_unrelated_endpoints(self) -> None:
+        """Empty invoices, history, or account data never erase a valid request."""
+        request = {"openReading": True, "meterNumber": "00001"}
+        for endpoint_name, missing_response, data_key in (
+            ("get_invoices", [], "invoices"),
+            ("get_consumption_history", [], "consumption_history"),
+            ("get_relation_data", {}, "user_data"),
+        ):
             with self.subTest(endpoint_name=endpoint_name):
                 coordinator = _mock_coordinator()
-                getattr(coordinator.api, endpoint_name).return_value = empty_response
+                coordinator.api.get_reading_request.return_value = [request]
+                getattr(coordinator.api, endpoint_name).return_value = missing_response
 
                 result = await PWNDataUpdateCoordinator._fetch_all_data(coordinator)
 
-                self.assertEqual(result, {})
-                coordinator.api.get_contact_preferences.assert_not_awaited()
+                self.assertEqual(result["reading_requests"], [request])
+                self.assertEqual(result[data_key], missing_response)
+                if endpoint_name == "get_relation_data":
+                    self.assertIsNone(result["contact_preferences"])
+                    coordinator.api.get_contact_preferences.assert_not_awaited()
+                else:
+                    self.assertEqual(result["contact_preferences"], {"enabled": True})
+
+    async def test_failed_endpoint_isolated_and_can_recover(self) -> None:
+        """A failed invoice endpoint cannot erase valid requests or later recovery."""
+        coordinator = _mock_coordinator()
+        request = {"openReading": True, "meterNumber": "00001"}
+        coordinator.api.get_reading_request.return_value = [request]
+        coordinator.api.get_invoices.side_effect = UpdateFailed("synthetic-timeout")
+
+        partial = await PWNDataUpdateCoordinator._fetch_all_data(coordinator)
+
+        self.assertEqual(partial["reading_requests"], [request])
+        self.assertIsNone(partial["invoices"])
+        self.assertTrue(partial["consumption_history"])
+
+        coordinator.api.get_invoices.side_effect = None
+        coordinator.api.get_invoices.return_value = {"invoicesSummary": {}}
+        recovered = await PWNDataUpdateCoordinator._fetch_all_data(coordinator)
+
+        self.assertEqual(recovered["invoices"], {"invoicesSummary": {}})
+        self.assertEqual(recovered["reading_requests"], [request])
+
+    async def test_all_failed_endpoints_fail_the_coordinator_update(self) -> None:
+        """No successful endpoint must not count as a complete refresh."""
+        coordinator = _mock_coordinator()
+        for endpoint in (
+            "get_invoices",
+            "get_relation_data",
+            "get_consumption_history",
+            "get_reading_request",
+            "get_payment_info",
+            "get_advance",
+            "get_notifications",
+        ):
+            getattr(coordinator.api, endpoint).side_effect = UpdateFailed(
+                "synthetic-endpoint-outage"
+            )
+
+        with self.assertRaises(UpdateFailed):
+            await PWNDataUpdateCoordinator._fetch_all_data(coordinator)
+
+        coordinator.api.get_contact_preferences.assert_not_awaited()
 
     async def test_missing_relation_number_skips_contact_preferences(self) -> None:
         """Do not make an account-dependent request without a string relation ID."""
