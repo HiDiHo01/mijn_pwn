@@ -47,6 +47,12 @@
   },
   "entity": {
     "sensor": {
+      "last_submitted_meter_reading": {
+        "name": "Last submitted meter reading"
+      },
+      "last_submitted_meter_reading_date": {
+        "name": "Date of last submitted meter reading"
+      },
       "total_open_amount": {
         "name": "Total open amount"
       },
