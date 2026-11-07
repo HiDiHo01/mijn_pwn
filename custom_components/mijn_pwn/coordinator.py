@@ -111,6 +111,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         self.api = api
         self.last_confirmed_meter_reading: PWNConfirmedMeterReading | None = None
         self._submission_lock = asyncio.Lock()
+        self._unloading = False
         self.draft_readings: dict[str, PWNReadingDraft] = {}
         self._prepared_submissions: dict[str, PWNPreparedSubmission] = {}
         self._confirmation_cancels: dict[str, Callable[[], None]] = {}
@@ -359,20 +360,21 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
     def current_submission_details(
-        self, meter_number: str
+        self, meter_number: str, *, data: dict[str, object] | None = None
     ) -> PWNSubmissionDetails | None:
-        """Return a validated, immutable snapshot for explicit submission."""
+        """Return a validated snapshot, optionally against fresh API data."""
+        current_data = self.data if data is None else data
         draft = self.draft_readings.get(meter_number)
-        if draft is None or not isinstance(self.data, dict):
+        if draft is None or not isinstance(current_data, dict):
             return None
 
         request = self._find_open_meter_request(
-            self.data.get(DATA_READING_REQUESTS), meter_number
+            current_data.get(DATA_READING_REQUESTS), meter_number
         )
         if request is None or not self._valid_draft_for_request(draft, request):
             return None
 
-        identifier = self._extract_relation_number(self.data.get(DATA_USER))
+        identifier = self._extract_relation_number(current_data.get(DATA_USER))
         address = request.get("address")
         if identifier is None or not self._valid_meter_address(address):
             return None
@@ -398,6 +400,23 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             house_number_addition=address["houseNumberAddition"],
         )
 
+    def _invalidate_changed_preparations(self, updated_data: dict[str, object]) -> None:
+        """Revoke approvals immediately if fresh PWN request data has changed."""
+        for meter_number, prepared in tuple(self._prepared_submissions.items()):
+            current = self.current_submission_details(meter_number, data=updated_data)
+            if current != prepared.details:
+                self.invalidate_prepared_submission(meter_number)
+
+    async def async_prepare_for_unload(self) -> None:
+        """Block new submissions and finish active account writes before unload."""
+        self._unloading = True
+        async with self._submission_lock:
+            self.async_clear_pending_confirmations()
+
+    def resume_after_failed_unload(self) -> None:
+        """Re-enable submission actions if platform unload could not finish."""
+        self._unloading = False
+
     def is_prepared_submission(self, details: PWNSubmissionDetails) -> bool:
         """Check if the exact draft still has a live, approved confirmation."""
         prepared = self._prepared_submissions.get(details.meter_number)
@@ -422,6 +441,8 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         This action never calls the final meter submission endpoint.
         """
         async with self._submission_lock:
+            if self._unloading:
+                raise ValueError("PWN integration is unloading; submission cancelled")
             self.invalidate_prepared_submission(details.meter_number)
             if self.current_submission_details(details.meter_number) != details:
                 raise ValueError("Meter reading changed; enter and check it again")
@@ -450,6 +471,8 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
     async def async_confirm_meter_reading(self, details: PWNSubmissionDetails) -> None:
         """Submit only an unchanged and explicitly confirmed prepared reading."""
         async with self._submission_lock:
+            if self._unloading:
+                raise ValueError("PWN integration is unloading; submission cancelled")
             if not self.is_prepared_submission(details):
                 raise ValueError("Confirm the unchanged reading within two minutes")
             self.invalidate_prepared_submission(details.meter_number)
@@ -490,6 +513,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("Fetching PWN data")
 
             data = await self._fetch_all_data()
+            self._invalidate_changed_preparations(data)
             data["last_update"] = datetime.now(timezone.utc).isoformat()
             return data
 
