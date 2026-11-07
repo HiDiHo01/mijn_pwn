@@ -173,6 +173,7 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
 
         self._attr_native_value = float(value)
         self._last_entered_at = entered_at
+        self.coordinator.invalidate_prepared_submission(self._meter_number)
         self.coordinator.draft_readings[self._meter_number] = PWNReadingDraft(
             value=int(value),
             entered_at=entered_at,
@@ -195,6 +196,7 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
             )
         self._attr_native_value = float(value)
         self._last_entered_at = datetime.now(timezone.utc)
+        self.coordinator.invalidate_prepared_submission(self._meter_number)
         self.coordinator.draft_readings[self._meter_number] = PWNReadingDraft(
             value=int(value),
             entered_at=self._last_entered_at,
@@ -217,6 +219,7 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
                 self._attr_native_value = None
                 self._last_entered_at = None
                 self.coordinator.draft_readings.pop(self._meter_number, None)
+                self.coordinator.invalidate_prepared_submission(self._meter_number)
                 self._request_number = reading_number
             elif (
                 self._attr_native_value is not None
@@ -225,6 +228,7 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
                 self._attr_native_value = None
                 self._last_entered_at = None
                 self.coordinator.draft_readings.pop(self._meter_number, None)
+                self.coordinator.invalidate_prepared_submission(self._meter_number)
         super()._handle_coordinator_update()
 
 
