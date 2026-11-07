@@ -52,9 +52,7 @@ class TestConfirmedRequestStatus(unittest.IsolatedAsyncioTestCase):
         reading_date = PWNReadingDate(coordinator, entry, "00012345")
         prepare = PWNPrepareMeterReadingButton(coordinator, entry, "00012345")
         submit = PWNSubmitMeterReadingButton(coordinator, entry, "00012345")
-        meter_status = PWNReadingRequestBinarySensor(
-            coordinator, entry, "00012345"
-        )
+        meter_status = PWNReadingRequestBinarySensor(coordinator, entry, "00012345")
         overall_status = PWNReadingRequestBinarySensor(coordinator, entry)
         request_sensor = PWNReadingRequestSensor(
             coordinator,
