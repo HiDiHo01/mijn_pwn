@@ -42,6 +42,7 @@ jobs:
             custom_components.mijn_pwn.test_closed_reading_request \
             custom_components.mijn_pwn.test_reading_draft_number \
             custom_components.mijn_pwn.test_confirmed_reading \
+            custom_components.mijn_pwn.test_confirmed_request_status \
             custom_components.mijn_pwn.test_plausible_reading \
             custom_components.mijn_pwn.test_final_submission \
             custom_components.mijn_pwn.test_submit_workflow \
