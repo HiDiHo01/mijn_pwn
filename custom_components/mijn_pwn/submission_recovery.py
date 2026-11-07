@@ -35,6 +35,12 @@ def async_register_submission_recovery(hass: HomeAssistant) -> None:
 
     async def _release(call: ServiceCall) -> None:
         """Release only the exact request after explicit external verification."""
+        user_id = call.context.user_id
+        user = await hass.auth.async_get_user(user_id) if user_id else None
+        if user is None or not user.is_admin:
+            raise HomeAssistantError(
+                "Only an authenticated Home Assistant administrator can release a submission"
+            )
         coordinator = hass.data.get(DOMAIN, {}).get(call.data["config_entry_id"])
         if not isinstance(coordinator, PWNDataUpdateCoordinator):
             raise HomeAssistantError("The selected Mijn PWN integration is not loaded")
