@@ -121,6 +121,15 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
         self._request_number = (
             request_number if isinstance(request_number, str) else None
         )
+        saved_draft = coordinator.draft_readings.get(meter_number)
+        if (
+            request is not None
+            and saved_draft is not None
+            and saved_draft.reading_number == self._request_number
+            and 0 <= saved_draft.value <= self.native_max_value
+        ):
+            self._attr_native_value = float(saved_draft.value)
+            self._last_entered_at = saved_draft.entered_at
 
     @property
     def available(self) -> bool:
@@ -168,6 +177,10 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
     async def async_added_to_hass(self) -> None:
         """Restore a draft only if its meter and open request still match."""
         await super().async_added_to_hass()
+        saved_draft = self.coordinator.draft_readings.get(self._meter_number)
+        if saved_draft is not None:
+            # The dedicated store survives unavailable entity states.
+            return
         previous_state = await self.async_get_last_state()
         restored = await self.async_get_last_number_data()
         request = _get_open_request(self.coordinator, self._meter_number)
@@ -210,6 +223,7 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
             reading_number=self._request_number,
             reading_date=restored_date,
         )
+        await self.coordinator.async_save_drafts()
         self.coordinator.async_update_listeners()
 
     async def async_set_native_value(self, value: float) -> None:
@@ -241,38 +255,48 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
             reading_number=self._request_number,
             reading_date=reading_date,
         )
+        await self.coordinator.async_save_drafts()
         self.async_write_ha_state()
         self.coordinator.async_update_listeners()
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        """Clear a draft after server confirmation or a request change."""
-        confirmed = self.coordinator.last_confirmed_meter_reading
-        if (
-            confirmed is not None
-            and confirmed.meter_number == self._meter_number
-            and confirmed.reading_number == self._request_number
+        """Reconcile stored drafts when the request or confirmation changes."""
+        request = _get_open_request(self.coordinator, self._meter_number)
+        if request is None:
+            super()._handle_coordinator_update()
+            return
+
+        reading_number = request.get("readingNumber")
+        draft = self.coordinator.draft_readings.get(self._meter_number)
+        submitted = (
+            isinstance(reading_number, str)
+            and self.coordinator.was_reading_submitted(
+                self._meter_number, reading_number
+            )
+        )
+        if submitted or (
+            draft is not None and draft.reading_number != reading_number
         ):
             self._attr_native_value = None
             self._last_entered_at = None
             self.coordinator.draft_readings.pop(self._meter_number, None)
-        request = _get_open_request(self.coordinator, self._meter_number)
-        if request is not None:
-            reading_number = request.get("readingNumber")
-            if reading_number != self._request_number:
+            self.coordinator.invalidate_prepared_submission(self._meter_number)
+            self.coordinator.schedule_draft_save()
+            draft = None
+
+        self._request_number = reading_number
+        if draft is not None:
+            if draft.value > self.native_max_value:
                 self._attr_native_value = None
                 self._last_entered_at = None
                 self.coordinator.draft_readings.pop(self._meter_number, None)
                 self.coordinator.invalidate_prepared_submission(self._meter_number)
-                self._request_number = reading_number
-            elif (
-                self._attr_native_value is not None
-                and self._attr_native_value > self.native_max_value
-            ):
-                self._attr_native_value = None
-                self._last_entered_at = None
-                self.coordinator.draft_readings.pop(self._meter_number, None)
-                self.coordinator.invalidate_prepared_submission(self._meter_number)
+                self.coordinator.schedule_draft_save()
+            else:
+                self._attr_native_value = float(draft.value)
+                self._last_entered_at = draft.entered_at
+
         super()._handle_coordinator_update()
 
 
