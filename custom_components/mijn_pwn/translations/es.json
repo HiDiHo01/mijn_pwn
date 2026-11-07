@@ -172,8 +172,11 @@
       }
     },
     "button": {
+      "prepare_meter_reading": {
+        "name": "Comprobar lectura del contador ({meter_number})"
+      },
       "submit_meter_reading": {
-        "name": "Enviar lectura del contador ({meter_number})"
+        "name": "Confirmar envío de lectura ({meter_number})"
       }
     }
   }
