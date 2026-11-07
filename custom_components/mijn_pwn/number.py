@@ -1,6 +1,6 @@
 """Editable draft meter readings for Mijn PWN, without account submission."""
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from math import isfinite
 
 from homeassistant.components.number import NumberMode, RestoreNumber
@@ -134,6 +134,9 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
         }
         if self._last_entered_at is not None:
             attributes["entered_at"] = self._last_entered_at.isoformat()
+        draft = self.coordinator.draft_readings.get(self._meter_number)
+        if draft is not None and draft.reading_date is not None:
+            attributes["reading_date"] = draft.reading_date.isoformat()
         return attributes
 
     async def async_added_to_hass(self) -> None:
@@ -171,6 +174,19 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
         if entered_at.tzinfo is None or entered_at.utcoffset() is None:
             return
 
+        restored_date: date | None = None
+        date_value = previous_state.attributes.get("reading_date")
+        if isinstance(date_value, str):
+            try:
+                candidate = date.fromisoformat(date_value)
+            except ValueError:
+                candidate = None
+            if (
+                candidate is not None
+                and self.coordinator._reading_date_in_window(candidate, request)
+            ):
+                restored_date = candidate
+
         self._attr_native_value = float(value)
         self._last_entered_at = entered_at
         self.coordinator.invalidate_prepared_submission(self._meter_number)
@@ -178,7 +194,9 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
             value=int(value),
             entered_at=entered_at,
             reading_number=self._request_number,
+            reading_date=restored_date,
         )
+        self.coordinator.async_update_listeners()
 
     async def async_set_native_value(self, value: float) -> None:
         """Store an integer draft locally, never submitting to the PWN API."""
@@ -194,6 +212,12 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
             raise HomeAssistantError(
                 "Invalid meter reading: enter a whole number within the meter range"
             )
+        previous = self.coordinator.draft_readings.get(self._meter_number)
+        reading_date = (
+            previous.reading_date
+            if previous is not None and previous.reading_number == self._request_number
+            else None
+        )
         self._attr_native_value = float(value)
         self._last_entered_at = datetime.now(timezone.utc)
         self.coordinator.invalidate_prepared_submission(self._meter_number)
@@ -201,14 +225,16 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
             value=int(value),
             entered_at=self._last_entered_at,
             reading_number=self._request_number,
+            reading_date=reading_date,
         )
         self.async_write_ha_state()
+        self.coordinator.async_update_listeners()
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Clear a draft after server confirmation or a request change."""
         confirmed = self.coordinator.last_confirmed_meter_reading
-        if confirmed is not None and confirmed.reading_number == self._request_number:
+        if confirmed is not None and confirmed.meter_number == self._meter_number and confirmed.reading_number == self._request_number:
             self._attr_native_value = None
             self._last_entered_at = None
             self.coordinator.draft_readings.pop(self._meter_number, None)
