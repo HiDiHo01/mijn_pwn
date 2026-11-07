@@ -375,6 +375,40 @@ class PWNAPI:
         )
 
     @staticmethod
+    def build_plausible_reading_url(
+        reading_number: str, relation_number: str
+    ) -> str:
+        """Build the plausibility-check URL without sending any meter readings.
+
+        The observed URL contains an 11-digit opname number and a 10-digit
+        relation identifier made from three zeroes and seven relation digits.
+        The API request body and response are still unknown.
+        """
+        if (
+            not isinstance(reading_number, str)
+            or len(reading_number) != 11
+            or not reading_number.isascii()
+            or not reading_number.isdecimal()
+        ):
+            raise ValueError(
+                "Invalid reading number: expected exactly 11 ASCII digits"
+            )
+        if (
+            not isinstance(relation_number, str)
+            or len(relation_number) != 7
+            or not relation_number.isascii()
+            or not relation_number.isdecimal()
+        ):
+            raise ValueError(
+                "Invalid relation number: expected exactly seven ASCII digits"
+            )
+
+        return (
+            f"{DATA_ENDPOINTS['water_usage_validate_plausible_reading']}"
+            f"/{reading_number}/000{relation_number}"
+        )
+
+    @staticmethod
     def _build_measurement_validation_payload(
         address: dict[str, object],
     ) -> PWNMeasurementValidationRequest:
