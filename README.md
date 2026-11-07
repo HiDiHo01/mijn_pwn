@@ -203,10 +203,26 @@ is. `minReading` en `maxReading` kunnen `null` zijn; er werden in
 het waargenomen antwoord geen grenzen teruggegeven. Eventuele niet-lege
 numerieke grenzen en hun betekenis zijn nog niet in de browser bevestigd.
 
-`PWNAPI.parse_plausible_reading_response()` valideert de response en
-`PWNAPI.validate_plausible_reading()` biedt de JSON-POST als afzonderlijk
-aanroepbare methode aan. Deze methode wordt **niet automatisch uitgevoerd**
-bij opstarten, verversen of het aanpassen van de conceptmeterstand.
+`PWNAPI.parse_plausible_reading_response()` valideert de response.
+`PWNAPI.validate_plausible_reading()` biedt een afzonderlijk aanroepbare
+JSON-POST aan. Een resultaat met `isPlausible: false` wordt **altijd als
+afgewezen plausibiliteitscontrole behandeld**, ook als de HTTP-status
+succes aangeeft. De methode werpt dan
+`PWNReadingNotPlausibleError` op, met eventuele numerieke
+`min_reading`- en `max_reading`-waarden voor latere foutweergave. De
+meterstand blijft als concept staan; de definitieve verzendstap wordt
+niet gestart. Ook ongeldige responses en netwerkfouten leiden niet
+tot een definitieve verzendactie.
+
+Een plausibiliteitsfout mag niet automatisch met dezelfde stand worden
+herhaald: controleer eerst de ingevoerde stand en opnamedatum. Ook bij
+een later falende definitieve POST blijven de bestaande sensoren
+**Laatst doorgegeven meterstand** en **Datum laatst doorgegeven meterstand**
+ongewijzigd. Ze tonen uitsluitend de laatste **door PWN bevestigde**
+verzending, niet een poging of concept.
+
+De plausibiliteitscontrole wordt **niet automatisch uitgevoerd** bij
+opstarten, verversen of het aanpassen van de conceptmeterstand.
 De exacte **HTTP-statuscode** van het waargenomen antwoord is nog onbekend.
 
 De plausibiliteitscontrole **bevestigt nooit de definitieve verzending**.
