@@ -4,7 +4,8 @@
     "abort": {
       "already_configured": "Account is al toegevoegd",
       "reauth_successful": "Opnieuw inloggen gelukt",
-      "unique_id_mismatch": "Dit is een ander Mijn PWN-account. Voeg dit afzonderlijk toe in plaats van het geselecteerde account opnieuw te configureren."
+      "unique_id_mismatch": "Dit is een ander Mijn PWN-account. Voeg dit afzonderlijk toe in plaats van het geselecteerde account opnieuw te configureren.",
+      "reauth_account_mismatch": "Opnieuw inloggen is niet mogelijk omdat de opgeslagen accountidentiteit niet overeenkomt."
     },
     "error": {
       "invalid_auth": "Inloggegevens niet geaccepteerd. Controleer de gegevens en probeer het opnieuw."
@@ -30,6 +31,13 @@
         "title": "Mijn PWN-inloggegevens bijwerken",
         "data": {
           "username": "E-mailadres",
+          "password": "Wachtwoord"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Opnieuw inloggen bij Mijn PWN",
+        "description": "Voer het nieuwe wachtwoord voor het bestaande Mijn PWN-account in.",
+        "data": {
           "password": "Wachtwoord"
         }
       }
