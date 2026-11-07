@@ -117,6 +117,11 @@ class TestNamingTranslations(unittest.TestCase):
                 self.assertEqual(set(catalog["entity"]["sensor"]), sensor_keys)
                 self.assertEqual(set(catalog["entity"]["binary_sensor"]), binary_keys)
                 self.assertIn("meter_reading_draft", catalog["entity"]["number"])
+                self.assertIn("meter_reading_date_input", catalog["entity"]["date"])
+                self.assertIn(
+                    "{meter_number}",
+                    catalog["entity"]["date"]["meter_reading_date_input"]["name"],
+                )
                 self.assertIn("prepare_meter_reading", catalog["entity"]["button"])
                 self.assertIn("submit_meter_reading", catalog["entity"]["button"])
                 self.assertIn(
