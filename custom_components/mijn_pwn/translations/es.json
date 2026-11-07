@@ -47,6 +47,12 @@
   },
   "entity": {
     "sensor": {
+      "last_submitted_meter_reading": {
+        "name": "Última lectura de contador comunicada"
+      },
+      "last_submitted_meter_reading_date": {
+        "name": "Fecha de la última lectura de contador comunicada"
+      },
       "total_open_amount": {
         "name": "Importe total pendiente"
       },
