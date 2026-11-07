@@ -101,6 +101,9 @@ class TestReadingRequest(unittest.IsolatedAsyncioTestCase):
         for invalid_entry in (
             {"openReading": "true"},
             {"openReading": True, "readingNumber": None, "amountOfWheels": 5},
+            {"openReading": True, "readingNumber": "1" * 10, "amountOfWheels": 5},
+            {"openReading": True, "readingNumber": "1" * 12, "amountOfWheels": 5},
+            {"openReading": True, "readingNumber": "abcdefghijk", "amountOfWheels": 5},
             {"openReading": True, "readingNumber": "00000000001"},
             {
                 "openReading": True,
