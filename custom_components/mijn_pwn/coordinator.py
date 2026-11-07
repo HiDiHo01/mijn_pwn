@@ -504,9 +504,12 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
 
     @staticmethod
     def _find_open_meter_request(
-        requests: object, meter_number: str
+        requests: object,
+        meter_number: str,
+        *,
+        excluded_readings: dict[str, PWNConfirmedMeterReading] | None = None,
     ) -> dict[str, object] | None:
-        """Find exactly one open request for a meter without guessing."""
+        """Find exactly one pending open request, ignoring acknowledged IDs."""
         if not isinstance(requests, list):
             return None
         matches = [
@@ -515,6 +518,10 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             if isinstance(item, dict)
             and item.get("meterNumber") == meter_number
             and item.get("openReading") is True
+            and (
+                excluded_readings is None
+                or item.get("readingNumber") not in excluded_readings
+            )
         ]
         return matches[0] if len(matches) == 1 else None
 
@@ -575,11 +582,15 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             return None
 
         request = self._find_open_meter_request(
-            current_data.get(DATA_READING_REQUESTS), meter_number
+            current_data.get(DATA_READING_REQUESTS),
+            meter_number,
+            excluded_readings=self.confirmed_readings.get(meter_number),
         )
         if request is None or not self._valid_draft_for_request(draft, request):
             return None
-        if self.is_reading_request_closed(meter_number, draft.reading_number):
+        if self.is_reading_request_closed(
+            meter_number, draft.reading_number
+        ) or self.was_reading_submitted(meter_number, draft.reading_number):
             return None
 
         identifier = self._extract_relation_number(current_data.get(DATA_USER))
