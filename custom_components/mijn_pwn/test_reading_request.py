@@ -107,7 +107,7 @@ class TestReadingRequest(unittest.IsolatedAsyncioTestCase):
                         invalid_response, expect_list=expect_list
                     )
 
-    async def test_isolates_malformed_requests_without_blocking_other_meters(self) -> None:
+    async def test_isolates_malformed_requests(self) -> None:
         """Preserve valid meters when another request has invalid metadata."""
         api = self._build_api()
         for invalid_entry in (
