@@ -1,8 +1,9 @@
 """Editable draft meter readings for Mijn PWN, without account submission."""
 
+from datetime import datetime, timezone
 from math import isfinite
 
-from homeassistant.components.number import NumberEntity, NumberMode
+from homeassistant.components.number import NumberMode, RestoreNumber
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
@@ -54,7 +55,7 @@ def format_meter_reading(value: int, wheel_count: int) -> str:
     return f"{value:0{wheel_count}d}"
 
 
-class PWNReadingDraftNumber(CoordinatorEntity, NumberEntity):
+class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
     """Keep an editable meter-reading draft locally in Home Assistant."""
 
     _attr_has_entity_name = True
@@ -80,6 +81,7 @@ class PWNReadingDraftNumber(CoordinatorEntity, NumberEntity):
         self._attr_translation_placeholders = {"meter_number": meter_number}
         self._attr_device_info = _reading_device_info(entry.entry_id)
         self._attr_native_value: float | None = None
+        self._last_entered_at: datetime | None = None
         request = _get_open_request(coordinator, meter_number)
         self._request_number = request.get("readingNumber") if request else None
 
@@ -110,7 +112,51 @@ class PWNReadingDraftNumber(CoordinatorEntity, NumberEntity):
         wheel_count = _wheel_count(request)
         if wheel_count is None:
             return {}
-        return {"formatted_reading": format_meter_reading(int(value), wheel_count)}
+        attributes = {
+            "formatted_reading": format_meter_reading(int(value), wheel_count),
+            "reading_number": self._request_number,
+        }
+        if self._last_entered_at is not None:
+            attributes["entered_at"] = self._last_entered_at.isoformat()
+        return attributes
+
+    async def async_added_to_hass(self) -> None:
+        """Restore a draft only for the same open meter-reading request."""
+        await super().async_added_to_hass()
+        previous_state = await self.async_get_last_state()
+        restored = await self.async_get_last_number_data()
+        request = _get_open_request(self.coordinator, self._meter_number)
+        if (
+            request is None
+            or previous_state is None
+            or restored is None
+            or previous_state.attributes.get("reading_number")
+            != request.get("readingNumber")
+        ):
+            return
+
+        value = restored.native_value
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (float, int))
+            or not isfinite(value)
+            or not 0 <= value <= self.native_max_value
+            or not float(value).is_integer()
+        ):
+            return
+
+        timestamp = previous_state.attributes.get("entered_at")
+        if not isinstance(timestamp, str):
+            return
+        try:
+            entered_at = datetime.fromisoformat(timestamp)
+        except ValueError:
+            return
+        if entered_at.tzinfo is None or entered_at.utcoffset() is None:
+            return
+
+        self._attr_native_value = float(value)
+        self._last_entered_at = entered_at
 
     async def async_set_native_value(self, value: float) -> None:
         """Store an integer draft locally, never submitting to the PWN API."""
@@ -127,6 +173,7 @@ class PWNReadingDraftNumber(CoordinatorEntity, NumberEntity):
                 "Invalid meter reading: enter a whole number within the meter range"
             )
         self._attr_native_value = float(value)
+        self._last_entered_at = datetime.now(timezone.utc)
         self.async_write_ha_state()
 
     @callback
@@ -137,12 +184,14 @@ class PWNReadingDraftNumber(CoordinatorEntity, NumberEntity):
             reading_number = request.get("readingNumber")
             if reading_number != self._request_number:
                 self._attr_native_value = None
+                self._last_entered_at = None
                 self._request_number = reading_number
             elif (
                 self._attr_native_value is not None
                 and self._attr_native_value > self.native_max_value
             ):
                 self._attr_native_value = None
+                self._last_entered_at = None
         super()._handle_coordinator_update()
 
 
