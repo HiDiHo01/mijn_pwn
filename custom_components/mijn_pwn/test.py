@@ -10,8 +10,8 @@ _LOGGER = logging.getLogger(__name__)
 
 async def main():
     # Replace with your actual username and password
-    username = "royarxhoek@gmail.com"
-    password = "Supervis18!pwn"
+    username = ""
+    password = ""
 
     # Initialize PWNAPI instance
     # Pass None as Home Assistant instance for standalone usage
