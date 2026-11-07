@@ -53,19 +53,6 @@ def _normalize_fetch_result(key: str, result: object) -> object:
     return result
 
 
-def _has_required_data(data: dict[str, object]) -> bool:
-    """Check required endpoint data in the same order as before."""
-    for key, label in (
-        ("invoices", "invoices"),
-        ("user_data", "user"),
-        ("consumption_history", "consumption history"),
-    ):
-        if not data.get(key):
-            _LOGGER.warning("Incomplete %s data received from API", label)
-            return False
-    return True
-
-
 async def _fetch_contact_preferences(
     api: PWNAPI, user_data: object
 ) -> dict[str, object] | None:
@@ -808,7 +795,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             raise UpdateFailed(e) from e
 
     async def _fetch_all_data(self) -> dict[str, object]:
-        """Fetch all API data required by the coordinator."""
+        """Fetch independent API datasets while isolating transient failures."""
 
         tasks = {
             "invoices": self.api.get_invoices(),
@@ -826,8 +813,8 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             key: _normalize_fetch_result(key, result)
             for key, result in zip(tasks, results)
         }
-        if not _has_required_data(data):
-            return {}
+        if all(result is None for result in data.values()):
+            raise UpdateFailed("All PWN data endpoints are unavailable")
 
         data["contact_preferences"] = await _fetch_contact_preferences(
             self.api, data["user_data"]
