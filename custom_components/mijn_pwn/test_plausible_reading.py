@@ -2,8 +2,11 @@
 
 from datetime import date, datetime, timezone
 import unittest
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from .api import PWNAPI
+from homeassistant.helpers.update_coordinator import UpdateFailed
+
+from .api import PWNAPI, PWNAPIError
 from .const import API_URL, DATA_ENDPOINTS
 
 
@@ -166,3 +169,148 @@ class TestPlausibleReadingURL(unittest.TestCase):
             with self.subTest(value_type=type(relation_number).__name__):
                 with self.assertRaisesRegex(ValueError, "Invalid relation number"):
                     PWNAPI.build_plausible_reading_url("12345678901", relation_number)
+
+
+
+class TestPlausibilityResponse(unittest.TestCase):
+    """Validate PWN plausibility responses without changing submission state."""
+
+    def test_true_and_null_bounds(self) -> None:
+        """Accept the exact observed response while excluding unknown fields."""
+        response = {
+            "isPlausible": True,
+            "minReading": None,
+            "maxReading": None,
+            "private": "never-return-this-field",
+        }
+        self.assertEqual(
+            PWNAPI.parse_plausible_reading_response(response),
+            {"isPlausible": True, "minReading": None, "maxReading": None},
+        )
+
+    def test_false_with_nullable_or_numeric_bounds(self) -> None:
+        """Return nonplausible responses instead of claiming a submission."""
+        for response in (
+            {"isPlausible": False, "minReading": None, "maxReading": None},
+            {"isPlausible": False, "minReading": 100, "maxReading": 200},
+            {"isPlausible": False, "minReading": 100.5, "maxReading": None},
+            {"isPlausible": True, "minReading": None, "maxReading": 200},
+        ):
+            with self.subTest(response=response):
+                self.assertEqual(
+                    PWNAPI.parse_plausible_reading_response(response),
+                    response,
+                )
+
+    def test_invalid_shapes_flags_and_bounds(self) -> None:
+        """Reject booleans as numeric bounds and malformed values as decisions."""
+        valid = {"isPlausible": True, "minReading": None, "maxReading": None}
+        cases: tuple[object, ...] = (
+            None,
+            [],
+            {},
+            {"result": valid},
+            {**valid, "isPlausible": "true"},
+            {**valid, "isPlausible": 1},
+            {**valid, "isPlausible": None},
+            {"isPlausible": True, "minReading": None},
+            {"isPlausible": True, "maxReading": None},
+            {**valid, "minReading": True},
+            {**valid, "maxReading": False},
+            {**valid, "minReading": -1},
+            {**valid, "maxReading": "250"},
+            {**valid, "minReading": float("nan")},
+            {**valid, "maxReading": float("inf")},
+            {**valid, "minReading": 200, "maxReading": 100},
+        )
+        for response in cases:
+            with self.subTest(response_type=type(response).__name__):
+                with self.assertRaisesRegex(PWNAPIError, "Invalid plausibility response"):
+                    PWNAPI.parse_plausible_reading_response(response)
+
+
+class TestPlausibilityAPI(unittest.IsolatedAsyncioTestCase):
+    """Verify the optional POST does not confirm or persist a meter reading."""
+
+    @staticmethod
+    def _make_client() -> PWNAPI:
+        """Create a client with fictional credentials and mocked HTTP transport."""
+        return PWNAPI(
+            username="synthetic@example.invalid",
+            password="synthetic-password",
+            session=MagicMock(),
+        )
+
+    @staticmethod
+    def _address() -> dict[str, object]:
+        """Provide fictional, minimal address data."""
+        return {"postalCode": "0000 AA", "houseNumber": "1", "houseNumberAddition": ""}
+
+    async def test_post_result_never_marks_reading_submitted(self) -> None:
+        """Leave confirmed-submission sensors untouched after isPlausible=true."""
+        from .coordinator import PWNDataUpdateCoordinator
+
+        api = self._make_client()
+        response = {"isPlausible": True, "minReading": None, "maxReading": None}
+        with (
+            patch.object(api, "_request", new_callable=AsyncMock) as mock_request,
+            patch.object(
+                PWNDataUpdateCoordinator,
+                "record_confirmed_meter_submission",
+            ) as mock_record,
+        ):
+            mock_request.return_value = response
+            result = await api.validate_plausible_reading(
+                "01234567890",
+                "0012345",
+                165,
+                date(2026, 11, 7),
+                self._address(),
+                5,
+            )
+
+        self.assertEqual(result, response)
+        mock_request.assert_awaited_once_with(
+            "POST",
+            f"{API_URL}/api/WaterUsage/validate-plausible-reading/01234567890/0000012345",
+            json={
+                "meterReading": 165,
+                "readingDate": "2026-11-07",
+                **self._address(),
+            },
+        )
+        mock_record.assert_not_called()
+
+    async def test_upstream_error_redacts_private_data(self) -> None:
+        """Strip PWN error responses that might contain account identifiers."""
+        api = self._make_client()
+        with patch.object(
+            api,
+            "_request",
+            new_callable=AsyncMock,
+            side_effect=UpdateFailed("private address and reading from upstream"),
+        ):
+            with self.assertRaisesRegex(
+                UpdateFailed, "Unable to validate meter-reading plausibility"
+            ) as error:
+                await api.validate_plausible_reading(
+                    "01234567890", "0012345", 165,
+                    date(2026, 11, 7), self._address(), 5
+                )
+        self.assertNotIn("private address", str(error.exception))
+
+    async def test_invalid_inputs_never_trigger_post(self) -> None:
+        """Validate URL identifiers and JSON fields before network requests."""
+        api = self._make_client()
+        with patch.object(api, "_request", new_callable=AsyncMock) as mock_request:
+            with self.assertRaises(ValueError):
+                await api.validate_plausible_reading(
+                    "bad-id", "0012345", 165,
+                    date(2026, 11, 7), self._address(), 5
+                )
+            with self.assertRaises(ValueError):
+                await api.validate_plausible_reading(
+                    "01234567890", "0012345", 100000,
+                    date(2026, 11, 7), self._address(), 5
+                )
+            mock_request.assert_not_awaited()
