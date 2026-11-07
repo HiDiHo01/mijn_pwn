@@ -350,7 +350,7 @@ class PWNAPI:
     @overload
     async def _request(
         self, method: str, endpoint: str, *, expect_list: None, **kwargs
-    ) -> dict[str, object] | list[dict[str, object]]: ...
+    ) -> dict[str, object] | list[object]: ...
 
     async def _request(
         self,
@@ -360,7 +360,7 @@ class PWNAPI:
         expect_list: bool | None = False,
         expected_status: int | None = None,
         **kwargs,
-    ) -> dict[str, object] | list[dict[str, object]]:
+    ) -> dict[str, object] | list[object]:
         """Perform an authenticated HTTP request with a validated JSON shape."""
         if self._access_token is None:
             async with self._auth_lock:
@@ -420,9 +420,12 @@ class PWNAPI:
     @staticmethod
     def _parse_json_response(
         payload: object, *, expect_list: bool | None
-    ) -> dict[str, object] | list[dict[str, object]]:
+    ) -> dict[str, object] | list[object]:
         """Validate JSON shapes while allowing optional notification arrays."""
-        if expect_list is True or (expect_list is None and isinstance(payload, list)):
+        if expect_list is None and isinstance(payload, list):
+            # Notification responses have no verified element schema.
+            return payload
+        if expect_list is True:
             if not isinstance(payload, list) or not all(
                 isinstance(item, dict) for item in payload
             ):
@@ -951,7 +954,7 @@ class PWNAPI:
 
     async def get_notifications(
         self,
-    ) -> dict[str, object] | list[dict[str, object]]:
+    ) -> dict[str, object] | list[object]:
         """Preserve object and array notifications without assuming a schema."""
         return await self._request(
             "GET", DATA_ENDPOINTS["notifications"], expect_list=None
