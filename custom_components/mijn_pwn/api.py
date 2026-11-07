@@ -354,7 +354,7 @@ class PWNAPI:
         )
 
     @staticmethod
-    def build_water_meter_details_payload(
+    def _build_water_meter_details_payload(
         address: dict[str, object],
     ) -> PWNWaterMeterDetailsRequest:
         """Validate address fields and omit unrelated account information."""
@@ -468,7 +468,7 @@ class PWNAPI:
 
         This POST is not called by the coordinator or during setup.
         """
-        payload = self.build_water_meter_details_payload(address)
+        payload = self._build_water_meter_details_payload(address)
         try:
             response = await self._request(
                 "POST", DATA_ENDPOINTS["water_usage_meter_details"], json=payload
