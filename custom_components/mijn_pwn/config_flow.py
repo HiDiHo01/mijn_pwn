@@ -7,6 +7,8 @@ import aiohttp
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigFlowResult
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -71,28 +73,41 @@ class PWNConfigFlow(config_entries.ConfigFlow):
             step_id="user", data_schema=data_schema, errors=errors
         )
 
-    async def async_step_reconfigure(self, user_input=None):
-        """Handle the reconfiguration step."""
-        errors = {}
-
+    async def async_step_reconfigure(
+        self, user_input: dict[str, str] | None = None
+    ) -> ConfigFlowResult:
+        """Update only the selected entry, preserving its account identity."""
+        errors: dict[str, str] = {}
         data_schema = vol.Schema(
             {
-                vol.Required("username"): str,
-                vol.Required("password"): str,
+                vol.Required(CONF_USERNAME): str,
+                vol.Required(CONF_PASSWORD): str,
             }
         )
 
-        if user_input:
-            username = user_input.get("username")
+        if user_input is not None:
+            username = user_input.get(CONF_USERNAME)
+            password = user_input.get(CONF_PASSWORD)
 
-            # Validate the provided credentials
-            if await self._validate_user_input(user_input):
-                # Update the existing entry with new credentials
-                entry = self._async_current_entries()[0]
-                self.hass.config_entries.async_update_entry(entry, data=user_input)
-                _LOGGER.info("Reconfiguration successful for user: %s", username)
+            if (
+                isinstance(username, str)
+                and username.strip()
+                and isinstance(password, str)
+                and password
+            ):
+                # Reject account swaps before authenticating or changing entries.
                 await self.async_set_unique_id(username)
-                return self.async_create_entry(title=COMPONENT_TITLE, data=user_input)
+                self._abort_if_unique_id_mismatch()
+
+                if await self._validate_user_input(user_input):
+                    return self.async_update_reload_and_abort(
+                        self._get_reconfigure_entry(),
+                        data_updates={
+                            CONF_USERNAME: username,
+                            CONF_PASSWORD: password,
+                        },
+                    )
+
             errors["base"] = "invalid_auth"
 
         return self.async_show_form(
