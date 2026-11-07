@@ -108,6 +108,36 @@ class TestCoordinatorAuthRecovery(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(data["contact_preferences"])
         self.assertTrue(data["invoices"])
 
+    async def test_required_endpoints_are_checked_before_optional_fetch(self) -> None:
+        """Missing required data must retain the existing empty-result behavior."""
+        required_endpoints = (
+            ("get_invoices", []),
+            ("get_relation_data", {}),
+            ("get_consumption_history", []),
+        )
+        for endpoint_name, empty_response in required_endpoints:
+            with self.subTest(endpoint_name=endpoint_name):
+                coordinator = _mock_coordinator()
+                getattr(coordinator.api, endpoint_name).return_value = empty_response
+
+                result = await PWNDataUpdateCoordinator._fetch_all_data(coordinator)
+
+                self.assertEqual(result, {})
+                coordinator.api.get_contact_preferences.assert_not_awaited()
+
+    async def test_missing_relation_number_skips_contact_preferences(self) -> None:
+        """Do not make an account-dependent request without a string relation ID."""
+        for user_data in ({"relationNumber": None}, {"relationNumber": 42}):
+            with self.subTest(user_data=user_data):
+                coordinator = _mock_coordinator()
+                coordinator.api.get_relation_data.return_value = user_data
+
+                result = await PWNDataUpdateCoordinator._fetch_all_data(coordinator)
+
+                self.assertEqual(result["user_data"], user_data)
+                self.assertIsNone(result["contact_preferences"])
+                coordinator.api.get_contact_preferences.assert_not_awaited()
+
     async def test_update_data_propagates_auth_failure(self) -> None:
         """Ensure a coordinator refresh does not wrap auth as UpdateFailed."""
         coordinator = _mock_coordinator()
