@@ -6,9 +6,9 @@ from unittest.mock import MagicMock
 
 from .const import DATA_READING_REQUESTS
 from .reading_request import (
+    READING_REQUEST_SENSOR_DESCRIPTIONS,
     PWNReadingRequestBinarySensor,
     PWNReadingRequestSensor,
-    READING_REQUEST_SENSOR_DESCRIPTIONS,
     _get_request_for_meter,
     _parse_timestamp,
     _reading_address,
