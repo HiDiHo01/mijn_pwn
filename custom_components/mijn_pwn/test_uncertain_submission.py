@@ -73,10 +73,9 @@ class TestUncertainSubmission(unittest.IsolatedAsyncioTestCase):
         coordinator._confirmed_store.async_save.side_effect = OSError(
             "synthetic storage failure"
         )
+        details = coordinator.current_submission_details("00012345")
         with self.assertRaises(OSError):
-            await coordinator.async_confirm_meter_reading(
-                coordinator.current_submission_details("00012345")
-            )
+            await coordinator.async_confirm_meter_reading(details)
         coordinator.api.submit_meter_reading.assert_not_awaited()
         self.assertFalse(coordinator.uncertain_submissions)
         coordinator._create_uncertain_repair.assert_not_called()
