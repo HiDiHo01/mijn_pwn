@@ -11,7 +11,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import ATTRIBUTION, DOMAIN
-from .coordinator import PWNDataUpdateCoordinator
+from .coordinator import PWNDataUpdateCoordinator, PWNReadingDraft
 from .reading_request import (
     _get_request_for_meter,
     _reading_device_info,
@@ -173,6 +173,11 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
 
         self._attr_native_value = float(value)
         self._last_entered_at = entered_at
+        self.coordinator.draft_readings[self._meter_number] = PWNReadingDraft(
+            value=int(value),
+            entered_at=entered_at,
+            reading_number=self._request_number,
+        )
 
     async def async_set_native_value(self, value: float) -> None:
         """Store an integer draft locally, never submitting to the PWN API."""
@@ -190,6 +195,11 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
             )
         self._attr_native_value = float(value)
         self._last_entered_at = datetime.now(timezone.utc)
+        self.coordinator.draft_readings[self._meter_number] = PWNReadingDraft(
+            value=int(value),
+            entered_at=self._last_entered_at,
+            reading_number=self._request_number,
+        )
         self.async_write_ha_state()
 
     @callback
@@ -201,6 +211,7 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
             if reading_number != self._request_number:
                 self._attr_native_value = None
                 self._last_entered_at = None
+                self.coordinator.draft_readings.pop(self._meter_number, None)
                 self._request_number = reading_number
             elif (
                 self._attr_native_value is not None
@@ -208,6 +219,7 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
             ):
                 self._attr_native_value = None
                 self._last_entered_at = None
+                self.coordinator.draft_readings.pop(self._meter_number, None)
         super()._handle_coordinator_update()
 
 
