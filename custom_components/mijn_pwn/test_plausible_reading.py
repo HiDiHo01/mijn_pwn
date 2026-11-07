@@ -171,7 +171,6 @@ class TestPlausibleReadingURL(unittest.TestCase):
                     PWNAPI.build_plausible_reading_url("12345678901", relation_number)
 
 
-
 class TestPlausibilityResponse(unittest.TestCase):
     """Validate PWN plausibility responses without changing submission state."""
 
@@ -225,7 +224,9 @@ class TestPlausibilityResponse(unittest.TestCase):
         )
         for response in cases:
             with self.subTest(response_type=type(response).__name__):
-                with self.assertRaisesRegex(PWNAPIError, "Invalid plausibility response"):
+                with self.assertRaisesRegex(
+                    PWNAPIError, "Invalid plausibility response"
+                ):
                     PWNAPI.parse_plausible_reading_response(response)
 
 
@@ -294,8 +295,7 @@ class TestPlausibilityAPI(unittest.IsolatedAsyncioTestCase):
                 UpdateFailed, "Unable to validate meter-reading plausibility"
             ) as error:
                 await api.validate_plausible_reading(
-                    "01234567890", "0012345", 165,
-                    date(2026, 11, 7), self._address(), 5
+                    "01234567890", "0012345", 165, date(2026, 11, 7), self._address(), 5
                 )
         self.assertNotIn("private address", str(error.exception))
 
@@ -305,12 +305,15 @@ class TestPlausibilityAPI(unittest.IsolatedAsyncioTestCase):
         with patch.object(api, "_request", new_callable=AsyncMock) as mock_request:
             with self.assertRaises(ValueError):
                 await api.validate_plausible_reading(
-                    "bad-id", "0012345", 165,
-                    date(2026, 11, 7), self._address(), 5
+                    "bad-id", "0012345", 165, date(2026, 11, 7), self._address(), 5
                 )
             with self.assertRaises(ValueError):
                 await api.validate_plausible_reading(
-                    "01234567890", "0012345", 100000,
-                    date(2026, 11, 7), self._address(), 5
+                    "01234567890",
+                    "0012345",
+                    100000,
+                    date(2026, 11, 7),
+                    self._address(),
+                    5,
                 )
             mock_request.assert_not_awaited()
