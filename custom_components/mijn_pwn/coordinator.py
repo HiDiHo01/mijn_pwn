@@ -317,9 +317,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         """Persist the current drafts immediately after explicit user changes."""
         await self._draft_store.async_save(self._draft_storage_payload())
 
-    def is_reading_request_closed(
-        self, meter_number: str, reading_number: str
-    ) -> bool:
+    def is_reading_request_closed(self, meter_number: str, reading_number: str) -> bool:
         """Return whether PWN rejected this exact meter and request as closed."""
         return self._closed_reading_requests.get(meter_number) == reading_number
 
@@ -327,9 +325,12 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         self, meter_number: str, reading_number: str
     ) -> None:
         """Persist a sap-01 rejection and immediately disable the affected meter."""
-        if self._parse_stored_closed_request(
-            {"meter_number": meter_number, "reading_number": reading_number}
-        ) is None:
+        if (
+            self._parse_stored_closed_request(
+                {"meter_number": meter_number, "reading_number": reading_number}
+            )
+            is None
+        ):
             raise ValueError("Invalid rejected PWN meter-reading identifier")
         self._closed_reading_requests[meter_number] = reading_number
         self.invalidate_prepared_submission(meter_number)

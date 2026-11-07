@@ -307,9 +307,8 @@ class PWNReadingRequestBinarySensor(CoordinatorEntity, BinarySensorEntity):
         if self._meter_number is None:
             return _get_request_list(self.coordinator.data) is not None
         request = _get_request_for_meter(self.coordinator.data, self._meter_number)
-        return (
-            request is not None
-            and not _is_closed_request(self.coordinator, self._meter_number, request)
+        return request is not None and not _is_closed_request(
+            self.coordinator, self._meter_number, request
         )
 
     @property

@@ -380,11 +380,8 @@ class PWNAPI:
 
         headers = dict(kwargs.pop("headers", {}))
         headers["Authorization"] = f"Bearer {self._access_token}"
-        is_measurement_validation = (
-            method == "POST"
-            and endpoint.startswith(
-                f"{DATA_ENDPOINTS['water_usage_validate_measurement_request']}/"
-            )
+        is_measurement_validation = method == "POST" and endpoint.startswith(
+            f"{DATA_ENDPOINTS['water_usage_validate_measurement_request']}/"
         )
 
         try:
@@ -1021,7 +1018,7 @@ class PWNAPI:
         if resp.status == 400 and is_measurement_validation:
             try:
                 payload = await resp.json(content_type=None)
-            except (ClientError, ValueError, TypeError):
+            except ClientError, ValueError, TypeError:
                 payload = None
             if isinstance(payload, dict) and payload.get("code") == "sap-01":
                 raise PWNReadingRequestClosedError(

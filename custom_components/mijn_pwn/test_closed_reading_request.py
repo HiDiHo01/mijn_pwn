@@ -151,9 +151,7 @@ class TestClosedRequestEntities(unittest.IsolatedAsyncioTestCase):
         request_sensor = PWNReadingRequestSensor(
             coordinator, entry, "00012345", description
         )
-        request_binary = PWNReadingRequestBinarySensor(
-            coordinator, entry, "00012345"
-        )
+        request_binary = PWNReadingRequestBinarySensor(coordinator, entry, "00012345")
         overall_binary = PWNReadingRequestBinarySensor(coordinator, entry)
         self.assertTrue(prepare.available)
 
@@ -203,19 +201,21 @@ class TestClosedRequestEntities(unittest.IsolatedAsyncioTestCase):
         )
         other_meter = PWNReadingDraftNumber(coordinator, entry, "00054321")
         self.assertTrue(other_meter.available)
-        self.assertTrue(
-            PWNReadingRequestBinarySensor(coordinator, entry).is_on
-        )
+        self.assertTrue(PWNReadingRequestBinarySensor(coordinator, entry).is_on)
 
         original_request["readingNumber"] = "22222222222"
         self.assertTrue(PWNReadingDraftNumber(coordinator, entry, "00012345").available)
-        self.assertFalse(coordinator.is_reading_request_closed("00012345", "22222222222"))
+        self.assertFalse(
+            coordinator.is_reading_request_closed("00012345", "22222222222")
+        )
         self.assertTrue(
             PWNReadingRequestBinarySensor(coordinator, entry, "00012345").available
         )
         self.assertFalse(prepare.available)
 
-    async def test_closed_rejection_is_restored_and_corrupt_records_ignored(self) -> None:
+    async def test_closed_rejection_is_restored_and_corrupt_records_ignored(
+        self,
+    ) -> None:
         """Persist a rejection separately from confirmation and old local drafts."""
         coordinator = _coordinator()
         coordinator._closed_reading_requests["00012345"] = "01234567890"
@@ -232,10 +232,10 @@ class TestClosedRequestEntities(unittest.IsolatedAsyncioTestCase):
 
         await PWNDataUpdateCoordinator.async_load_drafts(restored)
 
-        self.assertEqual(
-            restored._closed_reading_requests, {"00012345": "01234567890"}
+        self.assertEqual(restored._closed_reading_requests, {"00012345": "01234567890"})
+        self.assertFalse(
+            PWNReadingDraftNumber(restored, _entry(), "00012345").available
         )
-        self.assertFalse(PWNReadingDraftNumber(restored, _entry(), "00012345").available)
         self.assertEqual(
             restored.draft_readings["00012345"],
             coordinator.draft_readings["00012345"],
