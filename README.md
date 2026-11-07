@@ -179,9 +179,26 @@ Dit URL-formaat is niet automatisch uitwisselbaar met het
 retourneert; daar is een tiencijferige waarde gezien.
 
 `PWNAPI.build_plausible_reading_url(reading_number, relation_number)`
-valideert de beide ruwe invoerwaarden en bouwt uitsluitend de URL. De
-requestbody, statuscode en responsevorm van deze plausibiliteitscontrole
-zijn nog onbekend. Er wordt daarom **geen POST uitgevoerd**.
+controleert beide identifiers en bouwt uitsluitend de URL.
+
+De bevestigde **JSON-requestbody** bevat exact de volgende velden:
+`meterReading` (geheel getal), `readingDate` (opnamedatum als
+`YYYY-MM-DD`), `postalCode`, `houseNumber` (tekst) en
+`houseNumberAddition` (tekst, mag leeg zijn). Een stand met vijf telwielen
+die op het formulier als `00165` wordt weergegeven, wordt als numerieke
+`meterReading: 165` verstuurd. Het voorbeeld van de website gebruikt
+`readingDate: "2026-11-07"`; dit is de opnamedatum en niet het tijdstip van
+een serverbevestiging.
+
+`PWNAPI._build_plausible_reading_payload(meter_reading, reading_date, address,
+wheel_count)` bouwt de vijf velden zonder andere accountgegevens door te
+sturen. De builder vereist een Python-`date`, valideert het aantal
+telwielen (1 t/m 9) en accepteert alleen gehele meterstanden binnen dit
+bereik.
+
+De **HTTP-statuscode en responsebody** van deze plausibiliteitscontrole zijn
+nog onbekend. Om geen onjuiste succesdetectie te introduceren, wordt daarom
+**nog geen POST uitgevoerd**.
 
 De plausibiliteitscontrole **bevestigt nooit de definitieve verzending**.
 Ook een eventuele HTTP `200` of `204` van dit endpoint mag de sensoren
