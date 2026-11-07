@@ -157,7 +157,9 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         )
         self.async_update_listeners()
 
-    def current_submission_details(self, meter_number: str) -> PWNSubmissionDetails | None:
+    def current_submission_details(
+        self, meter_number: str
+    ) -> PWNSubmissionDetails | None:
         """Return a complete, current reading snapshot or None if unsafe to send."""
         draft = self.draft_readings.get(meter_number)
         if draft is None or not isinstance(self.data, dict):
@@ -215,10 +217,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             for key in expected_keys
         ):
             return None
-        if (
-            draft.entered_at.tzinfo is None
-            or draft.entered_at.utcoffset() is None
-        ):
+        if draft.entered_at.tzinfo is None or draft.entered_at.utcoffset() is None:
             return None
 
         return PWNSubmissionDetails(
@@ -260,7 +259,10 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             if self.current_submission_details(details.meter_number) != details:
                 raise ValueError("Meter reading changed; enter and check it again")
             confirmed = self.last_confirmed_meter_reading
-            if confirmed is not None and confirmed.reading_number == details.reading_number:
+            if (
+                confirmed is not None
+                and confirmed.reading_number == details.reading_number
+            ):
                 raise ValueError("This meter-reading request was already submitted")
 
             result = await self.api.validate_plausible_reading(
@@ -289,7 +291,10 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             self._prepared_submissions.pop(details.meter_number, None)
             self.async_update_listeners()
             confirmed = self.last_confirmed_meter_reading
-            if confirmed is not None and confirmed.reading_number == details.reading_number:
+            if (
+                confirmed is not None
+                and confirmed.reading_number == details.reading_number
+            ):
                 raise ValueError("This meter-reading request was already submitted")
 
             response = await self.api.submit_meter_reading(
@@ -300,7 +305,9 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
                 details.wheel_count,
             )
             if response.get("success") is not True or response.get("errorText") != "":
-                raise ValueError("PWN did not confirm the final meter reading submission")
+                raise ValueError(
+                    "PWN did not confirm the final meter reading submission"
+                )
             self.record_confirmed_meter_submission(
                 status_code=200,
                 value=details.value,
