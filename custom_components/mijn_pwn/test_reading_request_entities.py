@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 import unittest
 from unittest.mock import MagicMock
 
-from .const import DATA_READING_REQUESTS
+from .const import DATA_READING_REQUESTS, DATA_USER
+from .coordinator import PWNDataUpdateCoordinator, PWNReadingDraft
 from .reading_request import (
     READING_REQUEST_SENSOR_DESCRIPTIONS,
     PWNReadingRequestBinarySensor,
@@ -169,6 +170,54 @@ class TestReadingEntities(unittest.TestCase):
         coordinator.data = {DATA_READING_REQUESTS: None}
         self.assertFalse(overall.available)
         self.assertIsNone(overall.is_on)
+
+    def test_reading_visible_without_account_but_submission_requires_identity(
+        self,
+    ) -> None:
+        """Show independently fetched requests but refuse incomplete account writes."""
+        request = _reading_request()
+        request.pop("readingStartDate")
+        request.pop("readingDate")
+        coordinator = _build_coordinator([request])
+        coordinator.data[DATA_USER] = None
+        coordinator.draft_readings = {
+            "00123": PWNReadingDraft(
+                value=165,
+                entered_at=datetime.now(timezone.utc),
+                reading_number="99999999991",
+                reading_date=datetime.now(timezone.utc).date(),
+            )
+        }
+        for helper_name in (
+            "_find_open_meter_request",
+            "_valid_draft_for_request",
+            "_extract_relation_number",
+            "_valid_meter_address",
+            "_reading_date_in_window",
+        ):
+            setattr(
+                coordinator,
+                helper_name,
+                getattr(PWNDataUpdateCoordinator, helper_name),
+            )
+
+        overall = PWNReadingRequestBinarySensor(coordinator, _build_entry())
+
+        self.assertTrue(overall.available)
+        self.assertTrue(overall.is_on)
+        self.assertIsNone(
+            PWNDataUpdateCoordinator.current_submission_details(
+                coordinator, "00123"
+            )
+        )
+
+        coordinator.data[DATA_USER] = {"relationNumber": "1234567"}
+        valid = PWNDataUpdateCoordinator.current_submission_details(
+            coordinator, "00123"
+        )
+
+        self.assertIsNotNone(valid)
+        self.assertEqual(valid.relation_number, "1234567")
 
     def test_address_attributes_not_leaked_to_other_sensors(self) -> None:
         """Show address details only on the requested address entity."""
