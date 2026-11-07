@@ -8,7 +8,8 @@
       "reauth_account_mismatch": "Opnieuw inloggen is niet mogelijk omdat de opgeslagen accountidentiteit niet overeenkomt."
     },
     "error": {
-      "invalid_auth": "Inloggegevens niet geaccepteerd. Controleer de gegevens en probeer het opnieuw."
+      "invalid_auth": "Inloggegevens niet geaccepteerd. Controleer de gegevens en probeer het opnieuw.",
+      "cannot_connect": "Kan momenteel geen verbinding maken met Mijn PWN. Probeer het later opnieuw."
     },
     "step": {
       "login": {
