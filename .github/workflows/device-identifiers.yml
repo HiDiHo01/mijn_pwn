@@ -35,4 +35,5 @@ jobs:
             custom_components.mijn_pwn.test_sensor_expansion \
             custom_components.mijn_pwn.test_reading_request \
             custom_components.mijn_pwn.test_reading_request_entities \
-            custom_components.mijn_pwn.test_move_house_endpoint
+            custom_components.mijn_pwn.test_move_house_endpoint \
+            custom_components.mijn_pwn.test_private_confirmation
