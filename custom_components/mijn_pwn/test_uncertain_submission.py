@@ -5,10 +5,17 @@ from datetime import datetime, timezone
 import unittest
 from unittest.mock import AsyncMock, MagicMock
 
+import voluptuous as vol
+
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from .button import PWNPrepareMeterReadingButton, PWNSubmitMeterReadingButton
 from .coordinator import PWNDataUpdateCoordinator, PWNReadingDraft
+from .submission_recovery import (
+    _RELEASE_SCHEMA,
+    async_register_submission_recovery,
+)
 from .test_submit_workflow import _buttons, _coordinator
 
 
@@ -155,3 +162,56 @@ class TestUncertainSubmission(unittest.IsolatedAsyncioTestCase):
         )
         self.assertTrue(coordinator.is_submission_uncertain("00012345", "01234567890"))
         coordinator.api.submit_meter_reading.assert_not_awaited()
+
+    async def test_recovery_action_requires_authenticated_admin(self) -> None:
+        """Reject unauthenticated and non-admin release attempts."""
+        hass = MagicMock()
+        hass.services.has_service.return_value = False
+        hass.auth.async_get_user = AsyncMock()
+        async_register_submission_recovery(hass)
+        registered = hass.services.async_register.call_args
+        self.assertEqual(registered.args[:2], ("mijn_pwn", "release_uncertain_submission"))
+        handler = registered.args[2]
+        call = MagicMock()
+        call.context.user_id = None
+        with self.assertRaises(HomeAssistantError):
+            await handler(call)
+        hass.auth.async_get_user.assert_not_awaited()
+
+        call.context.user_id = "synthetic-non-admin"
+        hass.auth.async_get_user.return_value = MagicMock(is_admin=False)
+        with self.assertRaises(HomeAssistantError):
+            await handler(call)
+
+        hass.data.get.assert_not_called()
+
+    async def test_recovery_action_checks_exact_explicit_attestation(self) -> None:
+        """Reject implicit truthy values and execute only with a safe attestation."""
+        fields = {
+            "config_entry_id": "synthetic-entry",
+            "meter_number": "00012345",
+            "reading_number": "01234567890",
+            "pwn_confirmed_not_processed": True,
+        }
+        self.assertEqual(_RELEASE_SCHEMA(fields), fields)
+        for invalid in (False, 1, "true", None):
+            with self.subTest(invalid=invalid):
+                invalid_fields = {**fields, "pwn_confirmed_not_processed": invalid}
+                with self.assertRaises(vol.Invalid):
+                    _RELEASE_SCHEMA(invalid_fields)
+
+        hass = MagicMock()
+        hass.services.has_service.return_value = False
+        hass.auth.async_get_user = AsyncMock(return_value=MagicMock(is_admin=True))
+        coordinator = MagicMock(spec=PWNDataUpdateCoordinator)
+        coordinator.async_release_uncertain_submission = AsyncMock()
+        hass.data = {"mijn_pwn": {"synthetic-entry": coordinator}}
+        async_register_submission_recovery(hass)
+        handler = hass.services.async_register.call_args.args[2]
+        call = MagicMock()
+        call.context.user_id = "synthetic-admin"
+        call.data = fields
+        await handler(call)
+        coordinator.async_release_uncertain_submission.assert_awaited_once_with(
+            "00012345", "01234567890"
+        )
