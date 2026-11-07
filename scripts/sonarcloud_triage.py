@@ -51,9 +51,11 @@ def _perform_request(request: Request) -> bytes:
         with build_opener(_NoRedirectHandler()).open(request, timeout=20) as response:
             body = response.read(MAX_RESPONSE_BYTES + 1)
     except HTTPError as error:
+        status_code = error.code
+        error.close()
         raise TriageError(
             "SonarCloud request failed (HTTP %s); "
-            "check token permissions or API availability" % error.code
+            "check token permissions or API availability" % status_code
         ) from None
     except OSError:
         raise TriageError("SonarCloud request failed (network or timeout)") from None

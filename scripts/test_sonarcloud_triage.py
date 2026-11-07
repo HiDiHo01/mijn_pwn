@@ -1,6 +1,6 @@
 """Offline regression tests for the guarded SonarCloud triage action."""
 
-from io import StringIO
+from io import BytesIO, StringIO
 import json
 from unittest import TestCase
 from unittest.mock import patch
@@ -157,7 +157,9 @@ class SonarCloudTriageTests(TestCase):
     def test_api_errors_do_not_leak_upstream_payload(self) -> None:
         """Do not propagate a SonarCloud response containing secret material."""
         request = Request("https://sonarcloud.io/api/issues/search")
-        error = HTTPError(request.full_url, 403, "fictional-private-data", {}, None)
+        error = HTTPError(
+            request.full_url, 403, "fictional-private-data", {}, BytesIO(b"private")
+        )
         with patch.object(triage, "build_opener") as opener:
             opener.return_value.open.side_effect = error
             with self.assertRaises(triage.TriageError) as caught:
