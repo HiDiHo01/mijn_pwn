@@ -124,4 +124,6 @@ async def async_setup_entry(
         """Build the per-meter manual submission action."""
         return [PWNSubmitMeterReadingButton(coordinator, config_entry, meter_number)]
 
-    _register_meter_entities(coordinator, config_entry, async_add_entities, _make_button)
+    _register_meter_entities(
+        coordinator, config_entry, async_add_entities, _make_button
+    )
