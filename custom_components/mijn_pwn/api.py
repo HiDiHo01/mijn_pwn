@@ -347,12 +347,17 @@ class PWNAPI:
         **kwargs,
     ) -> dict[str, object]: ...
 
+    @overload
+    async def _request(
+        self, method: str, endpoint: str, *, expect_list: None, **kwargs
+    ) -> dict[str, object] | list[dict[str, object]]: ...
+
     async def _request(
         self,
         method: str,
         endpoint: str,
         *,
-        expect_list: bool = False,
+        expect_list: bool | None = False,
         expected_status: int | None = None,
         **kwargs,
     ) -> dict[str, object] | list[dict[str, object]]:
@@ -414,10 +419,10 @@ class PWNAPI:
 
     @staticmethod
     def _parse_json_response(
-        payload: object, *, expect_list: bool
+        payload: object, *, expect_list: bool | None
     ) -> dict[str, object] | list[dict[str, object]]:
-        """Validate the JSON container without exposing account response data."""
-        if expect_list:
+        """Validate JSON shapes while allowing optional notification arrays."""
+        if expect_list is True or (expect_list is None and isinstance(payload, list)):
             if not isinstance(payload, list) or not all(
                 isinstance(item, dict) for item in payload
             ):
@@ -928,26 +933,13 @@ class PWNAPI:
         return self.parse_final_reading_response(result)
 
     async def get_reading_request(self) -> list[dict[str, object]]:
-        """Return meter-reading requests with their status and meter metadata."""
-        requests = await self._request(
-            "GET", DATA_ENDPOINTS["reading_request"], expect_list=True
-        )
-        for request in requests:
-            if not isinstance(request.get("openReading"), bool):
-                raise PWNAPIError("Invalid meter-reading request: missing open status")
-            if request["openReading"]:
-                reading_number = request.get("readingNumber")
-                wheel_count = request.get("amountOfWheels")
-                if (
-                    not isinstance(reading_number, str)
-                    or len(reading_number) != 11
-                    or not reading_number.isascii()
-                    or not reading_number.isdecimal()
-                ):
-                    raise PWNAPIError("Invalid open meter-reading request: number")
-                if type(wheel_count) is not int or wheel_count <= 0:
-                    raise PWNAPIError("Invalid open meter-reading request: wheel count")
-        return requests
+        """Retain all meter requests, isolating malformed metadata per meter."""
+        try:
+            return await self._request(
+                "GET", DATA_ENDPOINTS["reading_request"], expect_list=True
+            )
+        except UpdateFailed:
+            raise UpdateFailed("Unable to retrieve meter-reading requests") from None
 
     async def get_payment_info(self) -> dict[str, object]:
         """Return payment information."""
@@ -957,9 +949,13 @@ class PWNAPI:
         """Return advance information."""
         return await self._request("GET", DATA_ENDPOINTS["advance"])
 
-    async def get_notifications(self) -> dict[str, object]:
-        """Return notifications."""
-        return await self._request("GET", DATA_ENDPOINTS["notifications"])
+    async def get_notifications(
+        self,
+    ) -> dict[str, object] | list[dict[str, object]]:
+        """Preserve object and array notifications without assuming a schema."""
+        return await self._request(
+            "GET", DATA_ENDPOINTS["notifications"], expect_list=None
+        )
 
     async def get_contact_preferences(self, customer_id: str) -> dict[str, object]:
         """Return contact preferences for a given customer ID."""
