@@ -820,7 +820,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
                     contact_preferences = await self.api.get_contact_preferences(
                         customer_id
                     )
-                except (ConfigEntryAuthFailed, PWNAPIAuthenticationError):
+                except ConfigEntryAuthFailed, PWNAPIAuthenticationError:
                     raise
                 except Exception:
                     _LOGGER.warning("Failed to fetch contact preferences")
