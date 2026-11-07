@@ -1,4 +1,5 @@
 import asyncio
+from datetime import date
 import logging
 from typing import Literal, Optional, TypedDict, overload
 
@@ -29,6 +30,16 @@ class PWNAPICommunicationError(PWNAPIError):
 
 class PWNAPIAuthenticationError(PWNAPIError):
     """Authentication error."""
+
+
+class PWNReadingPlausibilityRequest(TypedDict):
+    """JSON body for checking an entered PWN water meter reading."""
+
+    meterReading: int
+    readingDate: str
+    postalCode: str
+    houseNumber: str
+    houseNumberAddition: str
 
 
 class PWNMeasurementValidationRequest(TypedDict):
@@ -380,7 +391,7 @@ class PWNAPI:
 
         The observed URL contains an 11-digit opname number and a 10-digit
         relation identifier made from three zeroes and seven relation digits.
-        The API request body and response are still unknown.
+        The JSON request body is confirmed; the response remains unknown.
         """
         if (
             not isinstance(reading_number, str)
@@ -402,6 +413,53 @@ class PWNAPI:
         return (
             f"{DATA_ENDPOINTS['water_usage_validate_plausible_reading']}"
             f"/{reading_number}/000{relation_number}"
+        )
+
+    @staticmethod
+    def _build_plausible_reading_payload(
+        meter_reading: int,
+        reading_date: date,
+        address: dict[str, object],
+        wheel_count: int,
+    ) -> PWNReadingPlausibilityRequest:
+        """Validate the confirmed plausibility request body without a POST.
+
+        Reading dates are calendar dates, not submission timestamps. The
+        numeric JSON reading has no padding, even for multi-wheel meters.
+        """
+        if type(wheel_count) is not int or not 1 <= wheel_count <= 9:
+            raise ValueError("Invalid meter wheel count: expected 1 to 9 digits")
+        if (
+            type(meter_reading) is not int
+            or not 0 <= meter_reading < 10**wheel_count
+        ):
+            raise ValueError(
+                "Invalid meter reading: expected a whole number within the wheel range"
+            )
+        if type(reading_date) is not date:
+            raise ValueError("Invalid reading date: expected a calendar date")
+        if not isinstance(address, dict):
+            raise ValueError("Invalid plausibility address: expected an object")
+
+        validated: dict[str, str] = {}
+        for key in ("postalCode", "houseNumber", "houseNumberAddition"):
+            value = address.get(key)
+            if (
+                not isinstance(value, str)
+                or len(value) > 255
+                or (key != "houseNumberAddition" and not value.strip())
+            ):
+                raise ValueError(
+                    "Invalid plausibility address: missing or invalid fields"
+                )
+            validated[key] = value
+
+        return PWNReadingPlausibilityRequest(
+            meterReading=meter_reading,
+            readingDate=reading_date.isoformat(),
+            postalCode=validated["postalCode"],
+            houseNumber=validated["houseNumber"],
+            houseNumberAddition=validated["houseNumberAddition"],
         )
 
     @staticmethod
