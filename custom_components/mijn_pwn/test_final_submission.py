@@ -100,6 +100,8 @@ class TestFinalReadingSubmission(unittest.IsolatedAsyncioTestCase):
     async def test_errors_are_redacted(self) -> None:
         """Avoid surfacing private upstream error bodies to Home Assistant."""
         api = self._api()
+        reading_date = date(2026, 11, 7)
+        address = self._address()
         with patch.object(
             api,
             "_request",
@@ -110,13 +112,14 @@ class TestFinalReadingSubmission(unittest.IsolatedAsyncioTestCase):
                 UpdateFailed, "Unable to submit meter reading to PWN"
             ) as error:
                 await api.submit_meter_reading(
-                    "01234567890", 165, date(2026, 11, 7), self._address(), 5
+                    "01234567890", 165, reading_date, address, 5
                 )
         self.assertNotIn("fictional-account-data", str(error.exception))
 
     async def test_invalid_reading_and_address_never_post(self) -> None:
         """Check the full request before any final submission API call."""
         api = self._api()
+        reading_date = date(2026, 11, 7)
         with patch.object(api, "_request", new_callable=AsyncMock) as request_mock:
             for reading_number, reading, address in (
                 ("1234567890", 165, self._address()),
@@ -128,6 +131,6 @@ class TestFinalReadingSubmission(unittest.IsolatedAsyncioTestCase):
                 with self.subTest(reading_number=reading_number):
                     with self.assertRaises(ValueError):
                         await api.submit_meter_reading(
-                            reading_number, reading, date(2026, 11, 7), address, 5
+                            reading_number, reading, reading_date, address, 5
                         )
             request_mock.assert_not_awaited()
