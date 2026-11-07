@@ -262,19 +262,20 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
         self.coordinator.async_update_listeners()
 
     def _clear_confirmed_draft_if_needed(self) -> None:
-        """Clear this meter's displayed draft only for a confirmed request."""
-        reading_number = self._request_number
-        if reading_number is None or not self.coordinator.was_reading_submitted(
-            self._meter_number, reading_number
-        ):
-            return
-
-        self._attr_native_value = None
-        self._last_entered_at = None
+        """Remove confirmed stored drafts independently of the displayed request."""
         draft = self.coordinator.draft_readings.get(self._meter_number)
-        if draft is not None and draft.reading_number == reading_number:
+        if draft is not None and self.coordinator.was_reading_submitted(
+            self._meter_number, draft.reading_number
+        ):
             self.coordinator.draft_readings.pop(self._meter_number, None)
             self.coordinator.schedule_draft_save()
+
+        reading_number = self._request_number
+        if reading_number is not None and self.coordinator.was_reading_submitted(
+            self._meter_number, reading_number
+        ):
+            self._attr_native_value = None
+            self._last_entered_at = None
 
     @callback
     def _handle_coordinator_update(self) -> None:
