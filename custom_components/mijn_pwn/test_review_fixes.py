@@ -123,9 +123,12 @@ class TestPerMeterSubmissionHistory(unittest.IsolatedAsyncioTestCase):
         coordinator = _coordinator()
         self._add_second_meter(coordinator)
 
+        previous_details = None
         for meter_number in ("00012345", "00054321"):
             details = coordinator.current_submission_details(meter_number)
             self.assertIsNotNone(details)
+            if meter_number == "00012345":
+                previous_details = details
             await coordinator.async_prepare_meter_reading(details)
             await coordinator.async_confirm_meter_reading(details)
 
@@ -134,10 +137,10 @@ class TestPerMeterSubmissionHistory(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(coordinator.was_reading_submitted("00012345", "01234567890"))
         self.assertTrue(coordinator.was_reading_submitted("00054321", "12345678901"))
 
-        earlier = coordinator.current_submission_details("00012345")
-        self.assertIsNotNone(earlier)
-        with self.assertRaisesRegex(ValueError, "already submitted"):
-            await coordinator.async_prepare_meter_reading(earlier)
+        self.assertIsNone(coordinator.current_submission_details("00012345"))
+        self.assertIsNotNone(previous_details)
+        with self.assertRaisesRegex(ValueError, "Meter reading changed"):
+            await coordinator.async_prepare_meter_reading(previous_details)
         self.assertEqual(coordinator.api.submit_meter_reading.await_count, 2)
         coordinator._confirmed_store.async_save.assert_awaited()
         saved = coordinator._confirmed_store.async_save.await_args.args[0]
