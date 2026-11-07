@@ -129,6 +129,35 @@ def _is_closed_request(
     )
 
 
+def _is_submitted_request(
+    coordinator: PWNDataUpdateCoordinator,
+    meter_number: str,
+    request: dict[str, object],
+) -> bool:
+    """Match only a locally acknowledged submission for this meter and request."""
+    reading_number = request.get("readingNumber")
+    return isinstance(reading_number, str) and coordinator.was_reading_submitted(
+        meter_number, reading_number
+    )
+
+
+def _get_pending_request_for_meter(
+    coordinator: PWNDataUpdateCoordinator, meter_number: str
+) -> dict[str, object] | None:
+    """Select an unambiguous request excluding rejected or confirmed IDs."""
+    requests = _get_request_list(coordinator.data)
+    if requests is None:
+        return None
+    pending = [
+        request
+        for request in requests
+        if request.get("meterNumber") == meter_number
+        and not _is_closed_request(coordinator, meter_number, request)
+        and not _is_submitted_request(coordinator, meter_number, request)
+    ]
+    return _get_request_for_meter({DATA_READING_REQUESTS: pending}, meter_number)
+
+
 def _parse_timestamp(value: object) -> datetime | None:
     """Parse an ISO 8601 timestamp only when it includes an explicit timezone."""
     if not isinstance(value, str):
@@ -231,28 +260,29 @@ class PWNReadingRequestSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def available(self) -> bool:
-        """Hide a meter request after PWN has definitively rejected it."""
-        request = _get_request_for_meter(self.coordinator.data, self._meter_number)
+        """Hide confirmed or rejected requests until a new ID is provided."""
         return (
             super().available
-            and request is not None
-            and not _is_closed_request(self.coordinator, self._meter_number, request)
+            and _get_pending_request_for_meter(self.coordinator, self._meter_number)
+            is not None
         )
 
     @property
     def native_value(self) -> str | int | datetime | None:
         """Return a supported state from the selected meter-reading request."""
-        request = _get_request_for_meter(self.coordinator.data, self._meter_number)
-        if request is None:
-            return None
-        return _reading_value(request, self.entity_description.key)
+        request = _get_pending_request_for_meter(self.coordinator, self._meter_number)
+        return (
+            _reading_value(request, self.entity_description.key)
+            if request is not None
+            else None
+        )
 
     @property
     def extra_state_attributes(self) -> dict[str, object]:
         """Expose the individual address fields only on the address entity."""
         if self.entity_description.key != "reading_address":
             return {}
-        request = _get_request_for_meter(self.coordinator.data, self._meter_number)
+        request = _get_pending_request_for_meter(self.coordinator, self._meter_number)
         address = request.get("address") if request is not None else None
         if not isinstance(address, dict):
             return {}
@@ -306,9 +336,20 @@ class PWNReadingRequestBinarySensor(CoordinatorEntity, BinarySensorEntity):
             return False
         if self._meter_number is None:
             return _get_request_list(self.coordinator.data) is not None
-        request = _get_request_for_meter(self.coordinator.data, self._meter_number)
-        return request is not None and not _is_closed_request(
-            self.coordinator, self._meter_number, request
+        pending = _get_pending_request_for_meter(
+            self.coordinator, self._meter_number
+        )
+        if pending is not None:
+            return True
+        requests = _get_request_list(self.coordinator.data)
+        matches = [
+            request
+            for request in requests or []
+            if request.get("meterNumber") == self._meter_number
+        ]
+        return bool(matches) and all(
+            _is_submitted_request(self.coordinator, self._meter_number, request)
+            for request in matches
         )
 
     @property
@@ -323,16 +364,17 @@ class PWNReadingRequestBinarySensor(CoordinatorEntity, BinarySensorEntity):
                     and not _is_closed_request(
                         self.coordinator, request["meterNumber"], request
                     )
+                    and not _is_submitted_request(
+                        self.coordinator, request["meterNumber"], request
+                    )
                     for request in requests
                 )
                 if requests is not None
                 else None
             )
-        request = _get_request_for_meter(self.coordinator.data, self._meter_number)
+        request = _get_pending_request_for_meter(self.coordinator, self._meter_number)
         if request is None:
-            return None
-        if _is_closed_request(self.coordinator, self._meter_number, request):
-            return None
+            return False if self.available else None
         is_open = request.get("openReading")
         return is_open if isinstance(is_open, bool) else None
 
