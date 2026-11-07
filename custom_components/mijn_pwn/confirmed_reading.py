@@ -1,5 +1,6 @@
 """Restore PWN meter submissions only after final API acknowledgement."""
 
+from collections.abc import Mapping
 from datetime import datetime
 from math import isfinite
 
@@ -60,7 +61,7 @@ def _valid_restored_value(value: object, is_date: bool) -> int | datetime | None
 
 
 def _restored_confirmation_ids(
-    attributes: dict[str, object],
+    attributes: Mapping[str, object],
 ) -> tuple[str, str, str] | None:
     """Validate persisted identifiers and the formatted water meter reading."""
     reading_number = attributes.get("reading_number")
