@@ -7,6 +7,7 @@ from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import EntityCategory
 
 from .binary_sensor import SENSOR_TYPES, PWNBinarySensor
+from .const import ATTRIBUTION
 from .sensor import SENSOR_DESCRIPTIONS, _should_add_sensor
 from .sensor_helper import PWNSensor
 
@@ -63,6 +64,64 @@ class TestOptionalSensors(unittest.TestCase):
         }
         self.assertTrue(_should_add_sensor(date_sensor, coordinator))
         self.assertTrue(_should_add_sensor(status_sensor, coordinator))
+
+    def test_entity_availability_isolated_by_endpoint(self) -> None:
+        """A failed endpoint cannot mark unrelated values unavailable or healthy."""
+        coordinator = MagicMock()
+        coordinator.last_update_success = True
+        coordinator.last_update_error = None
+        coordinator.last_update_exception = None
+        coordinator.data = {
+            "invoices": None,
+            "consumption_history": None,
+            "user_data": {"relationNumber": "1234567"},
+            "notifications": [],
+        }
+        entry = MagicMock()
+        entry.entry_id = "synthetic-entry"
+        entry.unique_id = "synthetic-account"
+        descriptions = {item.key: item for item in SENSOR_DESCRIPTIONS}
+        invoice = PWNSensor(coordinator, descriptions["total_open_amount"], entry)
+        consumption = PWNSensor(
+            coordinator, descriptions["latest_meter_reading"], entry
+        )
+        account = PWNSensor(coordinator, descriptions["relation_number"], entry)
+        notifications = PWNSensor(
+            coordinator, descriptions["notification_count"], entry
+        )
+        binary = PWNBinarySensor(coordinator, SENSOR_TYPES[0], entry)
+
+        self.assertFalse(invoice.available)
+        self.assertIsNone(invoice.native_value)
+        self.assertEqual(invoice.extra_state_attributes, {"attribution": ATTRIBUTION})
+        self.assertFalse(consumption.available)
+        self.assertFalse(binary.available)
+        self.assertIsNone(binary.is_on)
+        self.assertTrue(account.available)
+        self.assertTrue(notifications.available)
+        self.assertEqual(notifications.native_value, 0)
+
+        coordinator.data["invoices"] = {
+            "invoicesSummary": {"totalOpenAmount": 5, "numberOfOpenItems": 1}
+        }
+        coordinator.data["consumption_history"] = {
+            "history": [{"meterReading": 165, "lastActualReading": True}]
+        }
+
+        self.assertTrue(invoice.available)
+        self.assertEqual(invoice.native_value, 5)
+        self.assertTrue(consumption.available)
+        self.assertEqual(consumption.native_value, 165)
+        self.assertTrue(binary.available)
+        self.assertTrue(binary.is_on)
+
+        coordinator.data["user_data"] = None
+
+        self.assertFalse(account.available)
+        self.assertIsNone(account.native_value)
+        self.assertTrue(invoice.available)
+        self.assertTrue(consumption.available)
+        self.assertTrue(notifications.available)
 
     def test_contextual_icons_cover_all_entities(self) -> None:
         """Use explicit MDI icons rather than the generic currency fallback."""
