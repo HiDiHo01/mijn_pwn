@@ -1,7 +1,9 @@
 """Handle the config flow for PWN."""
 # config_flow
 
+from collections.abc import Mapping
 import logging
+from typing import Any
 
 import aiohttp
 import voluptuous as vol
@@ -71,6 +73,41 @@ class PWNConfigFlow(config_entries.ConfigFlow):
 
         return self.async_show_form(
             step_id="user", data_schema=data_schema, errors=errors
+        )
+
+    async def async_step_reauth(
+        self, _entry_data: Mapping[str, Any]
+    ) -> ConfigFlowResult:
+        """Start password renewal for the entry selected by Home Assistant."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, str] | None = None
+    ) -> ConfigFlowResult:
+        """Validate a replacement password without changing account identity."""
+        entry = self._get_reauth_entry()
+        username = entry.data.get(CONF_USERNAME)
+        if (
+            not isinstance(username, str)
+            or not username.strip()
+            or entry.unique_id != username
+        ):
+            return self.async_abort(reason="reauth_account_mismatch")
+
+        errors: dict[str, str] = {}
+        data_schema = vol.Schema({vol.Required(CONF_PASSWORD): str})
+        if user_input is not None:
+            password = user_input.get(CONF_PASSWORD)
+            if isinstance(password, str) and password:
+                credentials = {CONF_USERNAME: username, CONF_PASSWORD: password}
+                if await self._validate_user_input(credentials):
+                    return self.async_update_reload_and_abort(
+                        entry, data_updates={CONF_PASSWORD: password}
+                    )
+            errors["base"] = "invalid_auth"
+
+        return self.async_show_form(
+            step_id="reauth_confirm", data_schema=data_schema, errors=errors
         )
 
     async def async_step_reconfigure(
