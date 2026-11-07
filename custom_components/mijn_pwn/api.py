@@ -605,7 +605,9 @@ class PWNAPI:
             or not reading_number.isascii()
             or not reading_number.isdecimal()
         ):
-            raise ValueError("Invalid reading number: expected 11 ASCII digits without leading zeroes")
+            raise ValueError(
+                "Invalid reading number: expected 11 ASCII digits without leading zeroes"
+            )
         payload = self._build_measurement_validation_payload(address)
         endpoint = (
             f"{DATA_ENDPOINTS['water_usage_validate_measurement_request']}"
