@@ -1,6 +1,6 @@
 """Tests for local, non-submitting PWN water meter reading drafts."""
 
-from datetime import datetime
+from datetime import date, datetime
 import math
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -10,6 +10,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import BaseCoordinatorEntity
 
 from .const import DATA_READING_REQUESTS, DOMAIN
+from .coordinator import PWNDataUpdateCoordinator
 from .number import PWNReadingDraftNumber, async_setup_entry, format_meter_reading
 
 
@@ -163,6 +164,47 @@ class TestReadingDraftNumber(unittest.IsolatedAsyncioTestCase):
             entity.extra_state_attributes["entered_at"],
             "2026-11-07T09:00:00+01:00",
         )
+
+    async def test_restore_selected_observation_date(self) -> None:
+        """Restore the separately chosen observation date with the same draft."""
+        entity, coordinator = _make_number()
+        coordinator._reading_date_in_window.side_effect = (
+            PWNDataUpdateCoordinator._reading_date_in_window
+        )
+        previous_state = MagicMock()
+        previous_state.attributes = {
+            "reading_number": "12345678901",
+            "entered_at": "2026-11-07T09:00:00+01:00",
+            "reading_date": "2026-11-05",
+        }
+        stored = MagicMock()
+        stored.native_value = 165.0
+
+        with (
+            patch.object(
+                BaseCoordinatorEntity,
+                "async_added_to_hass",
+                new_callable=AsyncMock,
+            ),
+            patch.object(
+                entity,
+                "async_get_last_state",
+                new_callable=AsyncMock,
+                return_value=previous_state,
+            ),
+            patch.object(
+                entity,
+                "async_get_last_number_data",
+                new_callable=AsyncMock,
+                return_value=stored,
+            ),
+        ):
+            await entity.async_added_to_hass()
+
+        draft = coordinator.draft_readings["00012345"]
+        self.assertEqual(draft.value, 165)
+        self.assertEqual(draft.reading_date, date(2026, 11, 5))
+        self.assertEqual(entity.extra_state_attributes["reading_date"], "2026-11-05")
 
     async def test_does_not_restore_a_different_or_invalid_reading(self) -> None:
         """Prevent restoring old, out-of-range, or malformed stored readings."""
