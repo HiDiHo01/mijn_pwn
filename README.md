@@ -66,11 +66,17 @@ JSON-respons bevat `meterType` (tekst, mag leeg zijn),
 `amountOfRedWheels` (niet-negatief geheel getal). Een waargenomen respons
 heeft een leeg `meterType`, vijf zwarte telwielen en nul rode telwielen.
 
-Het endpoint is geregistreerd en `PWNAPI.parse_water_meter_details()`
-valideert de respons. Deze waarden zijn afzonderlijk van
-`amountOfWheels` uit de meterstandverzoekrespons; de relatie ertussen is
-nog niet vastgesteld.
+De bevestigde JSON-requestbody bevat `postalCode`, `street`,
+`houseNumber` en `houseNumberAddition` (mag leeg zijn). Alleen deze vier
+adresvelden worden doorgestuurd; extra accountgegevens worden weggelaten.
 
-**De integratie doet geen POST-aanroep naar dit endpoint:** de requestbody
-is nog niet bekend. De gegevens worden nog niet als entiteiten aangeboden
-of gebruikt voor het indienen van een meterstand.
+`PWNAPI.get_water_meter_details(address)` kan de details via de bestaande
+authenticatie opvragen en valideert de respons met
+`PWNAPI.parse_water_meter_details()`. Fouten bevatten geen serverrespons
+met eventuele persoonsgegevens. De gegevens staan los van
+`amountOfWheels` uit de meterstandverzoekrespons; hun onderlinge relatie
+is nog niet vastgesteld.
+
+**Deze POST wordt niet automatisch uitgevoerd** bij het instellen of
+verversen van de integratie. De gegevens worden nog niet als entiteiten
+aangeboden of gebruikt om een meterstand in te dienen.
