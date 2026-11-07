@@ -123,14 +123,32 @@ class PWNBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
         _LOGGER.debug("PWNBinarySensor initialized with coordinator: %s", coordinator)
 
+    def _open_invoice_count(self) -> int | None:
+        """Return a verified invoice count, never treating missing data as zero."""
+        data = self.coordinator.data
+        if not isinstance(data, dict):
+            return None
+        invoices_data = data.get(DATA_INVOICES)
+        if not isinstance(invoices_data, dict):
+            return None
+        summary = invoices_data.get("invoicesSummary")
+        count = (
+            summary.get("numberOfOpenItems")
+            if isinstance(summary, dict)
+            else invoices_data.get("numberOfOpenItems")
+        )
+        return count if type(count) is int and count >= 0 else None
+
     @property
-    def is_on(self) -> bool:
-        """Return the state of the sensor."""
-        invoices_data = self.coordinator.data.get(DATA_INVOICES, {})
-        if invoices_data:
-            return invoices_data.get("numberOfOpenItems", 0) > 0
-        _LOGGER.warning("No invoice data available for sensor: %s", self.name)
-        return False
+    def available(self) -> bool:
+        """Report unavailable when the invoice endpoint has no valid count."""
+        return super().available and self._open_invoice_count() is not None
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return the actual open-invoice status without false negatives."""
+        count = self._open_invoice_count()
+        return count > 0 if count is not None else None
 
     @property
     def extra_state_attributes(self) -> dict[str, str | dict | None]:
