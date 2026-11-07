@@ -29,6 +29,9 @@ def _coordinator() -> MagicMock:
         return_value={"success": True, "errorText": ""}
     )
     coordinator._submission_lock = asyncio.Lock()
+    coordinator._unloading = False
+    coordinator._draft_store.async_save = AsyncMock()
+    coordinator._draft_store.async_load = AsyncMock(return_value=None)
     coordinator._prepared_submissions = {}
     coordinator._confirmation_cancels = {}
     coordinator.confirmed_readings = {}
@@ -63,10 +66,12 @@ def _coordinator() -> MagicMock:
     }
     coordinator.last_update_success = True
 
-    def _details(meter_number: str) -> PWNSubmissionDetails | None:
+    def _details(
+        meter_number: str, *, data: dict[str, object] | None = None
+    ) -> PWNSubmissionDetails | None:
         """Extract a snapshot using production coordinator validation."""
         return PWNDataUpdateCoordinator.current_submission_details(
-            coordinator, meter_number
+            coordinator, meter_number, data=data
         )
 
     def _is_prepared(details: PWNSubmissionDetails) -> bool:
