@@ -194,5 +194,32 @@
         "name": "Meter reading date ({meter_number})"
       }
     }
+  },
+  "issues": {
+    "uncertain_meter_submission": {
+      "title": "Meter reading submission outcome unknown",
+      "description": "Mijn PWN may have received a meter reading even though its acknowledgement was lost. Do not submit the same request again. Check your PWN account or contact PWN. Only if PWN explicitly confirms that the submission was NOT processed, a Home Assistant administrator may use the mijn_pwn.release_uncertain_submission action for the exact integration, meter and reading request, with pwn_confirmed_not_processed set to true. A different request ID remains independently actionable."
+    }
+  },
+  "services": {
+    "release_uncertain_submission": {
+      "name": "Release uncertain meter reading submission",
+      "description": "Manual recovery only after PWN explicitly confirms that the previous submission was NOT processed. This action never sends a meter reading.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Integration entry ID"
+        },
+        "meter_number": {
+          "name": "Meter number"
+        },
+        "reading_number": {
+          "name": "Reading request number"
+        },
+        "pwn_confirmed_not_processed": {
+          "name": "PWN confirmed non-processing",
+          "description": "Set true only after PWN verifies that the preceding submission was not processed."
+        }
+      }
+    }
   }
 }
