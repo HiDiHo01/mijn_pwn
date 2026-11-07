@@ -71,13 +71,15 @@ class TestMeasurementValidation(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_rejects_invalid_reading_number_without_post(self) -> None:
-        """Reject empty, non-ASCII, and URL-unsafe reading numbers."""
+        """Reject reading numbers that are not exactly 11 ASCII digits."""
         client = self._make_client()
         cases: tuple[object, ...] = (
             "",
             "00000000001/",
             "read-123",
             "１２３４５６７８９０１",
+            "1" * 10,
+            "1" * 12,
             "1" * 33,
             "123 456",
             12345678901,
