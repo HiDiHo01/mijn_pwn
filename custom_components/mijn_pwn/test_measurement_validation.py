@@ -91,6 +91,7 @@ class TestMeasurementValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_invalid_reading_number_without_post(self) -> None:
         """Reject reading numbers that are not exactly 11 ASCII digits."""
         client = self._make_client()
+        address = self._address()
         cases: tuple[object, ...] = (
             "",
             "99999999991/",
@@ -107,7 +108,7 @@ class TestMeasurementValidation(unittest.IsolatedAsyncioTestCase):
                 with self.subTest(input_type=type(reading_number).__name__):
                     with self.assertRaisesRegex(ValueError, "Invalid reading number"):
                         await client.validate_measurement_request(
-                            reading_number, self._address()
+                            reading_number, address
                         )
 
         mock_request.assert_not_awaited()
@@ -165,6 +166,7 @@ class TestMeasurementValidation(unittest.IsolatedAsyncioTestCase):
     async def test_upstream_error_is_redacted(self) -> None:
         """Keep potentially sensitive error response text out of failures."""
         client = self._make_client()
+        address = self._address()
         with patch.object(
             client,
             "_request",
@@ -175,6 +177,6 @@ class TestMeasurementValidation(unittest.IsolatedAsyncioTestCase):
                 UpdateFailed, "Unable to validate meter-reading request"
             ) as error:
                 await client.validate_measurement_request(
-                    "99999999991", self._address()
+                    "99999999991", address
                 )
         self.assertNotIn("synthetic-not-a-live-token", str(error.exception))
