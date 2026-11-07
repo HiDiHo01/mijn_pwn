@@ -127,6 +127,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             "invoices": self.api.get_invoices(),
             "user_data": self.api.get_relation_data(),
             "consumption_history": self.api.get_consumption_history(),
+            "reading_requests": self.api.get_reading_request(),
             "payment_info": self.api.get_payment_info(),
             "advance": self.api.get_advance(),
             "notifications": self.api.get_notifications(),
