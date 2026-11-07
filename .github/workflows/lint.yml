@@ -29,6 +29,4 @@ jobs:
         run: ruff format --check .
 
       - name: Lint and check import order
-        run: |
-          ruff check --diff . || true
-          ruff check --output-format=github .
+        run: ruff check --output-format=github .
