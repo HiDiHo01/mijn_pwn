@@ -172,8 +172,11 @@
       }
     },
     "button": {
+      "prepare_meter_reading": {
+        "name": "Check meter reading ({meter_number})"
+      },
       "submit_meter_reading": {
-        "name": "Submit meter reading ({meter_number})"
+        "name": "Confirm sending meter reading ({meter_number})"
       }
     }
   }
