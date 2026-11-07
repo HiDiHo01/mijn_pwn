@@ -132,10 +132,23 @@ De entiteit is niet beschikbaar bij gesloten, ontbrekende of onduidelijke
 meterstandverzoeken, en bij onbruikbare aantallen telwielen.
 
 De numerieke waarde is een **concept in Home Assistant** en wordt **niet naar
-PWN verzonden** bij het wijzigen. De conceptwaarde begint leeg, wordt niet
-hersteld na een herstart en wordt gewist wanneer een nieuw opnamenummer voor
-dezelfde meter verschijnt. Daarmee wordt vermeden dat een oude waarde
-automatisch bij een nieuwe opname terechtkomt.
+PWN verzonden** bij het wijzigen. Home Assistant bewaart de conceptstand en
+de tijd van invoer via de officiële `RestoreNumber`-voorziening. Na een
+herstart wordt de waarde uitsluitend hersteld als **hetzelfde opnamenummer**
+nog openstaat, de waarde binnen het huidige aantal telwielen past en de
+opgeslagen invoerdatum geldig is. Het tijdstip staat in het attribuut
+`entered_at`. Bij een nieuw opnamenummer wordt het concept gewist.
+Home Assistant bewaart de herstelstatus periodiek en bij een normale stop,
+dus dit is geen garantie tegen een plotselinge stroomonderbreking.
+
+Twee aanvullende PWN-sensoren heten **Laatst doorgegeven meterstand** en
+**Datum laatst doorgegeven meterstand**. Hun waarden komen **uitsluitend**
+uit de meest recente werkelijke meterstand in de PWN-verbruikshistorie
+(`lastActualReading = true`, met `meterReading` en `endDate`).
+De datum is de meterstanddatum uit PWN, **niet noodzakelijk de exacte
+verzenddatum**. De sensoren worden niet overschreven wanneer iemand alleen
+het concept invoert. Ze worden pas bijgewerkt zodra PWN via de bestaande
+API een recentere werkelijke meterstand teruggeeft.
 
 Voor de afronding van het doorgeven ontbreekt nog de bevestigde API-aanvraag
 met de meterstand en opnamedatum, inclusief de daadwerkelijke verzendactie.
