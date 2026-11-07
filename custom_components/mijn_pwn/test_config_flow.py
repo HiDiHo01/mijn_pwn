@@ -153,10 +153,12 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
 
     async def test_unknown_account_identity_is_rejected(self) -> None:
         """An existing entry cannot silently become a different new account."""
+        input_data = {
+            "username": "third@example.invalid",
+            "password": token_urlsafe(16),
+        }
         with self.assertRaises(AbortFlow) as result:
-            await self._flow.async_step_reconfigure(
-                {"username": "third@example.invalid", "password": token_urlsafe(16)}
-            )
+            await self._flow.async_step_reconfigure(input_data)
 
         self.assertEqual(result.exception.reason, "unique_id_mismatch")
         self._flow._validate_user_input.assert_not_awaited()
