@@ -174,7 +174,11 @@ class TestReadingRequest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             PWNAPI._parse_json_response([{}], expect_list=None), [{}]
         )
-        for response in (None, "invalid", [True], [1]):
+        self.assertEqual(
+            PWNAPI._parse_json_response(["synthetic notice"], expect_list=None),
+            ["synthetic notice"],
+        )
+        for response in (None, "invalid", 1):
             with self.subTest(response=response):
                 with self.assertRaises(PWNAPIError):
                     PWNAPI._parse_json_response(response, expect_list=None)
