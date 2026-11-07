@@ -5,6 +5,7 @@ import unittest
 
 from .data_parsers import (
     get_last_meter_reading_date,
+    get_last_reported_meter_reading,
     get_notification_count,
     get_water_consumption_status,
 )
@@ -51,6 +52,38 @@ class TestConsumptionIndicators(unittest.TestCase):
         }
         self.assertEqual(get_last_meter_reading_date(payload), date(2025, 4, 30))
         self.assertEqual(get_water_consumption_status(payload), "no_reported_anomaly")
+
+    def test_last_reported_reading_uses_latest_actual_record(self) -> None:
+        """Use the newest dated actual reading, not the first or an estimate."""
+        payload = {
+            "history": [
+                {
+                    "lastActualReading": True,
+                    "endDate": "2024-01-01",
+                    "meterReading": 125,
+                },
+                {
+                    "lastActualReading": False,
+                    "endDate": "2027-01-01",
+                    "meterReading": 99999,
+                },
+                {
+                    "lastActualReading": True,
+                    "endDate": "2025-06-01",
+                    "meterReading": 320,
+                },
+            ]
+        }
+        self.assertEqual(get_last_reported_meter_reading(payload), 320)
+        self.assertEqual(get_last_meter_reading_date(payload), date(2025, 6, 1))
+
+    def test_invalid_last_reported_reading_is_unknown(self) -> None:
+        """Do not treat malformed or negative readings as submitted readings."""
+        base = {"lastActualReading": True, "endDate": "2025-06-01"}
+        for value in (None, True, -1, float("nan"), float("inf"), "private"):
+            with self.subTest(value_type=type(value).__name__):
+                payload = {"history": [{**base, "meterReading": value}]}
+                self.assertIsNone(get_last_reported_meter_reading(payload))
 
     def test_reported_anomaly(self) -> None:
         """Expose an anomaly category without publishing the reason."""
