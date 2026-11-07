@@ -170,6 +170,11 @@
       "meter_reading_draft": {
         "name": "Meter reading (draft, not sent) ({meter_number})"
       }
+    },
+    "button": {
+      "submit_meter_reading": {
+        "name": "Submit meter reading ({meter_number})"
+      }
     }
   }
 }
