@@ -41,6 +41,49 @@ _LOGGER.info("Effective logging level: %s", _LOGGER.getEffectiveLevel())
 _LOGGER.debug("Update interval set to %s", DEFAULT_UPDATE_INTERVAL)
 
 
+def _normalize_fetch_result(key: str, result: object) -> object:
+    """Return one endpoint result without masking authentication or cancellation."""
+    if isinstance(result, (ConfigEntryAuthFailed, PWNAPIAuthenticationError)):
+        raise ConfigEntryAuthFailed("PWN authentication expired") from None
+    if isinstance(result, asyncio.CancelledError):
+        raise result
+    if isinstance(result, Exception):
+        _LOGGER.warning("Failed to fetch %s", key)
+        return None
+    return result
+
+
+def _has_required_data(data: dict[str, object]) -> bool:
+    """Check required endpoint data in the same order as before."""
+    for key, label in (
+        ("invoices", "invoices"),
+        ("user_data", "user"),
+        ("consumption_history", "consumption history"),
+    ):
+        if not data.get(key):
+            _LOGGER.warning("Incomplete %s data received from API", label)
+            return False
+    return True
+
+
+async def _fetch_contact_preferences(
+    api: PWNAPI, user_data: object
+) -> dict[str, object] | None:
+    """Fetch contact preferences when an account relation number is present."""
+    if not isinstance(user_data, dict):
+        return None
+    customer_id = user_data.get("relationNumber")
+    if not isinstance(customer_id, str):
+        return None
+    try:
+        return await api.get_contact_preferences(customer_id)
+    except ConfigEntryAuthFailed, PWNAPIAuthenticationError:
+        raise
+    except Exception:
+        _LOGGER.warning("Failed to fetch contact preferences")
+        return None
+
+
 @dataclass(frozen=True, slots=True)
 class PWNConfirmedMeterReading:
     """A reading acknowledged by the final PWN submission endpoint."""
@@ -779,53 +822,16 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
 
         results = await asyncio.gather(*tasks.values(), return_exceptions=True)
 
-        data: dict[str, object] = {}
-        for key, result in zip(tasks.keys(), results):
-            if isinstance(result, (ConfigEntryAuthFailed, PWNAPIAuthenticationError)):
-                # gather(return_exceptions=True) must not hide expired credentials.
-                raise ConfigEntryAuthFailed("PWN authentication expired") from None
-            if isinstance(result, asyncio.CancelledError):
-                raise result
-            if isinstance(result, Exception):
-                _LOGGER.warning("Failed to fetch %s", key)
-                data[key] = None
-            else:
-                data[key] = result
-
-        invoices = data.get("invoices")
-        user_data = data.get("user_data")
-        consumption_history = data.get("consumption_history")
-
-        # Validate required data
-        if not invoices:
-            _LOGGER.warning("Incomplete invoices data received from API")
+        data: dict[str, object] = {
+            key: _normalize_fetch_result(key, result)
+            for key, result in zip(tasks, results)
+        }
+        if not _has_required_data(data):
             return {}
 
-        if not user_data:
-            _LOGGER.warning("Incomplete user data received from API")
-            return {}
-
-        if not consumption_history:
-            _LOGGER.warning("Incomplete consumption history received from API")
-            return {}
-
-        # Contact preferences depend on customer_id
-        contact_preferences: dict[str, object] | None = None
-
-        if isinstance(user_data, dict):
-            customer_id = user_data.get("relationNumber")
-
-            if isinstance(customer_id, str):
-                try:
-                    contact_preferences = await self.api.get_contact_preferences(
-                        customer_id
-                    )
-                except ConfigEntryAuthFailed, PWNAPIAuthenticationError:
-                    raise
-                except Exception:
-                    _LOGGER.warning("Failed to fetch contact preferences")
-
-        data["contact_preferences"] = contact_preferences
+        data["contact_preferences"] = await _fetch_contact_preferences(
+            self.api, data["user_data"]
+        )
         _LOGGER.debug("Received API data: %s", list(data.keys()))
 
         return data
