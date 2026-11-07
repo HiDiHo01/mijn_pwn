@@ -2,6 +2,7 @@
 import asyncio
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
+from hashlib import sha256
 import logging
 from typing import Callable
 
@@ -9,6 +10,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.event import async_track_point_in_utc_time
+from homeassistant.helpers.issue_registry import (
+    IssueSeverity,
+    async_create_issue,
+    async_delete_issue,
+)
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -21,7 +27,7 @@ from .api import (
     PWNAPIServerError,
     PWNReadingRequestClosedError,
 )
-from .const import DATA_READING_REQUESTS, DATA_USER
+from .const import DATA_READING_REQUESTS, DATA_USER, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -148,6 +154,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         self._prepared_submissions: dict[str, PWNPreparedSubmission] = {}
         self._confirmation_cancels: dict[str, Callable[[], None]] = {}
         self.confirmed_readings: dict[str, dict[str, PWNConfirmedMeterReading]] = {}
+        self.uncertain_submissions: dict[str, dict[str, datetime]] = {}
         self._confirmed_store = Store[dict[str, object]](
             hass,
             1,
@@ -382,6 +389,74 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         """Return whether this exact request was previously accepted by PWN."""
         return reading_number in self.confirmed_readings.get(meter_number, {})
 
+    def is_submission_uncertain(self, meter_number: str, reading_number: str) -> bool:
+        """Block a final POST while the outcome of this exact request is unknown."""
+        return reading_number in self.uncertain_submissions.get(meter_number, {})
+
+    def _uncertain_issue_id(self, meter_number: str, reading_number: str) -> str:
+        """Generate an opaque repair identifier without exposing account details."""
+        identity = f"{self.config_entry.entry_id}:{meter_number}:{reading_number}"
+        digest = sha256(identity.encode()).hexdigest()[:20]
+        return f"uncertain_meter_submission_{digest}"
+
+    def _create_uncertain_repair(self, meter_number: str, reading_number: str) -> None:
+        """Show a persistent-in-practice repair on each startup until resolved."""
+        async_create_issue(
+            self.hass,
+            DOMAIN,
+            self._uncertain_issue_id(meter_number, reading_number),
+            config_entry_id=self.config_entry.entry_id,
+            is_fixable=False,
+            severity=IssueSeverity.ERROR,
+            translation_key="uncertain_meter_submission",
+        )
+
+    def _delete_uncertain_repair(self, meter_number: str, reading_number: str) -> None:
+        """Remove the repair only after a durable resolution."""
+        async_delete_issue(
+            self.hass, DOMAIN, self._uncertain_issue_id(meter_number, reading_number)
+        )
+
+    async def _async_mark_submission_uncertain(
+        self, meter_number: str, reading_number: str
+    ) -> None:
+        """Commit a write-ahead marker before the final remote POST starts."""
+        requests = self.uncertain_submissions.setdefault(meter_number, {})
+        requests[reading_number] = datetime.now(timezone.utc)
+        try:
+            await self._confirmed_store.async_save(self._confirmed_storage_payload())
+        except BaseException:
+            requests.pop(reading_number, None)
+            if not requests:
+                self.uncertain_submissions.pop(meter_number, None)
+            raise
+        self._create_uncertain_repair(meter_number, reading_number)
+        self.async_update_listeners()
+
+    async def async_release_uncertain_submission(
+        self, meter_number: str, reading_number: str
+    ) -> None:
+        """Manually release a request only after PWN confirms it was NOT processed."""
+        async with self._submission_lock:
+            if self._unloading:
+                raise ValueError("PWN integration is unloading; release cancelled")
+            if not self.is_submission_uncertain(meter_number, reading_number):
+                raise ValueError("No unresolved meter-reading submission was found")
+            requests = self.uncertain_submissions[meter_number]
+            started_at = requests.pop(reading_number)
+            if not requests:
+                self.uncertain_submissions.pop(meter_number)
+            try:
+                await self._confirmed_store.async_save(self._confirmed_storage_payload())
+            except BaseException:
+                self.uncertain_submissions.setdefault(meter_number, {})[
+                    reading_number
+                ] = started_at
+                raise
+            self.invalidate_prepared_submission(meter_number)
+            self._delete_uncertain_repair(meter_number, reading_number)
+            self.async_update_listeners()
+
     def _confirmed_storage_payload(self) -> dict[str, object]:
         """Serialize all acknowledged requests for durable local storage."""
         return {
@@ -395,7 +470,16 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
                 }
                 for requests in self.confirmed_readings.values()
                 for reading in requests.values()
-            ]
+            ],
+            "unresolved_submissions": [
+                {
+                    "meter_number": meter_number,
+                    "reading_number": reading_number,
+                    "started_at": started_at.isoformat(),
+                }
+                for meter_number, requests in self.uncertain_submissions.items()
+                for reading_number, started_at in requests.items()
+            ],
         }
 
     async def async_load_confirmed_readings(self) -> None:
@@ -405,7 +489,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             return
         records = saved.get("readings")
         if not isinstance(records, list):
-            return
+            records = []
 
         restored: dict[str, dict[str, PWNConfirmedMeterReading]] = {}
         for record in records:
@@ -454,6 +538,26 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             if all_readings
             else None
         )
+
+        unresolved = saved.get("unresolved_submissions")
+        restored_uncertain: dict[str, dict[str, datetime]] = {}
+        if isinstance(unresolved, list):
+            for item in unresolved:
+                identity = self._parse_stored_closed_request(item)
+                if identity is None:
+                    continue
+                started_at = self._parse_stored_entry_time(item.get("started_at"))
+                if started_at is None:
+                    continue
+                meter_number, reading_number = identity
+                if not self.was_reading_submitted(meter_number, reading_number):
+                    restored_uncertain.setdefault(meter_number, {})[
+                        reading_number
+                    ] = started_at
+        self.uncertain_submissions = restored_uncertain
+        for meter_number, requests in restored_uncertain.items():
+            for reading_number in requests:
+                self._create_uncertain_repair(meter_number, reading_number)
 
     def _schedule_confirmation_expiry(
         self, meter_number: str, expires_at: datetime
@@ -656,6 +760,9 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             and prepared.details == details
             and datetime.now(timezone.utc) < prepared.expires_at
             and self.current_submission_details(details.meter_number) == details
+            and not self.is_submission_uncertain(
+                details.meter_number, details.reading_number
+            )
         )
 
     def invalidate_prepared_submission(self, meter_number: str) -> None:
@@ -679,6 +786,10 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
                 raise ValueError("Meter reading changed; enter and check it again")
             if self.was_reading_submitted(details.meter_number, details.reading_number):
                 raise ValueError("This meter-reading request was already submitted")
+            if self.is_submission_uncertain(
+                details.meter_number, details.reading_number
+            ):
+                raise ValueError("Submission outcome unknown; verify with PWN first")
 
             try:
                 await self.api.validate_measurement_request(
@@ -721,7 +832,15 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             self.invalidate_prepared_submission(details.meter_number)
             if self.was_reading_submitted(details.meter_number, details.reading_number):
                 raise ValueError("This meter-reading request was already submitted")
+            if self.is_submission_uncertain(
+                details.meter_number, details.reading_number
+            ):
+                raise ValueError("Submission outcome unknown; verify with PWN first")
 
+            # Persist before invoking the non-idempotent final endpoint.
+            await self._async_mark_submission_uncertain(
+                details.meter_number, details.reading_number
+            )
             response = await self.api.submit_meter_reading(
                 details.reading_number,
                 details.value,
@@ -740,7 +859,13 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
                 meter_number=details.meter_number,
                 reading_number=details.reading_number,
             )
+            self.uncertain_submissions[details.meter_number].pop(
+                details.reading_number
+            )
+            if not self.uncertain_submissions[details.meter_number]:
+                self.uncertain_submissions.pop(details.meter_number)
             await self._confirmed_store.async_save(self._confirmed_storage_payload())
+            self._delete_uncertain_repair(details.meter_number, details.reading_number)
 
     async def _async_update_data(self) -> dict[str, object]:
         """Fetch fresh data from Mijn PWN.

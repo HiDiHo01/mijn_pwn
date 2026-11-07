@@ -48,6 +48,9 @@ class PWNReadingActionButton(CoordinatorEntity, ButtonEntity):
             and not self.coordinator.was_reading_submitted(
                 details.meter_number, details.reading_number
             )
+            and not self.coordinator.is_submission_uncertain(
+                details.meter_number, details.reading_number
+            )
         )
 
 
@@ -68,6 +71,13 @@ class PWNPrepareMeterReadingButton(PWNReadingActionButton):
 
     async def async_press(self) -> None:
         """Check plausibility and arm a confirmation that expires in two minutes."""
+        details = self._current_details()
+        if details is not None and self.coordinator.is_submission_uncertain(
+            details.meter_number, details.reading_number
+        ):
+            raise HomeAssistantError(
+                "Submission outcome unknown. Contact PWN before trying again"
+            )
         if not self.available:
             raise HomeAssistantError(
                 "Enter a meter reading for an open PWN request before checking"
@@ -120,6 +130,13 @@ class PWNSubmitMeterReadingButton(PWNReadingActionButton):
 
     async def async_press(self) -> None:
         """Transmit the unchanged, approved reading exactly once on confirmation."""
+        details = self._current_details()
+        if details is not None and self.coordinator.is_submission_uncertain(
+            details.meter_number, details.reading_number
+        ):
+            raise HomeAssistantError(
+                "Submission outcome unknown. Contact PWN before trying again"
+            )
         if not self.available:
             raise HomeAssistantError(
                 "First check the meter reading, then confirm within two minutes"
