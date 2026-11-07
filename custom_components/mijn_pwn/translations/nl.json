@@ -178,6 +178,11 @@
       "submit_meter_reading": {
         "name": "Bevestig verzending meterstand ({meter_number})"
       }
+    },
+    "date": {
+      "meter_reading_date_input": {
+        "name": "Opnamedatum watermeter ({meter_number})"
+      }
     }
   }
 }
