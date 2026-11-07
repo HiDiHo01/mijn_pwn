@@ -161,16 +161,23 @@ historie afkomstige sensorstatussen mogen niet als een bevestiging worden
 hersteld.
 
 De definitieve verzendaanvraag is vastgesteld als
-`POST /api/WaterUsage/{readingNumber}`. Home Assistant biedt een expliciete
-knop **Watermeterstand doorgeven ({meter_number})** bij elk gevonden
-meterstandverzoek. De knop is uitsluitend beschikbaar als hetzelfde
-11-cijferige opnamenummer nog openstaat, een conceptstand aanwezig is en een
-geldig relatienummer en aansluitadres zijn gevonden. Het `number`-entiteit
-wijzigen **verstuurt niets**.
+`POST /api/WaterUsage/{readingNumber}`. Home Assistant biedt **twee aparte
+knoppen** bij elk gevonden meterstandverzoek:
 
-Na een druk op de knop voert Home Assistant eerst de plausibiliteitscontrole
-uit. Alleen bij `isPlausible: true` volgt de definitieve POST. Het
-`ReadingDate`-veld is de lokale kalenderdatum waarop de conceptstand is
+1. **Controleer meterstand ({meter_number})** controleert het ingevulde concept
+   via de plausibiliteits-API, maar verstuurt de meterstand nog niet.
+2. **Bevestig verzending meterstand ({meter_number})** komt uitsluitend
+   beschikbaar wanneer PWN de plausibiliteitscontrole heeft goedgekeurd.
+   Een tweede expliciete knopdruk start de definitieve POST.
+
+De bevestiging geldt maximaal **twee minuten** en blijft alleen geldig zolang
+de volledige conceptstand, opnamedatum, het 11-cijferige opnamenummer,
+relatienummer en aansluitadres onveranderd blijven. Bij een wijziging, nieuw
+meterstandverzoek, verstreken termijn of herstart vervalt de bevestiging;
+controleer dan opnieuw. De bevestiging wordt **niet** op schijf bewaard.
+Een wijziging van de `number`-entiteit **verstuurt niets**.
+
+Het `ReadingDate`-veld is de lokale kalenderdatum waarop de conceptstand is
 ingevuld, afgeleid van `entered_at` in de Home Assistant-tijdzone. Controleer
 dit voordat je de knop indrukt: voor historische opnamedatums is nog geen
 aparte datumkiezer aanwezig.
@@ -269,7 +276,9 @@ Na een bevestigde finale API-reactie worden de sensoren
 stand en het UTC-tijdstip van bevestiging. De bestaande sensor
 **Laatste meterstand** uit de PWN-verbruikshistorie blijft ongewijzigd.
 De bevestigde sensorwaarden worden via `RestoreSensor` bewaard.
-De knop blokkeert verdere automatische verzending van hetzelfde
-opnamenummer gedurende de huidige sessie; een onzekere netwerkuitkomst
-wordt **niet automatisch opnieuw verzonden**. Controleer in dat geval het
-PWN-account voordat je opnieuw probeert.
+De bevestigingsknop blokkeert verdere verzending van hetzelfde
+opnamenummer na bevestiging door PWN. Bij een onzekere netwerkuitkomst
+wordt de tijdelijke bevestiging **eenmalig verbruikt**, zodat opnieuw
+verzenden alleen via een nieuwe plausibiliteitscontrole en een nieuwe
+expliciete bevestiging mogelijk is. Controleer vóór een nieuwe poging het
+PWN-account om dubbele meldingen te voorkomen.
