@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Literal, Optional, overload
+from typing import Literal, Optional, TypedDict, overload
 
 from aiohttp import ClientError, ClientResponse, ClientSession
 
@@ -29,6 +29,17 @@ class PWNAPICommunicationError(PWNAPIError):
 
 class PWNAPIAuthenticationError(PWNAPIError):
     """Authentication error."""
+
+
+class PWNMoveHouseAddress(TypedDict):
+    """Address fields returned by the Mijn PWN MoveHouse validation API."""
+
+    street: str
+    houseNumber: str
+    houseNumberAddition: str
+    postalCode: str
+    city: str
+    country: str
 
 
 # ------------------------------------------------------------------ #
@@ -303,6 +314,42 @@ class PWNAPI:
         if not isinstance(payload, dict):
             raise PWNAPIError("Invalid PWN API response: expected an object")
         return payload
+
+    @staticmethod
+    def parse_move_house_address(payload: object) -> PWNMoveHouseAddress:
+        """Validate and type a MoveHouse address response without logging PII.
+
+        The endpoint's HTTP method and request payload are still unknown.
+        This parser does not send any network requests or change an account.
+        """
+        if not isinstance(payload, dict):
+            raise PWNAPIError("Invalid MoveHouse address response: expected an object")
+
+        fields = (
+            "street",
+            "houseNumber",
+            "houseNumberAddition",
+            "postalCode",
+            "city",
+            "country",
+        )
+        values: dict[str, str] = {}
+        for field_name in fields:
+            field_value = payload.get(field_name)
+            if not isinstance(field_value, str) or (
+                field_name != "houseNumberAddition" and not field_value.strip()
+            ):
+                raise PWNAPIError("Invalid MoveHouse address response: missing fields")
+            values[field_name] = field_value
+
+        return PWNMoveHouseAddress(
+            street=values["street"],
+            houseNumber=values["houseNumber"],
+            houseNumberAddition=values["houseNumberAddition"],
+            postalCode=values["postalCode"],
+            city=values["city"],
+            country=values["country"],
+        )
 
     # ------------------------------------------------------------------
     # Public API methods
