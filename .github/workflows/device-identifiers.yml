@@ -18,7 +18,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4.2.2
 
-      - name: Run tests in Home Assistant 2026.10.3
+      - name: Run tests in Home Assistant 2026.11.0
         run: |
           docker run --rm \
             --network none \
@@ -27,7 +27,7 @@ jobs:
             --workdir /workspace \
             --env PYTHONDONTWRITEBYTECODE=1 \
             --entrypoint python3 \
-            ghcr.io/home-assistant/home-assistant:2026.10.3@sha256:c32ab33f0b0589182b2f40324826acb02a104d1707c91573b6420fd622b82127 \
+            ghcr.io/home-assistant/home-assistant:2026.11.0@sha256:c6c1ca9931036bf3a2c4cc088d8db25dfea3b33935a5ecc83c40349462e2f69e \
             -m unittest -v \
             custom_components.mijn_pwn.test_device_identifiers \
             custom_components.mijn_pwn.test_naming_translations \
