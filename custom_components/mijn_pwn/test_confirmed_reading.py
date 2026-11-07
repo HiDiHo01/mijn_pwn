@@ -198,6 +198,7 @@ class TestConfirmedReading(unittest.IsolatedAsyncioTestCase):
                 "meter_number": "00012345",
                 "reading_number": "01234567890",
                 "formatted_reading": "00123",
+                "confirmed_at": "2026-11-07T09:00:00+00:00",
             }
             with (
                 patch.object(
@@ -224,6 +225,45 @@ class TestConfirmedReading(unittest.IsolatedAsyncioTestCase):
                 sensor.native_value, int(value) if key.endswith("reading") else value
             )
             self.assertTrue(sensor.extra_state_attributes["pwn_confirmed"])
+
+    async def test_missing_confirmation_time_does_not_restore_reading(self) -> None:
+        """Never present an incomplete restored status as a PWN acknowledgement."""
+        coordinator = _make_coordinator()
+        sensor = _make_sensor(coordinator, "last_submitted_meter_reading")
+        previous_state = MagicMock()
+        previous_state.attributes = {
+            "source": "pwn_submission",
+            "pwn_confirmed": True,
+            "meter_number": "00012345",
+            "reading_number": "01234567890",
+            "formatted_reading": "00165",
+        }
+        stored = MagicMock()
+        stored.native_value = 165.0
+        with (
+            patch.object(
+                BaseCoordinatorEntity,
+                "async_added_to_hass",
+                new_callable=AsyncMock,
+            ),
+            patch.object(
+                sensor,
+                "async_get_last_state",
+                new_callable=AsyncMock,
+                return_value=previous_state,
+            ),
+            patch.object(
+                sensor,
+                "async_get_last_sensor_data",
+                new_callable=AsyncMock,
+                return_value=stored,
+            ),
+        ):
+            await sensor.async_added_to_hass()
+
+        self.assertIsNone(sensor.native_value)
+        self.assertFalse(sensor.available)
+        self.assertIsNone(coordinator.last_confirmed_meter_reading)
 
     async def test_restore_prevents_duplicate_submissions_after_restart(self) -> None:
         """Hydrate coordinator only from verified final submission metadata."""
