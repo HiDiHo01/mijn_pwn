@@ -141,14 +141,24 @@ opgeslagen invoerdatum geldig is. Het tijdstip staat in het attribuut
 Home Assistant bewaart de herstelstatus periodiek en bij een normale stop,
 dus dit is geen garantie tegen een plotselinge stroomonderbreking.
 
-Twee aanvullende PWN-sensoren heten **Laatst doorgegeven meterstand** en
-**Datum laatst doorgegeven meterstand**. Hun waarden komen **uitsluitend**
-uit de meest recente werkelijke meterstand in de PWN-verbruikshistorie
-(`lastActualReading = true`, met `meterReading` en `endDate`).
-De datum is de meterstanddatum uit PWN, **niet noodzakelijk de exacte
-verzenddatum**. De sensoren worden niet overschreven wanneer iemand alleen
-het concept invoert. Ze worden pas bijgewerkt zodra PWN via de bestaande
-API een recentere werkelijke meterstand teruggeeft.
+Twee aanvullende sensoren heten **Laatst doorgegeven meterstand** en
+**Datum laatst doorgegeven meterstand**. Ze zijn strikt gescheiden van de
+reeds bestaande sensor **Laatste meterstand**, die uit de PWN-verbruikshistorie
+komt. Beide nieuwe sensoren worden **uitsluitend na een geslaagde definitieve
+meterstandverzending** bijgewerkt. De laatste verzendstatus van dat specifieke
+API-endpoint moet dan `200` of `204` zijn (andere codes pas na afzonderlijke
+verificatie). De datum is het tijdstip waarop de definitieve API-reactie als
+succesvol is verwerkt, niet de opnamedatum.
+
+Zolang er nog geen bewezen verzendendpoint is, zijn deze twee sensoren
+**niet beschikbaar**. De bestaande `number`-entiteit bewaart wel een lokaal
+concept maar mag deze sensoren niet wijzigen. Ook voorbereidende API-aanvragen
+(`validate-measurement-request` en `SupplementInformation/private`) gelden
+niet als meterstandbevestiging. Na een echte geslaagde verzending blijven beide
+waarden behouden na een herstart via Home Assistant `RestoreSensor`.
+Het attribuut `pwn_confirmed: true` markeert bevestigde waarden; reeds uit
+historie afkomstige sensorstatussen mogen niet als een bevestiging worden
+hersteld.
 
 Voor de afronding van het doorgeven ontbreekt nog de bevestigde API-aanvraag
 met de meterstand en opnamedatum, inclusief de daadwerkelijke verzendactie.
