@@ -181,9 +181,8 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
                 candidate = date.fromisoformat(date_value)
             except ValueError:
                 candidate = None
-            if (
-                candidate is not None
-                and self.coordinator._reading_date_in_window(candidate, request)
+            if candidate is not None and self.coordinator._reading_date_in_window(
+                candidate, request
             ):
                 restored_date = candidate
 
@@ -234,7 +233,11 @@ class PWNReadingDraftNumber(CoordinatorEntity, RestoreNumber):
     def _handle_coordinator_update(self) -> None:
         """Clear a draft after server confirmation or a request change."""
         confirmed = self.coordinator.last_confirmed_meter_reading
-        if confirmed is not None and confirmed.meter_number == self._meter_number and confirmed.reading_number == self._request_number:
+        if (
+            confirmed is not None
+            and confirmed.meter_number == self._meter_number
+            and confirmed.reading_number == self._request_number
+        ):
             self._attr_native_value = None
             self._last_entered_at = None
             self.coordinator.draft_readings.pop(self._meter_number, None)
