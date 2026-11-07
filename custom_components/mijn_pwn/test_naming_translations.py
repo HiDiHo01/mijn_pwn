@@ -5,6 +5,8 @@ from pathlib import Path
 import unittest
 from unittest.mock import MagicMock
 
+from homeassistant.helpers.typing import UNDEFINED
+
 from .binary_sensor import SENSOR_TYPES, PWNBinarySensor
 from .const import (
     DOMAIN,
@@ -64,7 +66,38 @@ class TestNamingTranslations(unittest.TestCase):
         for description in SENSOR_DESCRIPTIONS:
             with self.subTest(sensor=description.key):
                 self.assertEqual(description.translation_key, description.key)
-                self.assertIsNone(description.name)
+                self.assertIs(description.name, UNDEFINED)
+
+    def test_dutch_sensor_names_resolve_on_platform(self) -> None:
+        """Resolve each sensor's Dutch name through Home Assistant."""
+        catalog = json.loads(
+            (_COMPONENT_DIR / "translations" / "nl.json").read_text("utf-8")
+        )
+        names = {
+            key: item["name"]
+            for key, item in catalog["entity"]["sensor"].items()
+        }
+        platform_translations = {
+            f"component.{DOMAIN}.entity.sensor.{key}.name": name
+            for key, name in names.items()
+        }
+        coordinator = MagicMock()
+        entry = MagicMock()
+        entry.entry_id = "entry-123"
+        entry.unique_id = "account-123"
+
+        self.assertEqual(len(names), len(set(names.values())))
+        for description in SENSOR_DESCRIPTIONS:
+            with self.subTest(sensor=description.key):
+                sensor = PWNSensor(coordinator, description, entry)
+                platform_data = MagicMock()
+                platform_data.domain = "sensor"
+                platform_data.platform_name = DOMAIN
+                platform_data.component_translations = {}
+                platform_data.platform_translations = platform_translations
+                sensor.platform_data = platform_data
+
+                self.assertEqual(sensor.name, names[description.key])
 
     def test_locales_have_matching_translation_keys(self) -> None:
         """Every shipped language covers all entity and service device names."""
