@@ -170,6 +170,11 @@
       "meter_reading_draft": {
         "name": "Watermeterstand (concept, niet verzonden) ({meter_number})"
       }
+    },
+    "button": {
+      "submit_meter_reading": {
+        "name": "Watermeterstand doorgeven ({meter_number})"
+      }
     }
   }
 }
