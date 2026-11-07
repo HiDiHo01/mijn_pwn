@@ -61,6 +61,9 @@ SERVICES: Final[Services] = {
 DATA_CONSUMPTION: Final[str] = "consumption_history"
 """Data key for consumption history."""
 
+DATA_READING_REQUESTS: Final[str] = "reading_requests"
+"""Data key for meter-reading requests (list of per-meter entries)."""
+
 DATA_NOTIFICATIONS: Final[str] = "notifications"
 """Data key for account notifications."""
 
