@@ -55,9 +55,7 @@ class TestClosedRequestAPI(unittest.IsolatedAsyncioTestCase):
         response = self._response("sap-01")
         client = self._api()
         with self.assertRaises(PWNReadingRequestClosedError) as failure:
-            await client._raise_for_status(
-                response, is_measurement_validation=True
-            )
+            await client._raise_for_status(response, is_measurement_validation=True)
         self.assertNotIn("fictional-private", str(failure.exception))
         response.json.assert_awaited_once_with(content_type=None)
 
@@ -86,9 +84,7 @@ class TestClosedRequestAPI(unittest.IsolatedAsyncioTestCase):
         response = self._response("sap-01", status=500)
         client = self._api()
         with self.assertRaises(UpdateFailed):
-            await client._raise_for_status(
-                response, is_measurement_validation=True
-            )
+            await client._raise_for_status(response, is_measurement_validation=True)
         response.json.assert_not_awaited()
 
     async def test_real_request_path_detects_sap_01_without_retry(self) -> None:
