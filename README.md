@@ -160,8 +160,20 @@ Het attribuut `pwn_confirmed: true` markeert bevestigde waarden; reeds uit
 historie afkomstige sensorstatussen mogen niet als een bevestiging worden
 hersteld.
 
-Voor de afronding van het doorgeven ontbreekt nog de bevestigde API-aanvraag
-met de meterstand en opnamedatum, inclusief de daadwerkelijke verzendactie.
+De definitieve verzendaanvraag is vastgesteld als
+`POST /api/WaterUsage/{readingNumber}`. Home Assistant biedt een expliciete
+knop **Watermeterstand doorgeven ({meter_number})** bij elk gevonden
+meterstandverzoek. De knop is uitsluitend beschikbaar als hetzelfde
+11-cijferige opnamenummer nog openstaat, een conceptstand aanwezig is en een
+geldig relatienummer en aansluitadres zijn gevonden. Het `number`-entiteit
+wijzigen **verstuurt niets**.
+
+Na een druk op de knop voert Home Assistant eerst de plausibiliteitscontrole
+uit. Alleen bij `isPlausible: true` volgt de definitieve POST. Het
+`ReadingDate`-veld is de lokale kalenderdatum waarop de conceptstand is
+ingevuld, afgeleid van `entered_at` in de Home Assistant-tijdzone. Controleer
+dit voordat je de knop indrukt: voor historische opnamedatums is nog geen
+aparte datumkiezer aanwezig.
 Het veld `amountOfWheels` komt uit het meterstandverzoek; de HTML en de
 `meter-details`-API bevestigen vijf zwarte en nul rode telwielen voor de
 onderzochte meter, maar dit is geen garantie voor andere watermeters.
@@ -230,3 +242,34 @@ Ook een eventuele HTTP `200` of `204` van dit endpoint mag de sensoren
 **Laatst doorgegeven meterstand** en **Datum laatst doorgegeven meterstand**
 niet wijzigen. Die sensoren krijgen pas nieuwe waarden als de *aparte,
 definitieve verzendaanvraag* door PWN is geaccepteerd.
+
+## Definitieve watermeterstandverzending (alleen na knopdruk)
+
+De waargenomen finale aanvraag is
+`POST /api/WaterUsage/{readingNumber}` met de **hoofdlettergevoelige**
+JSON-velden `MeterReading` (geheel getal), `AnomalyReason: null`,
+`ReadingDate` (`YYYY-MM-DD`), `PostalCode`, `Street`,
+`HouseNumber`, `HouseNumberAddition` (mag leeg zijn) en
+`WaterMeterImage: null`. De laatste response bevat
+`{"success": true, "errorText": ""}`; daarna toont de website
+**‘Bedankt voor het doorgeven van uw watermeterstand.’** Deze pagina-tekst
+wordt **niet** gebruikt als technische bevestiging in Home Assistant.
+
+De API-client controleert conservatief op **HTTP 200** met een geldig JSON
+object dat `success: true` en `errorText: ""` bevat. De exacte HTTP-code
+van de aangetroffen aanvraag is niet afzonderlijk aangeleverd. Bij
+`success: false`, een niet-lege fouttekst, een onverwachte response of een
+HTTP/netwerkfout wordt **geen bevestigde meterstand vastgelegd**.
+Potentieel privé-informatie uit `errorText` of een upstream-fout wordt
+niet gelogd of aan de gebruiker getoond.
+
+Na een bevestigde finale API-reactie worden de sensoren
+**Laatst doorgegeven meterstand** en
+**Datum laatst doorgegeven meterstand** onmiddellijk bijgewerkt met de
+stand en het UTC-tijdstip van bevestiging. De bestaande sensor
+**Laatste meterstand** uit de PWN-verbruikshistorie blijft ongewijzigd.
+De bevestigde sensorwaarden worden via `RestoreSensor` bewaard.
+De knop blokkeert verdere automatische verzending van hetzelfde
+opnamenummer gedurende de huidige sessie; een onzekere netwerkuitkomst
+wordt **niet automatisch opnieuw verzonden**. Controleer in dat geval het
+PWN-account voordat je opnieuw probeert.
