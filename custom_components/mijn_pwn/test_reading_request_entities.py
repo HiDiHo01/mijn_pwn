@@ -106,9 +106,7 @@ class TestReadingValues(unittest.TestCase):
         other_request = _reading_request()
         other_request["readingNumber"] = "00000000002"
         self.assertIsNone(_get_request_for_meter({}, "00123"))
-        self.assertIsNone(
-            _get_request_for_meter({DATA_READING_REQUESTS: []}, "00123")
-        )
+        self.assertIsNone(_get_request_for_meter({DATA_READING_REQUESTS: []}, "00123"))
         self.assertIsNone(
             _get_request_for_meter(
                 {DATA_READING_REQUESTS: [request, other_request]}, "00123"
@@ -130,9 +128,7 @@ class TestReadingEntities(unittest.TestCase):
         """Update each sensor from its own meter and preserve the unique ID."""
         coordinator = _build_coordinator([_reading_request()])
         entry = _build_entry()
-        descriptions = {
-            item.key: item for item in READING_REQUEST_SENSOR_DESCRIPTIONS
-        }
+        descriptions = {item.key: item for item in READING_REQUEST_SENSOR_DESCRIPTIONS}
         entity = PWNReadingRequestSensor(
             coordinator, entry, "00123", descriptions["reading_number"]
         )
@@ -142,12 +138,8 @@ class TestReadingEntities(unittest.TestCase):
             entity.unique_id,
             "synthetic-account_reading_meter_00123_reading_number",
         )
-        self.assertEqual(
-            entity.translation_placeholders, {"meter_number": "00123"}
-        )
-        self.assertEqual(
-            entity.device_info["translation_key"], "consumption"
-        )
+        self.assertEqual(entity.translation_placeholders, {"meter_number": "00123"})
+        self.assertEqual(entity.device_info["translation_key"], "consumption")
         coordinator.data = {DATA_READING_REQUESTS: []}
         self.assertFalse(entity.available)
         self.assertIsNone(entity.native_value)
@@ -185,9 +177,7 @@ class TestReadingEntities(unittest.TestCase):
         reading_number = PWNReadingRequestSensor(
             coordinator, entry, "00123", descriptions["reading_number"]
         )
-        self.assertEqual(
-            address.extra_state_attributes["postalCode"], "0000 AA"
-        )
+        self.assertEqual(address.extra_state_attributes["postalCode"], "0000 AA")
         self.assertEqual(reading_number.extra_state_attributes, {})
 
     def test_discovery_adds_new_meters_only_once(self) -> None:
