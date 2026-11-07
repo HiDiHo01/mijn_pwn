@@ -316,6 +316,25 @@ class PWNAPI:
         return payload
 
     @staticmethod
+    def build_private_confirmation_url(relation_number: str) -> str:
+        """Build the confirmation URL with three literal zeroes before the relation number.
+
+        This function performs no network request. The confirmation token source
+        remains unknown, so submitting private information is not implemented.
+        """
+        if (
+            not isinstance(relation_number, str)
+            or not relation_number
+            or not relation_number.isascii()
+            or not relation_number.isdecimal()
+        ):
+            raise ValueError(
+                "Invalid relation number: expected a non-empty string of ASCII digits"
+            )
+
+        return f"{DATA_ENDPOINTS['supplement_information_private']}/000{relation_number}"
+
+    @staticmethod
     def parse_move_house_address(payload: object) -> PWNMoveHouseAddress:
         """Validate and type a MoveHouse address response without logging PII.
 
