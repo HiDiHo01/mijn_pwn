@@ -17,7 +17,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNKNOWN, EntityCategory
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
-from homeassistant.helpers.typing import StateType, UNDEFINED, UndefinedType
+from homeassistant.helpers.typing import UNDEFINED, StateType, UndefinedType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
