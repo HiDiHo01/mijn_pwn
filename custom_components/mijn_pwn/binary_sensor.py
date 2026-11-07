@@ -61,9 +61,7 @@ async def async_setup_entry(
         ],
         True,
     )
-    setup_reading_request_binary_sensors(
-        coordinator, config_entry, async_add_entities
-    )
+    setup_reading_request_binary_sensors(coordinator, config_entry, async_add_entities)
 
 
 @dataclass(frozen=True, slots=True)
