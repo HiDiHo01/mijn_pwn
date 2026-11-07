@@ -97,6 +97,7 @@ LF line endings to prevent formatting-only failures.
   policy in `AI_POLICY.md`; this document records engineering procedures.
 
 ## Pull-request reviews
+- Follow the complete unresolved-review closure checklist in [`skills.md`](skills.md): inspect all open and outdated threads, verify fixes, reply with evidence, and recheck that no unresolved threads remain after the final CI run.
 - Focus on defects introduced by the diff, especially correctness, security, compatibility, data integrity, and regressions.
 - Report actionable findings with severity, file/line, failure scenario, impact, and a concrete fix.
 - Do not report speculative problems, unsupported assumptions, or style preferences as defects.
