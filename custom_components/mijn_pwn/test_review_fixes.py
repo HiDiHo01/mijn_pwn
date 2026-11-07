@@ -1,5 +1,7 @@
 """Regression coverage for PWN meter submission review corrections."""
 
+import asyncio
+from copy import deepcopy
 from dataclasses import replace
 from datetime import date, datetime, timezone
 import unittest
@@ -11,6 +13,7 @@ from .button import PWNPrepareMeterReadingButton
 from .const import DATA_READING_REQUESTS, DATA_USER
 from .coordinator import PWNDataUpdateCoordinator, PWNReadingDraft
 from .date import PWNReadingDate
+from .number import PWNReadingDraftNumber
 from .test_submit_workflow import _coordinator
 
 
@@ -261,3 +264,103 @@ class TestConfirmationExpiry(unittest.IsolatedAsyncioTestCase):
         timer_cancel.assert_called_once_with()
         self.assertEqual(coordinator._confirmation_cancels, {})
         self.assertEqual(coordinator._prepared_submissions, {})
+
+
+class TestSubmissionReviewLifecycle(unittest.IsolatedAsyncioTestCase):
+    """Guard prepared submissions against refreshing data and unloading."""
+
+    async def test_address_changed_then_restored_requires_new_check(self) -> None:
+        """Revoke an approval as soon as a refresh shows changed meter details."""
+        coordinator = _coordinator()
+        details = coordinator.current_submission_details("00012345")
+        await coordinator.async_prepare_meter_reading(details)
+
+        updated_data = deepcopy(coordinator.data)
+        updated_data[DATA_READING_REQUESTS][0]["address"]["houseNumber"] = "2"
+        PWNDataUpdateCoordinator._invalidate_changed_preparations(
+            coordinator, updated_data
+        )
+
+        self.assertEqual(coordinator._prepared_submissions, {})
+        self.assertFalse(coordinator.is_prepared_submission(details))
+        restored_data = deepcopy(coordinator.data)
+        PWNDataUpdateCoordinator._invalidate_changed_preparations(
+            coordinator, restored_data
+        )
+        self.assertFalse(coordinator.is_prepared_submission(details))
+        coordinator.api.submit_meter_reading.assert_not_awaited()
+
+    async def test_unload_waits_for_final_api_and_storage(self) -> None:
+        """Do not unload platforms while a final acknowledgement is in-flight."""
+        coordinator = _coordinator()
+        details = coordinator.current_submission_details("00012345")
+        await coordinator.async_prepare_meter_reading(details)
+        entered_post = asyncio.Event()
+        release_post = asyncio.Event()
+
+        async def _slow_response(*_args: object, **_kwargs: object) -> dict[str, object]:
+            """Simulate PWN processing a write while an unload is requested."""
+            entered_post.set()
+            await release_post.wait()
+            return {"success": True, "errorText": ""}
+
+        coordinator.api.submit_meter_reading.side_effect = _slow_response
+        confirmation = asyncio.create_task(coordinator.async_confirm_meter_reading(details))
+        await asyncio.wait_for(entered_post.wait(), timeout=2)
+        unload = asyncio.create_task(
+            PWNDataUpdateCoordinator.async_prepare_for_unload(coordinator)
+        )
+        await asyncio.sleep(0)
+        self.assertTrue(coordinator._unloading)
+        self.assertFalse(unload.done())
+
+        release_post.set()
+        await confirmation
+        await unload
+        self.assertEqual(coordinator.last_confirmed_meter_reading.value, 165)
+        coordinator._confirmed_store.async_save.assert_awaited_once()
+        coordinator.async_save_drafts.assert_awaited_once()
+        with self.assertRaisesRegex(ValueError, "unloading"):
+            await coordinator.async_prepare_meter_reading(details)
+
+    async def test_draft_store_survives_unavailable_request(self) -> None:
+        """Use the independent store when an unavailable state loses metadata."""
+        coordinator = _coordinator()
+        payload = PWNDataUpdateCoordinator._draft_storage_payload(coordinator)
+        self.assertEqual(payload["drafts"][0]["value"], 165)
+        self.assertEqual(payload["drafts"][0]["reading_number"], "01234567890")
+        self.assertEqual(payload["drafts"][0]["reading_date"], "2026-11-07")
+
+        coordinator.data[DATA_READING_REQUESTS] = None
+        self.assertIsNone(coordinator.current_submission_details("00012345"))
+        reloaded = _coordinator()
+        reloaded.draft_readings.clear()
+        reloaded._draft_store.async_load = AsyncMock(return_value=payload)
+        await PWNDataUpdateCoordinator.async_load_drafts(reloaded)
+
+        restored = reloaded.draft_readings["00012345"]
+        self.assertEqual(restored.value, 165)
+        self.assertEqual(restored.reading_date, date(2026, 11, 7))
+
+        entry = MagicMock(unique_id="fictional-account", entry_id="fictional-entry")
+        number = PWNReadingDraftNumber(reloaded, entry, "00012345")
+        self.assertEqual(number.native_value, 165.0)
+
+    async def test_invalid_draft_store_records_are_ignored(self) -> None:
+        """Discard corrupted timestamps and identifiers before restoring a draft."""
+        coordinator = _coordinator()
+        coordinator._draft_store.async_load = AsyncMock(
+            return_value={
+                "drafts": [
+                    {
+                        "meter_number": "00012345",
+                        "value": 165,
+                        "reading_number": "invalid",
+                        "entered_at": "2026-11-07T09:00:00+00:00",
+                        "reading_date": "2026-11-07",
+                    }
+                ]
+            }
+        )
+        await PWNDataUpdateCoordinator.async_load_drafts(coordinator)
+        self.assertEqual(coordinator.draft_readings, {})
