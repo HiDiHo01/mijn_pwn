@@ -41,3 +41,19 @@ gebruik. Het bevestigde responseformaat is een JSON-object met de tekstvelden
 te loggen of andere onbekende velden te bewaren. **Er wordt geen API-aanroep
 gedaan:** de HTTP-methode en requestbody zijn nog niet bevestigd. De integratie
 kan nog geen verhuizing doorgeven.
+
+## Bevestigen van persoonsgegevens (voorbereid)
+
+De PWN-website gebruikt `POST /api/SupplementInformation/private/{identifier}`
+met JSON-requestbody `{"token": "<bevestigingstoken>"}`. Een succesvolle
+bevestiging retourneert HTTP `204 No Content` zonder responsebody.
+
+De `identifier` bestaat uit **precies 10 ASCII-cijfers**: drie vaste nullen
+gevolgd door het **7-cijferige** `relationNumber` uit de accountgegevens.
+`PWNAPI.build_private_confirmation_url(relation_number)` controleert de lengte
+en behoudt alle voorloopnullen. Er wordt geen bestaand token hergebruikt zonder
+bevestiging van zijn herkomst.
+
+**De integratie voert deze POST-aanvraag niet uit.** De herkomst van het
+bevestigingstoken is nog onbekend. Het invoeren en verzenden van een
+watermeterstand is een aparte, nog niet bevestigde API-stap.
