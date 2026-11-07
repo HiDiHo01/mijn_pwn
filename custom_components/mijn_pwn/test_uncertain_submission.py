@@ -214,3 +214,53 @@ class TestUncertainSubmission(unittest.IsolatedAsyncioTestCase):
         coordinator.async_release_uncertain_submission.assert_awaited_once_with(
             "00012345", "01234567890"
         )
+
+    async def test_restoration_rejects_invalid_saved_records(self) -> None:
+        """Accept only validated confirmations and matching unresolved requests."""
+        coordinator = _coordinator()
+        confirmed = {
+            "meter_number": "00012345",
+            "reading_number": "01234567890",
+            "value": 165,
+            "wheel_count": 5,
+            "confirmed_at": "2026-11-07T09:00:00+00:00",
+        }
+        unresolved = {
+            "meter_number": "00012345",
+            "reading_number": "22222222222",
+            "started_at": "2026-11-07T09:05:00+00:00",
+        }
+        coordinator._confirmed_store.async_load = AsyncMock(
+            return_value={
+                "readings": [
+                    None,
+                    {**confirmed, "value": True},
+                    {**confirmed, "wheel_count": 0},
+                    {**confirmed, "value": 100000},
+                    {**confirmed, "confirmed_at": "2026-11-07T09:00:00"},
+                    {**confirmed, "reading_number": "invalid"},
+                    confirmed,
+                ],
+                "unresolved_submissions": [
+                    None,
+                    {**unresolved, "started_at": "2026-11-07T09:05:00"},
+                    {**unresolved, "reading_number": "invalid"},
+                    {**unresolved, "reading_number": confirmed["reading_number"]},
+                    unresolved,
+                ],
+            }
+        )
+
+        await PWNDataUpdateCoordinator.async_load_confirmed_readings(coordinator)
+
+        self.assertEqual(
+            list(coordinator.confirmed_readings["00012345"]),
+            ["01234567890"],
+        )
+        self.assertEqual(coordinator.last_confirmed_meter_reading.value, 165)
+        self.assertFalse(coordinator.is_submission_uncertain("00012345", "01234567890"))
+        self.assertTrue(coordinator.is_submission_uncertain("00012345", "22222222222"))
+        coordinator._create_uncertain_repair.assert_called_once_with(
+            "00012345", "22222222222"
+        )
+        coordinator.api.submit_meter_reading.assert_not_awaited()
