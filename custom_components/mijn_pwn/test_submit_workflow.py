@@ -32,6 +32,9 @@ def _coordinator() -> MagicMock:
     coordinator._unloading = False
     coordinator._draft_store.async_save = AsyncMock()
     coordinator._draft_store.async_load = AsyncMock(return_value=None)
+    coordinator._parse_stored_draft.side_effect = (
+        PWNDataUpdateCoordinator._parse_stored_draft
+    )
     coordinator._prepared_submissions = {}
     coordinator._confirmation_cancels = {}
     coordinator.confirmed_readings = {}
