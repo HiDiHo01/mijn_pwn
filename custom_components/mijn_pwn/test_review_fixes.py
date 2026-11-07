@@ -4,17 +4,29 @@ import asyncio
 from copy import deepcopy
 from dataclasses import replace
 from datetime import date, datetime, timezone
+from inspect import iscoroutinefunction
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.exceptions import HomeAssistantError
 
+from . import button, date as date_platform, number
 from .button import PWNPrepareMeterReadingButton
 from .const import DATA_READING_REQUESTS, DATA_USER
 from .coordinator import PWNDataUpdateCoordinator, PWNReadingDraft
 from .date import PWNReadingDate
 from .number import PWNReadingDraftNumber
 from .test_submit_workflow import _coordinator
+
+
+class TestPlatformSetupContracts(unittest.TestCase):
+    """Keep the Home Assistant coroutine platform contract intact."""
+
+    def test_platform_entrypoints_are_coroutines(self) -> None:
+        """Home Assistant awaits each platform even if entity registration is sync."""
+        for platform in (button, date_platform, number):
+            with self.subTest(platform=platform.__name__):
+                self.assertTrue(iscoroutinefunction(platform.async_setup_entry))
 
 
 class TestMeterDateInput(unittest.IsolatedAsyncioTestCase):
