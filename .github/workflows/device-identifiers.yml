@@ -32,4 +32,6 @@ jobs:
             custom_components.mijn_pwn.test_device_identifiers \
             custom_components.mijn_pwn.test_naming_translations \
             custom_components.mijn_pwn.test_data_parsers \
-            custom_components.mijn_pwn.test_sensor_expansion
+            custom_components.mijn_pwn.test_sensor_expansion \
+            custom_components.mijn_pwn.test_reading_request \
+            custom_components.mijn_pwn.test_reading_request_entities
