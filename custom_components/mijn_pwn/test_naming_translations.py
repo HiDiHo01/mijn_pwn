@@ -158,7 +158,7 @@ class TestNamingTranslations(unittest.TestCase):
                     self.assertTrue(sensor["name"])
                 self.assertEqual(
                     set(catalog["config"]["step"]),
-                    {"login", "user", "reconfigure"},
+                    {"login", "user", "reconfigure", "reauth_confirm"},
                 )
                 if locale == "en":
                     self.assertEqual(english, catalog)
