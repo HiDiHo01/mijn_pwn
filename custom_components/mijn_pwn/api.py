@@ -1,6 +1,7 @@
 import asyncio
 from datetime import date
 import logging
+from math import isfinite
 from typing import Literal, Optional, TypedDict, overload
 
 from aiohttp import ClientError, ClientResponse, ClientSession
@@ -30,6 +31,14 @@ class PWNAPICommunicationError(PWNAPIError):
 
 class PWNAPIAuthenticationError(PWNAPIError):
     """Authentication error."""
+
+
+class PWNReadingPlausibilityResponse(TypedDict):
+    """Plausibility decision and optional numeric reading bounds."""
+
+    isPlausible: bool
+    minReading: int | float | None
+    maxReading: int | float | None
 
 
 class PWNReadingPlausibilityRequest(TypedDict):
@@ -391,7 +400,7 @@ class PWNAPI:
 
         The observed URL contains an 11-digit opname number and a 10-digit
         relation identifier made from three zeroes and seven relation digits.
-        The JSON request body is confirmed; the response remains unknown.
+        The JSON request body and three response fields are confirmed.
         """
         if (
             not isinstance(reading_number, str)
@@ -457,6 +466,47 @@ class PWNAPI:
             postalCode=validated["postalCode"],
             houseNumber=validated["houseNumber"],
             houseNumberAddition=validated["houseNumberAddition"],
+        )
+
+    @staticmethod
+    def parse_plausible_reading_response(
+        payload: object,
+    ) -> PWNReadingPlausibilityResponse:
+        """Validate plausibility flags and nullable bounds without side effects.
+
+        Non-null numeric bounds are accepted defensively, but their exact
+        server-side behavior has not yet been observed.
+        """
+        if not isinstance(payload, dict):
+            raise PWNAPIError("Invalid plausibility response: expected an object")
+
+        plausible = payload.get("isPlausible")
+        if type(plausible) is not bool:
+            raise PWNAPIError("Invalid plausibility response: expected a boolean")
+
+        bounds: dict[str, int | float | None] = {}
+        for key in ("minReading", "maxReading"):
+            if key not in payload:
+                raise PWNAPIError("Invalid plausibility response: missing bound field")
+            value = payload[key]
+            if value is None:
+                bounds[key] = None
+            elif type(value) is int and value >= 0:
+                bounds[key] = value
+            elif type(value) is float and isfinite(value) and value >= 0:
+                bounds[key] = value
+            else:
+                raise PWNAPIError("Invalid plausibility response: invalid reading bound")
+
+        minimum = bounds["minReading"]
+        maximum = bounds["maxReading"]
+        if minimum is not None and maximum is not None and minimum > maximum:
+            raise PWNAPIError("Invalid plausibility response: inconsistent bounds")
+
+        return PWNReadingPlausibilityResponse(
+            isPlausible=plausible,
+            minReading=minimum,
+            maxReading=maximum,
         )
 
     @staticmethod
@@ -701,6 +751,31 @@ class PWNAPI:
             raise UpdateFailed("Unable to validate meter-reading request") from None
 
         return self.parse_measurement_validation(response)
+
+    async def validate_plausible_reading(
+        self,
+        reading_number: str,
+        relation_number: str,
+        meter_reading: int,
+        reading_date: date,
+        address: dict[str, object],
+        wheel_count: int,
+    ) -> PWNReadingPlausibilityResponse:
+        """Check a draft for plausibility without recording a submitted reading.
+
+        This method is opt-in and is not called by setup, polling, or entities.
+        A true plausibility flag is not a final submission acknowledgement.
+        """
+        endpoint = self.build_plausible_reading_url(reading_number, relation_number)
+        payload = self._build_plausible_reading_payload(
+            meter_reading, reading_date, address, wheel_count
+        )
+        try:
+            response = await self._request("POST", endpoint, json=payload)
+        except UpdateFailed:
+            raise UpdateFailed("Unable to validate meter-reading plausibility") from None
+
+        return self.parse_plausible_reading_response(response)
 
     async def get_reading_request(self) -> list[dict[str, object]]:
         """Return meter-reading requests with their status and meter metadata."""
