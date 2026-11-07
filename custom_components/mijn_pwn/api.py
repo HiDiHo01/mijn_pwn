@@ -375,9 +375,7 @@ class PWNAPI:
         )
 
     @staticmethod
-    def build_plausible_reading_url(
-        reading_number: str, relation_number: str
-    ) -> str:
+    def build_plausible_reading_url(reading_number: str, relation_number: str) -> str:
         """Build the plausibility-check URL without sending any meter readings.
 
         The observed URL contains an 11-digit opname number and a 10-digit
@@ -390,9 +388,7 @@ class PWNAPI:
             or not reading_number.isascii()
             or not reading_number.isdecimal()
         ):
-            raise ValueError(
-                "Invalid reading number: expected exactly 11 ASCII digits"
-            )
+            raise ValueError("Invalid reading number: expected exactly 11 ASCII digits")
         if (
             not isinstance(relation_number, str)
             or len(relation_number) != 7
