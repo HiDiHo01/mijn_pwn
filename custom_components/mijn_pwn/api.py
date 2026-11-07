@@ -317,19 +317,19 @@ class PWNAPI:
 
     @staticmethod
     def build_private_confirmation_url(relation_number: str) -> str:
-        """Build the confirmation URL with three literal zeroes before the relation number.
+        """Build the 10-digit identifier from three zeroes and seven relation digits.
 
         This function performs no network request. The confirmation token source
         remains unknown, so submitting private information is not implemented.
         """
         if (
             not isinstance(relation_number, str)
-            or not relation_number
+            or len(relation_number) != 7
             or not relation_number.isascii()
             or not relation_number.isdecimal()
         ):
             raise ValueError(
-                "Invalid relation number: expected a non-empty string of ASCII digits"
+                "Invalid relation number: expected exactly seven ASCII digits"
             )
 
         return f"{DATA_ENDPOINTS['supplement_information_private']}/000{relation_number}"
