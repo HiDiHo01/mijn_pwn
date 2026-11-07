@@ -150,4 +150,6 @@ async def async_setup_entry(
         """Build the draft input for a discovered meter."""
         return [PWNReadingDraftNumber(coordinator, config_entry, meter_number)]
 
-    _register_meter_entities(coordinator, config_entry, async_add_entities, _make_number)
+    _register_meter_entities(
+        coordinator, config_entry, async_add_entities, _make_number
+    )
