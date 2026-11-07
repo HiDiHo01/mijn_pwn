@@ -201,6 +201,27 @@ daarentegen afzonderlijk opgeslagen, ook wanneer de meterstand-entiteit
 tijdelijk onbeschikbaar is doordat de API een fout geeft.
 Een wijziging van de `number`-entiteit **verstuurt niets**.
 
+### Onbekende uitkomst van een definitieve verzending
+
+Vóór de definitieve POST bewaart Mijn PWN een duurzame
+`unresolved_submissions`-markering voor het exacte meternummer en het
+11-cijferige opnamenummer. Uitsluitend een gevalideerde PWN-bevestiging
+zet dit om in een bevestigde inzending. Na een timeout, netwerkfout,
+onverwacht antwoord of herstart wordt dezelfde aanvraag **niet**
+automatisch opnieuw verstuurd. Een Home Assistant-reparatiemelding maakt
+de onzekerheid zichtbaar zonder persoonsgegevens te tonen.
+
+Controleer eerst bij PWN wat er met de inzending is gebeurd. **Alleen als
+PWN uitdrukkelijk bevestigt dat deze NIET is verwerkt** kan een beheerder
+onder Ontwikkelaarstools → Acties
+`mijn_pwn.release_uncertain_submission` aanroepen met
+`config_entry_id`, `meter_number`, `reading_number` en
+`pwn_confirmed_not_processed: true`. Deze herstelactie verstuurt zelf
+geen meterstand. Een nieuwe plausibiliteitscontrole en expliciete tweede
+bevestiging zijn daarna opnieuw vereist. Als PWN de meterstand wel heeft
+verwerkt, mag de herstelactie niet worden gebruikt. Een nieuw
+opnamenummer blijft afzonderlijk te verwerken.
+
 ### Afgesloten verzoek bij PWN (`sap-01`)
 
 Als PWN bij de expliciet gestarte validatie van het opnamenummer **HTTP 400**
