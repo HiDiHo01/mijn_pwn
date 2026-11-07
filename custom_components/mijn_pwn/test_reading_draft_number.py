@@ -38,6 +38,7 @@ def _make_number(
         )
     }
     coordinator.last_update_success = True
+    coordinator.draft_readings = {}
     entry = MagicMock()
     entry.unique_id = "synthetic-account"
     entry.entry_id = "synthetic-entry"
