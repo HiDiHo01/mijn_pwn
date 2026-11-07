@@ -600,12 +600,11 @@ class PWNAPI:
         """
         if (
             not isinstance(reading_number, str)
-            or not reading_number
-            or len(reading_number) > 32
+            or len(reading_number) != 11
             or not reading_number.isascii()
             or not reading_number.isdecimal()
         ):
-            raise ValueError("Invalid reading number: expected up to 32 ASCII digits")
+            raise ValueError("Invalid reading number: expected exactly 11 ASCII digits")
         payload = self._build_measurement_validation_payload(address)
         endpoint = (
             f"{DATA_ENDPOINTS['water_usage_validate_measurement_request']}"
@@ -629,7 +628,12 @@ class PWNAPI:
             if request["openReading"]:
                 reading_number = request.get("readingNumber")
                 wheel_count = request.get("amountOfWheels")
-                if not isinstance(reading_number, str) or not reading_number:
+                if (
+                    not isinstance(reading_number, str)
+                    or len(reading_number) != 11
+                    or not reading_number.isascii()
+                    or not reading_number.isdecimal()
+                ):
                     raise PWNAPIError("Invalid open meter-reading request: number")
                 if type(wheel_count) is not int or wheel_count <= 0:
                     raise PWNAPIError("Invalid open meter-reading request: wheel count")
