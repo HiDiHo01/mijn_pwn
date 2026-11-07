@@ -23,9 +23,7 @@ def _make_coordinator() -> MagicMock:
     return coordinator
 
 
-def _make_sensor(
-    coordinator: MagicMock, key: str
-) -> PWNConfirmedReadingSensor:
+def _make_sensor(coordinator: MagicMock, key: str) -> PWNConfirmedReadingSensor:
     """Create a sensor with a stable ID using fictional account details."""
     entry = MagicMock()
     entry.unique_id = "fictional-account"
@@ -59,9 +57,7 @@ class TestConfirmedReading(unittest.IsolatedAsyncioTestCase):
                 self.assertFalse(sensor.available)
                 self.assertIsNone(sensor.native_value)
                 self.assertEqual(sensor.extra_state_attributes, {})
-        date_sensor = _make_sensor(
-            coordinator, "last_submitted_meter_reading_date"
-        )
+        date_sensor = _make_sensor(coordinator, "last_submitted_meter_reading_date")
         self.assertEqual(date_sensor.device_class, SensorDeviceClass.TIMESTAMP)
 
     def test_record_only_final_submission_success(self) -> None:
@@ -91,13 +87,9 @@ class TestConfirmedReading(unittest.IsolatedAsyncioTestCase):
                     reading_sensor.extra_state_attributes["formatted_reading"],
                     "00123",
                 )
-                self.assertTrue(
-                    reading_sensor.extra_state_attributes["pwn_confirmed"]
-                )
+                self.assertTrue(reading_sensor.extra_state_attributes["pwn_confirmed"])
                 self.assertIsInstance(date_sensor.native_value, datetime)
-                self.assertEqual(
-                    date_sensor.native_value.tzinfo, timezone.utc
-                )
+                self.assertEqual(date_sensor.native_value.tzinfo, timezone.utc)
                 self.assertEqual(
                     reading_sensor.unique_id,
                     "fictional-account_last_submitted_meter_reading",
@@ -147,9 +139,7 @@ class TestConfirmedReading(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(_valid_restored_value(-1, False))
         self.assertIsNone(_valid_restored_value(12.5, False))
         self.assertIsNone(_valid_restored_value("123", False))
-        self.assertIsNone(
-            _valid_restored_value(datetime(2026, 11, 7, 9, 0), True)
-        )
+        self.assertIsNone(_valid_restored_value(datetime(2026, 11, 7, 9, 0), True))
         timestamp = datetime(2026, 11, 7, 9, 0, tzinfo=timezone.utc)
         self.assertEqual(_valid_restored_value(timestamp, True), timestamp)
 
@@ -195,7 +185,9 @@ class TestConfirmedReading(unittest.IsolatedAsyncioTestCase):
             ):
                 await sensor.async_added_to_hass()
             self.assertTrue(sensor.available)
-            self.assertEqual(sensor.native_value, int(value) if key.endswith("reading") else value)
+            self.assertEqual(
+                sensor.native_value, int(value) if key.endswith("reading") else value
+            )
             self.assertTrue(sensor.extra_state_attributes["pwn_confirmed"])
 
     async def test_never_restore_local_draft_or_unconfirmed_history(self) -> None:
