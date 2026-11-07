@@ -217,7 +217,7 @@ class TestSensorErrorLogging(unittest.IsolatedAsyncioTestCase):
     def _failing_sensor(error: Exception) -> PWNSensor:
         """Build a synthetic sensor whose value provider raises an exception."""
         coordinator = MagicMock()
-        coordinator.data = {"sample": "synthetic"}
+        coordinator.data = {"invoices": {"invoicesSummary": {}}, "sample": "synthetic"}
         entry = MagicMock()
         entry.entry_id = "synthetic-entry"
         entry.unique_id = "synthetic-account"
