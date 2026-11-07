@@ -190,9 +190,7 @@ class TestSubmissionValidation(unittest.TestCase):
         for relation_number in ("0", "000123", "00012345678", "12345/7", 1234567):
             with self.subTest(value=relation_number):
                 account["relationNumber"] = relation_number
-                self.assertIsNone(
-                    coordinator.current_submission_details("00012345")
-                )
+                self.assertIsNone(coordinator.current_submission_details("00012345"))
         account["relationNumber"] = "0000012345"
         self.assertIsNotNone(coordinator.current_submission_details("00012345"))
 
@@ -209,9 +207,7 @@ class TestSubmissionValidation(unittest.TestCase):
             with self.subTest(field=key):
                 original = address[key]
                 address[key] = value
-                self.assertIsNone(
-                    coordinator.current_submission_details("00012345")
-                )
+                self.assertIsNone(coordinator.current_submission_details("00012345"))
                 address[key] = original
 
     def test_wheel_count_and_recorded_date_must_be_valid(self) -> None:
@@ -223,9 +219,7 @@ class TestSubmissionValidation(unittest.TestCase):
         request["amountOfWheels"] = 5
 
         draft = coordinator.draft_readings["00012345"]
-        coordinator.draft_readings["00012345"] = replace(
-            draft, reading_date=None
-        )
+        coordinator.draft_readings["00012345"] = replace(draft, reading_date=None)
         self.assertIsNone(coordinator.current_submission_details("00012345"))
 
 
