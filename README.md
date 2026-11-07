@@ -49,14 +49,19 @@ met JSON-requestbody `{"token": "<bevestigingstoken>"}`. Een succesvolle
 bevestiging retourneert HTTP `204 No Content` zonder responsebody.
 
 De `identifier` bestaat uit **precies 10 ASCII-cijfers**: drie vaste nullen
-gevolgd door het **7-cijferige** `relationNumber` uit de accountgegevens.
-`PWNAPI.build_private_confirmation_url(relation_number)` controleert de lengte
-en behoudt alle voorloopnullen. Er wordt geen bestaand token hergebruikt zonder
-bevestiging van zijn herkomst.
+gevolgd door een **7-cijferige** relationele identifier zoals vastgesteld
+bij de bevestigingsaanvraag. `PWNAPI.build_private_confirmation_url()` bewaart
+deze prefix en controleert de lengte. De bij de nieuwe meterstandvalidatie
+teruggegeven `relationNumber` bestaat in het voorbeeld echter uit tien cijfers.
+De precieze relatie tussen beide nummers is **niet bevestigd**; de integratie
+mag ze niet automatisch gelijkstellen.
 
-**De integratie voert deze POST-aanvraag niet uit.** De herkomst van het
-bevestigingstoken is nog onbekend. Het invoeren en verzenden van een
-watermeterstand is een aparte, nog niet bevestigde API-stap.
+`additionalDataToken` uit de meterstandvalidatie is de vermoedelijke bron van
+het `token` in deze bevestigingsaanvraag, maar dit is nog niet met een
+letterlijke vergelijking van de twee browseraanvragen bevestigd.
+
+**De integratie voert de bevestigings-POST niet uit.** Het invoeren en
+verzenden van een watermeterstand is een aparte, nog niet bevestigde API-stap.
 
 ## Watermeterdetails (voorbereid)
 
@@ -80,3 +85,24 @@ is nog niet vastgesteld.
 **Deze POST wordt niet automatisch uitgevoerd** bij het instellen of
 verversen van de integratie. De gegevens worden nog niet als entiteiten
 aangeboden of gebruikt om een meterstand in te dienen.
+
+## Meterstandverzoek valideren (voorbereid)
+
+Voordat de website persoonsgegevens bevestigt, gebruikt zij
+`POST /api/WaterUsage/validate-measurement-request/{reading_number}`.
+Hierbij is `reading_number` de identificatie van het meterstandverzoek, niet
+het relatienummer. De JSON-requestbody bevat alleen `houseNumber`,
+`houseNumberAddition` (mag leeg zijn) en `postalCode`.
+
+De server retourneert een JSON-object met `relationNumber`, `clientType`,
+`additionalDataToken`, `readingReason`, `periodStartDate` (kan `null`
+zijn), `periodEndDate` en `houseNumberAddition`. De numerieke codes
+`clientType` en `readingReason` worden niet geïnterpreteerd zonder
+specificatie.
+
+`PWNAPI.validate_measurement_request(reading_number, address)` voert deze
+API-aanvraag uitsluitend uit wanneer de methode expliciet wordt aangeroepen.
+Zij controleert het responseformaat en geeft het `additionalDataToken`
+uitsluitend terug aan de aanroeper: het wordt niet gelogd, in entiteiten
+gepubliceerd of blijvend opgeslagen. De exacte koppeling met het token voor
+`SupplementInformation/private` is nog te verifiëren.
