@@ -1,19 +1,15 @@
 """Regression coverage for PWN meter submission review corrections."""
 
 from dataclasses import replace
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.exceptions import HomeAssistantError
 
-from .button import PWNPrepareMeterReadingButton, PWNSubmitMeterReadingButton
+from .button import PWNPrepareMeterReadingButton
 from .const import DATA_READING_REQUESTS
-from .coordinator import (
-    PWNDataUpdateCoordinator,
-    PWNReadingDraft,
-    PWNSubmissionDetails,
-)
+from .coordinator import PWNDataUpdateCoordinator, PWNReadingDraft
 from .date import PWNReadingDate
 from .test_submit_workflow import _coordinator
 
