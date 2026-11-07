@@ -8,7 +8,8 @@
       "reauth_account_mismatch": "The selected Mijn PWN account cannot be reauthenticated because its saved identity is inconsistent."
     },
     "error": {
-      "invalid_auth": "Invalid login credentials. Check your details and try again."
+      "invalid_auth": "Invalid login credentials. Check your details and try again.",
+      "cannot_connect": "Cannot connect to Mijn PWN right now. Check the connection and try again."
     },
     "step": {
       "login": {
