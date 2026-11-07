@@ -106,7 +106,11 @@ class TestNamingTranslations(unittest.TestCase):
         binary_keys = {description.key for description in SENSOR_TYPES}
         binary_keys.update({"reading_request_open", "reading_requests_open"})
         english = json.loads((_COMPONENT_DIR / "strings.json").read_text("utf-8"))
-        for locale in ("en", "nl", "es"):
+        self.assertEqual(
+            {path.name for path in (_COMPONENT_DIR / "translations").glob("*.json")},
+            {"en.json", "nl.json"},
+        )
+        for locale in ("en", "nl"):
             with self.subTest(locale=locale):
                 catalog = json.loads(
                     (_COMPONENT_DIR / "translations" / f"{locale}.json").read_text(
