@@ -24,7 +24,7 @@ class TestReadingRequest(unittest.IsolatedAsyncioTestCase):
         """Return a fictional request matching the observed API structure."""
         return {
             "openReading": True,
-            "readingNumber": "00000000001",
+            "readingNumber": "99999999991",
             "readingStartDate": "2026-10-25T00:00:00.0000000Z",
             "readingDate": "2026-11-21T00:00:00.0000000Z",
             "readingReason": 1,
@@ -58,7 +58,7 @@ class TestReadingRequest(unittest.IsolatedAsyncioTestCase):
             result = await api.get_reading_request()
 
         self.assertEqual(result, response_data)
-        self.assertEqual(result[0]["readingNumber"], "00000000001")
+        self.assertEqual(result[0]["readingNumber"], "99999999991")
         request_mock.assert_awaited_once_with(
             "GET", DATA_ENDPOINTS["reading_request"], expect_list=True
         )
@@ -102,17 +102,18 @@ class TestReadingRequest(unittest.IsolatedAsyncioTestCase):
             {"openReading": "true"},
             {"openReading": True, "readingNumber": None, "amountOfWheels": 5},
             {"openReading": True, "readingNumber": "1" * 10, "amountOfWheels": 5},
+            {"openReading": True, "readingNumber": "0" + "1" * 10, "amountOfWheels": 5},
             {"openReading": True, "readingNumber": "1" * 12, "amountOfWheels": 5},
             {"openReading": True, "readingNumber": "abcdefghijk", "amountOfWheels": 5},
-            {"openReading": True, "readingNumber": "00000000001"},
+            {"openReading": True, "readingNumber": "99999999991"},
             {
                 "openReading": True,
-                "readingNumber": "00000000001",
+                "readingNumber": "99999999991",
                 "amountOfWheels": True,
             },
             {
                 "openReading": True,
-                "readingNumber": "00000000001",
+                "readingNumber": "99999999991",
                 "amountOfWheels": 0,
             },
         ):
