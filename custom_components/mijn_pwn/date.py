@@ -69,6 +69,7 @@ class PWNReadingDate(CoordinatorEntity, DateEntity):
             draft, reading_date=value
         )
         self._attr_native_value = value
+        await self.coordinator.async_save_drafts()
         self.coordinator.async_update_listeners()
 
     @callback
