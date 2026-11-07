@@ -51,14 +51,11 @@ def get_last_reported_meter_reading(payload: object) -> int | float | None:
     if reading is None:
         return None
     value = reading[1].get("meterReading")
-    if (
-        isinstance(value, bool)
-        or not isinstance(value, (int, float))
-        or not isfinite(value)
-        or value < 0
-    ):
-        return None
-    return value
+    if type(value) is int:
+        return value if value >= 0 else None
+    if type(value) is float:
+        return value if isfinite(value) and value >= 0 else None
+    return None
 
 
 def get_last_meter_reading_date(payload: object) -> date | None:
