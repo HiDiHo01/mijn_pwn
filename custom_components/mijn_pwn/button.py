@@ -7,11 +7,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, UpdateFailed
 
-from .api import (
-    PWNAPIError,
-    PWNReadingNotPlausibleError,
-    PWNReadingRequestClosedError,
-)
+from .api import PWNAPIError, PWNReadingNotPlausibleError, PWNReadingRequestClosedError
 from .const import DOMAIN
 from .coordinator import PWNDataUpdateCoordinator, PWNSubmissionDetails
 from .reading_request import _reading_device_info, _register_meter_entities

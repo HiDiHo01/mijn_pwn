@@ -282,9 +282,7 @@ class PWNAPI:
                 async with self._session.post(
                     self._url(AUTH_ENDPOINT), json=payload
                 ) as resp:
-                    await self._raise_for_status(
-                        resp, is_measurement_validation=is_measurement_validation
-                    )
+                    await self._raise_for_status(resp)
 
                     data: dict[str, object] = await resp.json()
                     access_token = data.get("accessToken")
@@ -417,7 +415,9 @@ class PWNAPI:
                                 await retry_resp.json(), expect_list=expect_list
                             )
 
-                    await self._raise_for_status(resp)
+                    await self._raise_for_status(
+                        resp, is_measurement_validation=is_measurement_validation
+                    )
                     self._check_expected_status(resp.status, expected_status)
                     return self._parse_json_response(
                         await resp.json(), expect_list=expect_list
