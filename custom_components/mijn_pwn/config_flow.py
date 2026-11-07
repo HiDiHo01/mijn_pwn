@@ -75,7 +75,9 @@ class PWNConfigFlow(config_entries.ConfigFlow):
 
             try:
                 if await self._validate_user_input(user_input):
-                    return self.async_create_entry(title=COMPONENT_TITLE, data=user_input)
+                    return self.async_create_entry(
+                        title=COMPONENT_TITLE, data=user_input
+                    )
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             else:
@@ -202,5 +204,5 @@ class PWNConfigFlow(config_entries.ConfigFlow):
             if error.status in (401, 403):
                 return False
             raise CannotConnect("Mijn PWN authentication service unavailable") from None
-        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, TypeError):
+        except aiohttp.ClientError, asyncio.TimeoutError, ValueError, TypeError:
             raise CannotConnect("Mijn PWN authentication service unavailable") from None
