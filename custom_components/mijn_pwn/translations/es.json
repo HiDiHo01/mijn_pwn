@@ -170,6 +170,11 @@
       "meter_reading_draft": {
         "name": "Lectura del contador (borrador, sin enviar) ({meter_number})"
       }
+    },
+    "button": {
+      "submit_meter_reading": {
+        "name": "Enviar lectura del contador ({meter_number})"
+      }
     }
   }
 }
