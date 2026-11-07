@@ -23,11 +23,14 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     API_URL,
     ATTRIBUTION,
+    DATA_CONSUMPTION,
     DATA_INVOICES,
     DATA_USER,
     ICON,
     MANUFACTURER,
+    SERVICE_NAME_CONSUMPTION,
     SERVICE_NAME_INVOICES,
+    SERVICE_NAME_USER,
     VERSION,
 )
 from .coordinator import PWNDataUpdateCoordinator
@@ -186,6 +189,28 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         # self._attr_native_value = None
         super().__init__(coordinator)
 
+    def _source_available(self) -> bool:
+        """Check the source used by this entity, not unrelated API datasets."""
+        data = self.coordinator.data
+        if not isinstance(data, dict):
+            return False
+
+        available_fn = self.entity_description.available_fn
+        if available_fn is not None:
+            return available_fn(data)
+
+        if self.entity_description.key in ("last_update", "last_update2"):
+            return bool(data.get("last_update"))
+
+        source_key = {
+            SERVICE_NAME_INVOICES: DATA_INVOICES,
+            SERVICE_NAME_USER: DATA_USER,
+            SERVICE_NAME_CONSUMPTION: DATA_CONSUMPTION,
+        }.get(self.entity_description.service_name)
+        return source_key is not None and isinstance(data.get(source_key), dict) and bool(
+            data[source_key]
+        )
+
     async def async_added_to_hass(self) -> None:
         """Handle when the sensor is added to Home Assistant."""
         if self.coordinator is None:
@@ -215,11 +240,9 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
     async def async_update_state(self) -> None:
         """Update the state of the sensor asynchronously."""
         try:
-            if not self.coordinator.data:
-                _LOGGER.error(
-                    "Coordinator data is missing for sensor: %s",
-                    self.entity_description.key,
-                )
+            if not self._source_available():
+                self._attr_native_value = None
+                self.async_write_ha_state()
                 return
 
             # Check if value_fn is callable
@@ -307,10 +330,9 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
         # _LOGGER.debug('Updating state for %s', self.entity_description.key)
         try:
             # Ensure that coordinator data is not None
-            if self.coordinator.data is None:
-                _LOGGER.error(
-                    "Coordinator data is None for %s", self.entity_description.key
-                )
+            if not self._source_available():
+                self._attr_native_value = None
+                self.async_write_ha_state()
                 return
 
             # Use value_fn for the sensor's main state, ensuring coordinator data is valid
@@ -879,8 +901,10 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
     def extra_state_attributes(self) -> Mapping[str, StateType | list[StateType]]:
         """Return extra state attributes."""
         # start with attributes from the entity description
-        attributes: dict[str, StateType | list[StateType]] = dict(
-            self.entity_description.attr_fn(self.coordinator.data)
+        attributes: dict[str, StateType | list[StateType]] = (
+            dict(self.entity_description.attr_fn(self.coordinator.data))
+            if self._source_available()
+            else {}
         )
 
         # add fixed attributes
@@ -910,15 +934,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
     @property
     def available(self) -> bool:
         """Return availability for the coordinator and supported account data."""
-        if not super().available or self.native_value is None:
-            return False
-
-        available_fn = self.entity_description.available_fn
-        if available_fn is None:
-            return True
-
-        data = self.coordinator.data
-        return available_fn(data if isinstance(data, dict) else {})
+        return super().available and self._source_available() and self.native_value is not None
 
     @property
     def native_value(self) -> Optional[object]:
@@ -931,8 +947,7 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
             _LOGGER.error("Coordinator is None.")
             return None
 
-        if self.coordinator.data is None:
-            # _LOGGER.error("Coordinator data is None.")
+        if not self._source_available():
             return None
 
         if not callable(self.entity_description.value_fn):
@@ -945,8 +960,12 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
             #                _LOGGER.warning("Sensor %s state is None.",
             #                                self.entity_description.key)
             return value
-        except Exception as e:
-            _LOGGER.error("Failed to retrieve sensor state: %s", str(e))
+        except Exception as error:
+            _LOGGER.error(
+                "Failed to retrieve sensor %s (exception type: %s)",
+                self.entity_description.key,
+                type(error).__name__,
+            )
             return None
 
     async def old_async_added_to_hass(self) -> None:
