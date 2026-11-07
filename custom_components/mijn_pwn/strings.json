@@ -3,7 +3,8 @@
   "config": {
     "abort": {
       "already_configured": "Account is already configured",
-      "reauth_successful": "Reauthentication successful"
+      "reauth_successful": "Reauthentication successful",
+      "unique_id_mismatch": "This is a different Mijn PWN account. Add it separately instead of reconfiguring the selected account."
     },
     "error": {
       "invalid_auth": "Invalid login credentials. Check your details and try again."
