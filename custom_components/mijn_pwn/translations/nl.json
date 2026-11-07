@@ -159,6 +159,11 @@
       "reading_requests_open": {
         "name": "Openstaande meterstandverzoeken"
       }
+    },
+    "number": {
+      "meter_reading_draft": {
+        "name": "Watermeterstand (concept, niet verzonden) ({meter_number})"
+      }
     }
   }
 }
