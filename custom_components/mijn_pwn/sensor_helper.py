@@ -17,7 +17,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNKNOWN, EntityCategory
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
-from homeassistant.helpers.typing import StateType
+from homeassistant.helpers.typing import StateType, UNDEFINED, UndefinedType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
@@ -55,7 +55,7 @@ class PWNEntityDescription(SensorEntityDescription):
     def __init__(
         self,
         key: str,
-        name: str | None = None,
+        name: str | UndefinedType | None = UNDEFINED,
         device_class: SensorDeviceClass | None = None,
         state_class: str | None = None,
         native_unit_of_measurement: str | None = None,
@@ -864,11 +864,6 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
     def entity_category(self) -> EntityCategory:
         """Return the category of the entity."""
         return self._entity_category
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        return self.entity_description.name
 
     # @property
     # def state(self):
