@@ -34,13 +34,14 @@ _LOGGER.debug("Update interval set to %s", DEFAULT_UPDATE_INTERVAL)
 
 
 @dataclass(frozen=True, slots=True)
-class PWNLocalMeterReading:
-    """A reading recorded in Home Assistant, not submitted to PWN."""
+class PWNConfirmedMeterReading:
+    """A reading acknowledged by the final PWN submission endpoint."""
 
     value: int
     wheel_count: int
-    recorded_at: datetime
+    confirmed_at: datetime
     meter_number: str
+    reading_number: str
 
 
 class PWNDataUpdateCoordinator(DataUpdateCoordinator):
@@ -57,21 +58,51 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             config_entry=config_entry,
         )
         self.api = api
-        self.last_local_meter_reading: PWNLocalMeterReading | None = None
+        self.last_confirmed_meter_reading: PWNConfirmedMeterReading | None = None
 
-    def record_local_meter_reading(
+    def record_confirmed_meter_submission(
         self,
+        *,
+        status_code: int,
         value: int,
         wheel_count: int,
         meter_number: str,
-        recorded_at: datetime,
+        reading_number: str,
     ) -> None:
-        """Save a local input and notify entities, without contacting PWN."""
-        self.last_local_meter_reading = PWNLocalMeterReading(
+        """Record only a successful response from the final submission API.
+
+        The meter-reading submission endpoint has not yet been identified.
+        No existing caller invokes this method. Preliminary validation and
+        private-information confirmation must never invoke it.
+        """
+        if type(status_code) is not int or status_code not in (200, 204):
+            raise ValueError(
+                "Meter reading is not confirmed: expected final submission status "
+                "200 or 204"
+            )
+        if (
+            type(value) is not int
+            or type(wheel_count) is not int
+            or not 1 <= wheel_count <= 9
+            or not 0 <= value < 10**wheel_count
+        ):
+            raise ValueError("Confirmed meter reading is outside the meter range")
+        if not isinstance(meter_number, str) or not meter_number.strip():
+            raise ValueError("Confirmed meter number must be a non-empty string")
+        if (
+            not isinstance(reading_number, str)
+            or len(reading_number) != 11
+            or not reading_number.isascii()
+            or not reading_number.isdecimal()
+        ):
+            raise ValueError("Confirmed opname number must contain 11 ASCII digits")
+
+        self.last_confirmed_meter_reading = PWNConfirmedMeterReading(
             value=value,
             wheel_count=wheel_count,
-            recorded_at=recorded_at,
+            confirmed_at=datetime.now(timezone.utc),
             meter_number=meter_number,
+            reading_number=reading_number,
         )
         self.async_update_listeners()
 
