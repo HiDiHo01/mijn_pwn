@@ -119,6 +119,30 @@
       },
       "last_meter_reading_date": {
         "name": "Fecha de la última lectura real"
+      },
+      "reading_number": {
+        "name": "Número de lectura ({meter_number})"
+      },
+      "reading_start_date": {
+        "name": "Inicio de solicitud de lectura ({meter_number})"
+      },
+      "reading_date": {
+        "name": "Fecha de lectura ({meter_number})"
+      },
+      "reading_reason": {
+        "name": "Código de motivo de lectura ({meter_number})"
+      },
+      "reading_wheel_count": {
+        "name": "Número de dígitos del contador ({meter_number})"
+      },
+      "reading_meter_number": {
+        "name": "Número de contador ({meter_number})"
+      },
+      "reading_address": {
+        "name": "Dirección de suministro ({meter_number})"
+      },
+      "reading_contract_status": {
+        "name": "Código de estado del contrato ({meter_number})"
       }
     },
     "binary_sensor": {
@@ -128,6 +152,12 @@
           "on": "Facturas pendientes",
           "off": "Sin facturas pendientes"
         }
+      },
+      "reading_request_open": {
+        "name": "Solicitud de lectura abierta ({meter_number})"
+      },
+      "reading_requests_open": {
+        "name": "Solicitudes de lectura abiertas"
       }
     }
   }
