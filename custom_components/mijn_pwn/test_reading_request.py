@@ -107,8 +107,8 @@ class TestReadingRequest(unittest.IsolatedAsyncioTestCase):
                         invalid_response, expect_list=expect_list
                     )
 
-    async def test_rejects_malformed_open_reading_requests(self) -> None:
-        """Reject missing or invalid required metadata without logging it."""
+    async def test_isolates_malformed_requests_without_blocking_other_meters(self) -> None:
+        """Preserve valid meters when another request has invalid metadata."""
         api = self._build_api()
         for invalid_entry in (
             {"openReading": "true"},
@@ -131,5 +131,50 @@ class TestReadingRequest(unittest.IsolatedAsyncioTestCase):
             with self.subTest(invalid_entry=invalid_entry):
                 with patch.object(api, "_request", new_callable=AsyncMock) as mock:
                     mock.return_value = [invalid_entry]
-                    with self.assertRaises(PWNAPIError):
-                        await api.get_reading_request()
+                    valid = self._reading_request()
+                    result = await api.get_reading_request()
+                    self.assertEqual(result, [invalid_entry])
+                    mock.return_value = [invalid_entry, valid]
+                    self.assertEqual(
+                        await api.get_reading_request(),
+                        [invalid_entry, valid],
+                    )
+
+    async def test_redacts_upstream_meter_request_error(self) -> None:
+        """Remove private upstream response content from public error messages."""
+        from homeassistant.helpers.update_coordinator import UpdateFailed
+
+        api = self._build_api()
+        with patch.object(
+            api,
+            "_request",
+            new_callable=AsyncMock,
+            side_effect=UpdateFailed("private-request-content"),
+        ):
+            with self.assertRaisesRegex(
+                UpdateFailed, "Unable to retrieve meter-reading requests"
+            ) as error:
+                await api.get_reading_request()
+        self.assertNotIn("private-request-content", str(error.exception))
+
+    async def test_notification_arrays_remain_available_to_count_parser(self) -> None:
+        """Allow empty arrays and objects; reject unsupported JSON shapes."""
+        api = self._build_api()
+        with patch.object(api, "_request", new_callable=AsyncMock) as request:
+            for response in ([], [{"id": "synthetic"}], {"unverified": True}):
+                request.return_value = response
+                self.assertEqual(await api.get_notifications(), response)
+            request.assert_awaited_with(
+                "GET", DATA_ENDPOINTS["notifications"], expect_list=None
+            )
+
+        self.assertEqual(
+            PWNAPI._parse_json_response([], expect_list=None), []
+        )
+        self.assertEqual(
+            PWNAPI._parse_json_response([{}], expect_list=None), [{}]
+        )
+        for response in (None, "invalid", [True], [1]):
+            with self.subTest(response=response):
+                with self.assertRaises(PWNAPIError):
+                    PWNAPI._parse_json_response(response, expect_list=None)
