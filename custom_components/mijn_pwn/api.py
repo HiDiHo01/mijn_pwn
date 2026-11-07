@@ -31,6 +31,14 @@ class PWNAPIAuthenticationError(PWNAPIError):
     """Authentication error."""
 
 
+class PWNWaterMeterDetails(TypedDict):
+    """Meter dial configuration from the Mijn PWN WaterUsage API."""
+
+    meterType: str
+    amountOfBlackWheels: int
+    amountOfRedWheels: int
+
+
 class PWNMoveHouseAddress(TypedDict):
     """Address fields returned by the Mijn PWN MoveHouse validation API."""
 
@@ -334,6 +342,31 @@ class PWNAPI:
 
         return (
             f"{DATA_ENDPOINTS['supplement_information_private']}/000{relation_number}"
+        )
+
+    @staticmethod
+    def parse_water_meter_details(payload: object) -> PWNWaterMeterDetails:
+        """Validate the WaterUsage meter-details response without network access.
+
+        Empty meter types and zero red wheels are valid response values.
+        """
+        if not isinstance(payload, dict):
+            raise PWNAPIError("Invalid water meter details: expected an object")
+
+        meter_type = payload.get("meterType")
+        black_wheels = payload.get("amountOfBlackWheels")
+        red_wheels = payload.get("amountOfRedWheels")
+        if not isinstance(meter_type, str):
+            raise PWNAPIError("Invalid water meter details: meter type")
+        if type(black_wheels) is not int or black_wheels < 0:
+            raise PWNAPIError("Invalid water meter details: black wheel count")
+        if type(red_wheels) is not int or red_wheels < 0:
+            raise PWNAPIError("Invalid water meter details: red wheel count")
+
+        return PWNWaterMeterDetails(
+            meterType=meter_type,
+            amountOfBlackWheels=black_wheels,
+            amountOfRedWheels=red_wheels,
         )
 
     @staticmethod
