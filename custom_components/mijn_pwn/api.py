@@ -381,6 +381,9 @@ class PWNAPI:
         is_measurement_validation = method == "POST" and endpoint.startswith(
             f"{DATA_ENDPOINTS['water_usage_validate_measurement_request']}/"
         )
+        is_final_submission = method == "POST" and endpoint.startswith(
+            f"{DATA_ENDPOINTS['water_usage_submit_reading']}/"
+        )
 
         try:
             async with asyncio.timeout(API_TIMEOUT):
@@ -391,6 +394,9 @@ class PWNAPI:
                     **kwargs,
                 ) as resp:
                     if resp.status in (401, 403):
+                        if is_final_submission:
+                            # Never replay a non-idempotent final POST, even after 401.
+                            await self._raise_for_status(resp)
                         _LOGGER.debug("Token expired, refreshing")
                         async with self._auth_lock:
                             # await self._login()
