@@ -33,6 +33,11 @@ Use these additional rules when working on a Home Assistant custom integration. 
 - Avoid `Any` in internal helpers when a more precise type or `object` is suitable; use Home Assistant's required public types where necessary.
 - Preserve the Home Assistant platform contract: `async_setup_entry(hass, entry, async_add_entities)` must remain an `async def` coroutine even if its body only registers entities. `AddEntitiesCallback`/`async_add_entities` is a synchronous scheduling callback, not an awaitable; never remove `async`, `await` the callback, or insert artificial `asyncio.sleep(0)` to silence a linter. Verify the contract against the supported Home Assistant version.
 
+## Latest Home Assistant Core compatibility
+- At the start of every code change, confirm the newest **stable** Home Assistant Core patch release from official sources. Use that release for API choices and CI regression tests, not an older pinned version or a beta.
+- Pin the CI container to the verified stable version and independently validated immutable image digest; upgrade the pin when the stable release advances.
+- Keep the integration's minimum supported Home Assistant version separate from the CI validation target. Increase the minimum only when required by APIs or functionality and document the compatibility impact.
+
 ## Testing and quality
 - Test config-entry setup and unload, coordinator success and failure, entity availability, and registry behavior where relevant.
 - Cover missing optional features and account/contract changes.
