@@ -21,6 +21,7 @@ from .const import COMPONENT_TITLE, DOMAIN, NETWORK_CONFIG
 _LOGGER = logging.getLogger(__name__)
 AUTH_URL = f"{NETWORK_CONFIG['API_URL']}/api/auth/login"
 TIMEOUT = NETWORK_CONFIG["API_TIMEOUT"]
+AUTH_SERVICE_UNAVAILABLE = "Mijn PWN authentication service unavailable"
 
 
 class CannotConnect(HomeAssistantError):
@@ -192,7 +193,7 @@ class PWNConfigFlow(config_entries.ConfigFlow):
                 if response.status in (401, 403):
                     return False
                 if response.status != 200:
-                    raise CannotConnect("Mijn PWN authentication service unavailable")
+                    raise CannotConnect(AUTH_SERVICE_UNAVAILABLE)
 
                 data = await response.json()
                 if not isinstance(data, dict):
@@ -203,6 +204,6 @@ class PWNConfigFlow(config_entries.ConfigFlow):
         except aiohttp.ClientResponseError as error:
             if error.status in (401, 403):
                 return False
-            raise CannotConnect("Mijn PWN authentication service unavailable") from None
+            raise CannotConnect(AUTH_SERVICE_UNAVAILABLE) from None
         except aiohttp.ClientError, asyncio.TimeoutError, ValueError, TypeError:
-            raise CannotConnect("Mijn PWN authentication service unavailable") from None
+            raise CannotConnect(AUTH_SERVICE_UNAVAILABLE) from None
