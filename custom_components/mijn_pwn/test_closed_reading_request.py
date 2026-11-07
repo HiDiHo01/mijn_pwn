@@ -53,8 +53,9 @@ class TestClosedRequestAPI(unittest.IsolatedAsyncioTestCase):
     async def test_sap_01_is_a_closed_request_without_exposing_html(self) -> None:
         """Recognize the exact validation endpoint's specific 400 response."""
         response = self._response("sap-01")
+        client = self._api()
         with self.assertRaises(PWNReadingRequestClosedError) as failure:
-            await self._api()._raise_for_status(
+            await client._raise_for_status(
                 response, is_measurement_validation=True
             )
         self.assertNotIn("fictional-private", str(failure.exception))
@@ -65,8 +66,9 @@ class TestClosedRequestAPI(unittest.IsolatedAsyncioTestCase):
         for code in ("sap-02", None, "", "SAP-01"):
             with self.subTest(code=code):
                 response = self._response(code)
+                client = self._api()
                 with self.assertRaises(UpdateFailed) as failure:
-                    await self._api()._raise_for_status(
+                    await client._raise_for_status(
                         response, is_measurement_validation=True
                     )
                 self.assertNotIn("fictional-private", str(failure.exception))
@@ -74,15 +76,17 @@ class TestClosedRequestAPI(unittest.IsolatedAsyncioTestCase):
     async def test_sap_01_is_ignored_outside_measurement_validation(self) -> None:
         """Avoid interpreting the same code from unrelated API endpoints."""
         response = self._response("sap-01")
+        client = self._api()
         with self.assertRaises(UpdateFailed):
-            await self._api()._raise_for_status(response)
+            await client._raise_for_status(response)
         response.json.assert_not_awaited()
 
     async def test_http_500_does_not_close_request(self) -> None:
         """Server failures must not disable meter submission entities."""
         response = self._response("sap-01", status=500)
+        client = self._api()
         with self.assertRaises(UpdateFailed):
-            await self._api()._raise_for_status(
+            await client._raise_for_status(
                 response, is_measurement_validation=True
             )
         response.json.assert_not_awaited()
