@@ -167,6 +167,128 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         self.last_confirmed_meter_reading = reading
         self.async_update_listeners()
 
+    def was_reading_submitted(self, meter_number: str, reading_number: str) -> bool:
+        """Return whether this exact request was previously accepted by PWN."""
+        return reading_number in self.confirmed_readings.get(meter_number, {})
+
+    def _confirmed_storage_payload(self) -> dict[str, object]:
+        """Serialize all acknowledged requests for durable local storage."""
+        return {
+            "readings": [
+                {
+                    "meter_number": reading.meter_number,
+                    "reading_number": reading.reading_number,
+                    "value": reading.value,
+                    "wheel_count": reading.wheel_count,
+                    "confirmed_at": reading.confirmed_at.isoformat(),
+                }
+                for requests in self.confirmed_readings.values()
+                for reading in requests.values()
+            ]
+        }
+
+    async def async_load_confirmed_readings(self) -> None:
+        """Restore per-meter acknowledgements before platforms are forwarded."""
+        saved = await self._confirmed_store.async_load()
+        if not isinstance(saved, dict):
+            return
+        records = saved.get("readings")
+        if not isinstance(records, list):
+            return
+
+        restored: dict[str, dict[str, PWNConfirmedMeterReading]] = {}
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            meter_number = record.get("meter_number")
+            reading_number = record.get("reading_number")
+            value = record.get("value")
+            wheel_count = record.get("wheel_count")
+            timestamp = record.get("confirmed_at")
+            if (
+                not isinstance(meter_number, str)
+                or not meter_number.strip()
+                or not isinstance(reading_number, str)
+                or len(reading_number) != 11
+                or not reading_number.isascii()
+                or not reading_number.isdecimal()
+                or type(value) is not int
+                or type(wheel_count) is not int
+                or not 1 <= wheel_count <= 9
+                or not 0 <= value < 10**wheel_count
+                or not isinstance(timestamp, str)
+            ):
+                continue
+            try:
+                confirmed_at = datetime.fromisoformat(timestamp)
+            except ValueError:
+                continue
+            if confirmed_at.tzinfo is None or confirmed_at.utcoffset() is None:
+                continue
+            reading = PWNConfirmedMeterReading(
+                value=value,
+                wheel_count=wheel_count,
+                confirmed_at=confirmed_at,
+                meter_number=meter_number,
+                reading_number=reading_number,
+            )
+            restored.setdefault(meter_number, {})[reading_number] = reading
+
+        self.confirmed_readings = restored
+        all_readings = [
+            reading for requests in restored.values() for reading in requests.values()
+        ]
+        self.last_confirmed_meter_reading = (
+            max(all_readings, key=lambda reading: reading.confirmed_at)
+            if all_readings
+            else None
+        )
+
+    def _schedule_confirmation_expiry(
+        self, meter_number: str, expires_at: datetime
+    ) -> None:
+        """Update the confirm button when its approval window expires."""
+        def _expire(_now: datetime) -> None:
+            """Revoke a pending confirmation and refresh its button state."""
+            self._confirmation_cancels.pop(meter_number, None)
+            self.invalidate_prepared_submission(meter_number)
+
+        self._confirmation_cancels[meter_number] = async_track_point_in_utc_time(
+            self.hass, _expire, expires_at
+        )
+
+    def async_clear_pending_confirmations(self) -> None:
+        """Cancel pending expiry callbacks during config-entry unload."""
+        for meter_number in list(self._prepared_submissions):
+            self.invalidate_prepared_submission(meter_number)
+        for cancel in self._confirmation_cancels.values():
+            cancel()
+        self._confirmation_cancels.clear()
+
+    @staticmethod
+    def _reading_date_in_window(reading_date: date, request: dict[str, object]) -> bool:
+        """Validate an actual read date against PWN's requested date interval."""
+        if type(reading_date) is not date or reading_date > dt_util.now().date():
+            return False
+        for key, is_start in (("readingStartDate", True), ("readingDate", False)):
+            value = request.get(key)
+            if value is None:
+                continue
+            if not isinstance(value, str):
+                return False
+            try:
+                limit = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                return False
+            if limit.tzinfo is None or limit.utcoffset() is None:
+                return False
+            limit_date = dt_util.as_local(limit).date()
+            if is_start and reading_date < limit_date:
+                return False
+            if not is_start and reading_date > limit_date:
+                return False
+        return True
+
     def current_submission_details(
         self, meter_number: str
     ) -> PWNSubmissionDetails | None:
@@ -229,6 +351,8 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             return None
         if draft.entered_at.tzinfo is None or draft.entered_at.utcoffset() is None:
             return None
+        if not self._reading_date_in_window(draft.reading_date, request):
+            return None
 
         return PWNSubmissionDetails(
             meter_number=meter_number,
@@ -256,6 +380,9 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
 
     def invalidate_prepared_submission(self, meter_number: str) -> None:
         """Revoke a pending confirmation when the user changes their draft."""
+        cancel = self._confirmation_cancels.pop(meter_number, None)
+        if cancel is not None:
+            cancel()
         if self._prepared_submissions.pop(meter_number, None) is not None:
             self.async_update_listeners()
 
@@ -283,10 +410,11 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
                 raise ValueError("PWN did not approve this meter reading")
             if self.current_submission_details(details.meter_number) != details:
                 raise ValueError("Meter reading changed during plausibility check")
+            expires_at = datetime.now(timezone.utc) + CONFIRMATION_WINDOW
             self._prepared_submissions[details.meter_number] = PWNPreparedSubmission(
-                details=details,
-                expires_at=datetime.now(timezone.utc) + CONFIRMATION_WINDOW,
+                details=details, expires_at=expires_at
             )
+            self._schedule_confirmation_expiry(details.meter_number, expires_at)
             self.async_update_listeners()
 
     async def async_confirm_meter_reading(self, details: PWNSubmissionDetails) -> None:
@@ -316,6 +444,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
                 meter_number=details.meter_number,
                 reading_number=details.reading_number,
             )
+            await self._confirmed_store.async_save(self._confirmed_storage_payload())
 
     async def _async_update_data(self) -> dict[str, object]:
         """Fetch fresh data from Mijn PWN.
