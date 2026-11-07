@@ -719,9 +719,9 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
             # Transient failures → mark entities unavailable
             raise UpdateFailed(err) from err
 
-        except PWNAPIAuthenticationError as err:
-            # Explicit auth failure during runtime
-            raise ConfigEntryAuthFailed(err) from err
+        except PWNAPIAuthenticationError:
+            # Never expose upstream authentication details to Home Assistant.
+            raise ConfigEntryAuthFailed("PWN authentication expired") from None
 
         except UpdateFailed:
             # Already correct; do not rewrap
@@ -781,8 +781,13 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
 
         data: dict[str, object] = {}
         for key, result in zip(tasks.keys(), results):
+            if isinstance(result, (ConfigEntryAuthFailed, PWNAPIAuthenticationError)):
+                # gather(return_exceptions=True) must not hide expired credentials.
+                raise ConfigEntryAuthFailed("PWN authentication expired") from None
+            if isinstance(result, asyncio.CancelledError):
+                raise result
             if isinstance(result, Exception):
-                _LOGGER.warning("Failed to fetch %s: %s", key, result)
+                _LOGGER.warning("Failed to fetch %s", key)
                 data[key] = None
             else:
                 data[key] = result
@@ -815,8 +820,10 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
                     contact_preferences = await self.api.get_contact_preferences(
                         customer_id
                     )
-                except Exception as e:
-                    _LOGGER.warning("Failed to fetch contact preferences: %s", e)
+                except (ConfigEntryAuthFailed, PWNAPIAuthenticationError):
+                    raise
+                except Exception:
+                    _LOGGER.warning("Failed to fetch contact preferences")
 
         data["contact_preferences"] = contact_preferences
         _LOGGER.debug("Received API data: %s", list(data.keys()))
