@@ -59,6 +59,42 @@ def _valid_restored_value(value: object, is_date: bool) -> int | datetime | None
     return None
 
 
+def _restored_confirmation_ids(
+    attributes: dict[str, object],
+) -> tuple[str, str, str] | None:
+    """Validate persisted identifiers and the formatted water meter reading."""
+    reading_number = attributes.get("reading_number")
+    meter_number = attributes.get("meter_number")
+    formatted_reading = attributes.get("formatted_reading")
+    if (
+        not isinstance(reading_number, str)
+        or len(reading_number) != 11
+        or not reading_number.isascii()
+        or not reading_number.isdecimal()
+        or not isinstance(meter_number, str)
+        or not 0 < len(meter_number) <= 64
+        or not isinstance(formatted_reading, str)
+        or not 1 <= len(formatted_reading) <= 9
+        or not formatted_reading.isascii()
+        or not formatted_reading.isdecimal()
+    ):
+        return None
+    return reading_number, meter_number, formatted_reading
+
+
+def _restored_confirmation_timestamp(value: object) -> datetime | None:
+    """Parse a timezone-aware acknowledgement timestamp from saved state."""
+    if not isinstance(value, str):
+        return None
+    try:
+        timestamp = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+        return None
+    return timestamp
+
+
 class PWNConfirmedReadingSensor(CoordinatorEntity, RestoreSensor):
     """Keep the most recently acknowledged PWN submission across restarts."""
 
@@ -120,10 +156,11 @@ class PWNConfirmedReadingSensor(CoordinatorEntity, RestoreSensor):
         }
 
     async def async_added_to_hass(self) -> None:
-        """Restore only a state previously tagged as a confirmed submission."""
+        """Restore only previously acknowledged PWN meter reading states."""
         await super().async_added_to_hass()
         if self.coordinator.last_confirmed_meter_reading is not None:
             return
+
         previous_state = await self.async_get_last_state()
         restored = await self.async_get_last_sensor_data()
         if (
@@ -136,45 +173,18 @@ class PWNConfirmedReadingSensor(CoordinatorEntity, RestoreSensor):
 
         is_date = self.entity_description.key == "last_submitted_meter_reading_date"
         restored_value = _valid_restored_value(restored.native_value, is_date)
-        if restored_value is None:
+        ids = _restored_confirmation_ids(previous_state.attributes)
+        if restored_value is None or ids is None:
             return
 
-        reading_number = previous_state.attributes.get("reading_number")
-        meter_number = previous_state.attributes.get("meter_number")
-        formatted_reading = previous_state.attributes.get("formatted_reading")
-        if (
-            not isinstance(reading_number, str)
-            or len(reading_number) != 11
-            or not reading_number.isascii()
-            or not reading_number.isdecimal()
-            or not isinstance(meter_number, str)
-            or not 0 < len(meter_number) <= 64
-            or not isinstance(formatted_reading, str)
-            or not 1 <= len(formatted_reading) <= 9
-            or not formatted_reading.isascii()
-            or not formatted_reading.isdecimal()
-        ):
-            return
-
-        if not is_date and int(formatted_reading) != restored_value:
-            return
-
-        self._restored_value = restored_value
-        self._restored_attributes = {
-            "reading_number": reading_number,
-            "meter_number": meter_number,
-            "formatted_reading": formatted_reading,
-        }
-
+        reading_number, meter_number, formatted_reading = ids
         if not is_date:
-            confirmation_date = previous_state.attributes.get("confirmed_at")
-            if not isinstance(confirmation_date, str):
+            if int(formatted_reading) != restored_value:
                 return
-            try:
-                confirmed_at = datetime.fromisoformat(confirmation_date)
-            except ValueError:
-                return
-            if confirmed_at.tzinfo is None or confirmed_at.utcoffset() is None:
+            confirmed_at = _restored_confirmation_timestamp(
+                previous_state.attributes.get("confirmed_at")
+            )
+            if confirmed_at is None:
                 return
             reading = PWNConfirmedMeterReading(
                 value=restored_value,
@@ -188,6 +198,13 @@ class PWNConfirmedReadingSensor(CoordinatorEntity, RestoreSensor):
             ] = reading
             self.coordinator.last_confirmed_meter_reading = reading
             self.coordinator.async_update_listeners()
+
+        self._restored_value = restored_value
+        self._restored_attributes = {
+            "reading_number": reading_number,
+            "meter_number": meter_number,
+            "formatted_reading": formatted_reading,
+        }
 
 
 def setup_confirmed_reading_sensors(
