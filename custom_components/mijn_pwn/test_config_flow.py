@@ -22,7 +22,7 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
         entry.unique_id = username
         entry.data = {
             "username": username,
-            "password": "original-synthetic-password",
+            "password": token_urlsafe(16),
             "saved_setting": f"preserved-{entry_id}",
         }
         entry.update_listeners = []
@@ -80,9 +80,10 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
 
     async def test_only_selected_second_account_is_updated_and_reloaded(self) -> None:
         """Use the context entry, merge data, and abort without creating a new entry."""
+        replacement_password = token_urlsafe(16)
         input_data = {
             "username": self._second.unique_id,
-            "password": "new-synthetic-password",
+            "password": replacement_password,
         }
 
         result = await self._flow.async_step_reconfigure(input_data)
@@ -92,7 +93,7 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self._first.data, self._first_original)
         self.assertEqual(
             self._second.data,
-            {**self._second_original, "password": "new-synthetic-password"},
+            {**self._second_original, "password": replacement_password},
         )
         self.assertEqual(self._second.unique_id, self._second_original["username"])
         self.assertEqual(len(self._entries), 2)
@@ -105,14 +106,15 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
     async def test_first_account_can_also_be_selected(self) -> None:
         """Reconfiguration must not be hard-coded to any entry list position."""
         self._flow.context["entry_id"] = self._first.entry_id
+        replacement_password = token_urlsafe(16)
 
         result = await self._flow.async_step_reconfigure(
-            {"username": self._first.unique_id, "password": "new-first-password"}
+            {"username": self._first.unique_id, "password": replacement_password}
         )
 
         self.assertEqual(result["type"], FlowResultType.ABORT)
         self.assertEqual(self._second.data, self._second_original)
-        self.assertEqual(self._first.data["password"], "new-first-password")
+        self.assertEqual(self._first.data["password"], replacement_password)
         self._hass.config_entries.async_schedule_reload.assert_called_once_with(
             self._first.entry_id
         )
@@ -122,7 +124,7 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
         self._flow._validate_user_input.return_value = False
 
         result = await self._flow.async_step_reconfigure(
-            {"username": self._second.unique_id, "password": "invalid-synthetic"}
+            {"username": self._second.unique_id, "password": token_urlsafe(16)}
         )
 
         self.assertEqual(result["type"], FlowResultType.FORM)
@@ -136,7 +138,7 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
         """Reject a duplicate-account target before validating or writing data."""
         input_data = {
             "username": self._first.unique_id,
-            "password": "synthetic-password",
+            "password": token_urlsafe(16),
         }
 
         with self.assertRaises(AbortFlow) as result:
@@ -153,7 +155,7 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
         """An existing entry cannot silently become a different new account."""
         with self.assertRaises(AbortFlow) as result:
             await self._flow.async_step_reconfigure(
-                {"username": "third@example.invalid", "password": "synthetic"}
+                {"username": "third@example.invalid", "password": token_urlsafe(16)}
             )
 
         self.assertEqual(result.exception.reason, "unique_id_mismatch")
@@ -165,7 +167,7 @@ class TestPWNReconfigureFlow(unittest.IsolatedAsyncioTestCase):
         for user_input in (
             None,
             {},
-            {"username": "", "password": "synthetic"},
+            {"username": "", "password": token_urlsafe(16)},
             {"username": self._second.unique_id, "password": ""},
         ):
             with self.subTest(user_input=user_input):
