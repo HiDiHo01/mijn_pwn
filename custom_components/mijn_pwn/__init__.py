@@ -8,7 +8,7 @@ from aiohttp import ClientError
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -42,7 +42,7 @@ async def _create_coordinator(
 
     credentials = _get_credentials(config_entry)
     if credentials is None:
-        raise ConfigEntryNotReady("Missing credentials")
+        raise ConfigEntryAuthFailed("PWN credentials missing")
 
     username, password = credentials
 
@@ -104,14 +104,16 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
         coordinator = await _create_coordinator(hass, config_entry)
         await coordinator.async_load_confirmed_readings()
-        hass.data[DOMAIN][config_entry.entry_id] = coordinator
-
         _LOGGER.debug("Calling config_entry_first_refresh")
         await coordinator.async_config_entry_first_refresh()
         await coordinator.async_load_drafts()
         migrate_legacy_device_identifiers(
             device_registry.async_get(hass), config_entry.entry_id
         )
+        hass.data[DOMAIN][config_entry.entry_id] = coordinator
+    except (ConfigEntryAuthFailed, ConfigEntryNotReady):
+        # Propagate auth/retry outcomes to Home Assistant's config-entry manager.
+        raise
     except ClientError as e:
         _LOGGER.error("Network error setting up PWN entry: %s", e, exc_info=True)
         raise ConfigEntryNotReady from e
