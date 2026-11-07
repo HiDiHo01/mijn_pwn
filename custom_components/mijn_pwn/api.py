@@ -388,7 +388,9 @@ class PWNAPI:
                             **kwargs,
                         ) as retry_resp:
                             await self._raise_for_status(retry_resp)
-                            self._check_expected_status(retry_resp.status, expected_status)
+                            self._check_expected_status(
+                                retry_resp.status, expected_status
+                            )
                             return self._parse_json_response(
                                 await retry_resp.json(), expect_list=expect_list
                             )
@@ -595,7 +597,9 @@ class PWNAPI:
     def parse_final_reading_response(payload: object) -> PWNFinalReadingResponse:
         """Accept only an unambiguous successful PWN final submission response."""
         if not isinstance(payload, dict):
-            raise PWNAPIError("Invalid final meter reading response: expected an object")
+            raise PWNAPIError(
+                "Invalid final meter reading response: expected an object"
+            )
 
         success = payload.get("success")
         error_text = payload.get("errorText")
@@ -606,7 +610,9 @@ class PWNAPI:
                 "PWN rejected the meter reading; the previous confirmed state is unchanged"
             )
         if error_text:
-            raise PWNAPIError("Invalid final meter reading response: inconsistent fields")
+            raise PWNAPIError(
+                "Invalid final meter reading response: inconsistent fields"
+            )
 
         return PWNFinalReadingResponse(success=True, errorText="")
 
