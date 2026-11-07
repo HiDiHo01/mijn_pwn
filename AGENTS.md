@@ -151,7 +151,8 @@ Use this procedure when the user's task authorizes updating the pull-request bra
   should use its device's name). Test resolved names through the platform,
   not just `translation_key` metadata.
 - Keep `strings.json` and `translations/en.json` equivalent, and provide
-  matching keys with actual Dutch and Spanish text in `nl.json` and `es.json`.
+  matching keys with actual Dutch text in `nl.json`. Only English and Dutch
+  translations are shipped; keep locale tests aligned with supported catalogs.
 - Run `test_naming_translations.py` after changes to these names or translations.
   Changing Home Assistant's language does not automatically rename existing
   entity registry entries.
