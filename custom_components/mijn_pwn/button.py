@@ -47,8 +47,7 @@ class PWNReadingActionButton(CoordinatorEntity, ButtonEntity):
             super().available
             and details is not None
             and (
-                confirmed is None
-                or confirmed.reading_number != details.reading_number
+                confirmed is None or confirmed.reading_number != details.reading_number
             )
         )
 
