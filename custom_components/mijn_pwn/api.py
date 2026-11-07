@@ -332,7 +332,9 @@ class PWNAPI:
                 "Invalid relation number: expected exactly seven ASCII digits"
             )
 
-        return f"{DATA_ENDPOINTS['supplement_information_private']}/000{relation_number}"
+        return (
+            f"{DATA_ENDPOINTS['supplement_information_private']}/000{relation_number}"
+        )
 
     @staticmethod
     def parse_move_house_address(payload: object) -> PWNMoveHouseAddress:
