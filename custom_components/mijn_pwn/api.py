@@ -31,6 +31,26 @@ class PWNAPIAuthenticationError(PWNAPIError):
     """Authentication error."""
 
 
+class PWNMeasurementValidationRequest(TypedDict):
+    """Address fields used to validate a water meter reading request."""
+
+    houseNumber: str
+    houseNumberAddition: str
+    postalCode: str
+
+
+class PWNMeasurementValidationResponse(TypedDict):
+    """Validation response including a short-lived supplemental data token."""
+
+    relationNumber: str
+    clientType: int
+    additionalDataToken: str
+    readingReason: int
+    periodStartDate: str | None
+    periodEndDate: str | None
+    houseNumberAddition: str
+
+
 class PWNWaterMeterDetailsRequest(TypedDict):
     """Address fields accepted by the PWN water meter details endpoint."""
 
@@ -354,6 +374,80 @@ class PWNAPI:
         )
 
     @staticmethod
+    def _build_measurement_validation_payload(
+        address: dict[str, object],
+    ) -> PWNMeasurementValidationRequest:
+        """Extract only the confirmed address fields for validation."""
+        if not isinstance(address, dict):
+            raise ValueError("Invalid measurement validation address: expected an object")
+
+        validated: dict[str, str] = {}
+        for key in ("houseNumber", "houseNumberAddition", "postalCode"):
+            value = address.get(key)
+            if (
+                not isinstance(value, str)
+                or len(value) > 255
+                or (key != "houseNumberAddition" and not value.strip())
+            ):
+                raise ValueError(
+                    "Invalid measurement validation address: missing or invalid fields"
+                )
+            validated[key] = value
+
+        return PWNMeasurementValidationRequest(
+            houseNumber=validated["houseNumber"],
+            houseNumberAddition=validated["houseNumberAddition"],
+            postalCode=validated["postalCode"],
+        )
+
+    @staticmethod
+    def parse_measurement_validation(
+        payload: object,
+    ) -> PWNMeasurementValidationResponse:
+        """Validate a measurement response without logging the returned token."""
+        if not isinstance(payload, dict):
+            raise PWNAPIError("Invalid measurement validation response: expected an object")
+
+        for key in ("relationNumber", "additionalDataToken"):
+            value = payload.get(key)
+            if not isinstance(value, str) or not value:
+                raise PWNAPIError("Invalid measurement validation response: missing fields")
+
+        relation_number = payload["relationNumber"]
+        if (
+            not relation_number.isascii()
+            or not relation_number.isdecimal()
+            or len(relation_number) > 32
+        ):
+            raise PWNAPIError("Invalid measurement validation response: relation number")
+
+        for key in ("clientType", "readingReason"):
+            value = payload.get(key)
+            if type(value) is not int or value < 0:
+                raise PWNAPIError("Invalid measurement validation response: status code")
+
+        addition = payload.get("houseNumberAddition")
+        if not isinstance(addition, str):
+            raise PWNAPIError("Invalid measurement validation response: address addition")
+
+        for key in ("periodStartDate", "periodEndDate"):
+            date_value = payload.get(key)
+            if date_value is not None and (
+                not isinstance(date_value, str) or not date_value
+            ):
+                raise PWNAPIError("Invalid measurement validation response: period date")
+
+        return PWNMeasurementValidationResponse(
+            relationNumber=relation_number,
+            clientType=payload["clientType"],
+            additionalDataToken=payload["additionalDataToken"],
+            readingReason=payload["readingReason"],
+            periodStartDate=payload.get("periodStartDate"),
+            periodEndDate=payload.get("periodEndDate"),
+            houseNumberAddition=addition,
+        )
+
+    @staticmethod
     def _build_water_meter_details_payload(
         address: dict[str, object],
     ) -> PWNWaterMeterDetailsRequest:
@@ -480,6 +574,36 @@ class PWNAPI:
             raise UpdateFailed("Unable to retrieve water meter details") from None
 
         return self.parse_water_meter_details(response)
+
+    async def validate_measurement_request(
+        self, reading_number: str, address: dict[str, object]
+    ) -> PWNMeasurementValidationResponse:
+        """Request a validation token for a reading number and an address.
+
+        The token is returned only to the caller; it is never persisted or logged.
+        The method is not called automatically during Home Assistant setup.
+        """
+        if (
+            not isinstance(reading_number, str)
+            or not reading_number
+            or len(reading_number) > 32
+            or not reading_number.isascii()
+            or not reading_number.isdecimal()
+        ):
+            raise ValueError(
+                "Invalid reading number: expected up to 32 ASCII digits"
+            )
+        payload = self._build_measurement_validation_payload(address)
+        endpoint = (
+            f"{DATA_ENDPOINTS['water_usage_validate_measurement_request']}"
+            f"/{reading_number}"
+        )
+        try:
+            response = await self._request("POST", endpoint, json=payload)
+        except UpdateFailed:
+            raise UpdateFailed("Unable to validate meter-reading request") from None
+
+        return self.parse_measurement_validation(response)
 
     async def get_reading_request(self) -> list[dict[str, object]]:
         """Return meter-reading requests with their status and meter metadata."""
