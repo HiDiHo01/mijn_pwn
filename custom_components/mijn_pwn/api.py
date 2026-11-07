@@ -282,6 +282,10 @@ class PWNAPI:
         """Return consumption history."""
         return await self._request("GET", DATA_ENDPOINTS["consumption_history"])
 
+    async def get_reading_request(self) -> dict[str, object]:
+        """Return the current full meter-reading request from Mijn PWN."""
+        return await self._request("GET", DATA_ENDPOINTS["reading_request"])
+
     async def get_payment_info(self) -> dict[str, object]:
         """Return payment information."""
         return await self._request("GET", DATA_ENDPOINTS["payment_info"])
