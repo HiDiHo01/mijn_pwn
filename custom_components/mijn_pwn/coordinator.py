@@ -44,6 +44,15 @@ class PWNConfirmedMeterReading:
     reading_number: str
 
 
+@dataclass(frozen=True, slots=True)
+class PWNReadingDraft:
+    """A locally entered draft that must not be treated as submitted."""
+
+    value: int
+    entered_at: datetime
+    reading_number: str
+
+
 class PWNDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching data from the PWN API."""
 
@@ -60,6 +69,7 @@ class PWNDataUpdateCoordinator(DataUpdateCoordinator):
         self.api = api
         self.last_confirmed_meter_reading: PWNConfirmedMeterReading | None = None
         self._submission_lock = asyncio.Lock()
+        self.draft_readings: dict[str, PWNReadingDraft] = {}
 
     def record_confirmed_meter_submission(
         self,
