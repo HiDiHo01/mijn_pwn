@@ -196,9 +196,18 @@ sturen. De builder vereist een Python-`date`, valideert het aantal
 telwielen (1 t/m 9) en accepteert alleen gehele meterstanden binnen dit
 bereik.
 
-De **HTTP-statuscode en responsebody** van deze plausibiliteitscontrole zijn
-nog onbekend. Om geen onjuiste succesdetectie te introduceren, wordt daarom
-**nog geen POST uitgevoerd**.
+De bevestigde **JSON-response** is
+`{"isPlausible": true, "minReading": null, "maxReading": null}`.
+`isPlausible` is een boolean die aangeeft of de ingevoerde stand plausibel
+is. `minReading` en `maxReading` kunnen `null` zijn; er werden in
+het waargenomen antwoord geen grenzen teruggegeven. Eventuele niet-lege
+numerieke grenzen en hun betekenis zijn nog niet in de browser bevestigd.
+
+`PWNAPI.parse_plausible_reading_response()` valideert de response en
+`PWNAPI.validate_plausible_reading()` biedt de JSON-POST als afzonderlijk
+aanroepbare methode aan. Deze methode wordt **niet automatisch uitgevoerd**
+bij opstarten, verversen of het aanpassen van de conceptmeterstand.
+De exacte **HTTP-statuscode** van het waargenomen antwoord is nog onbekend.
 
 De plausibiliteitscontrole **bevestigt nooit de definitieve verzending**.
 Ook een eventuele HTTP `200` of `204` van dit endpoint mag de sensoren
