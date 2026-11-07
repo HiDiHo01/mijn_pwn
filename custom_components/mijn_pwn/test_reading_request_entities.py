@@ -206,9 +206,7 @@ class TestReadingEntities(unittest.TestCase):
         self.assertTrue(overall.available)
         self.assertTrue(overall.is_on)
         self.assertIsNone(
-            PWNDataUpdateCoordinator.current_submission_details(
-                coordinator, "00123"
-            )
+            PWNDataUpdateCoordinator.current_submission_details(coordinator, "00123")
         )
 
         coordinator.data[DATA_USER] = {"relationNumber": "1234567"}
