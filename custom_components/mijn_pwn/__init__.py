@@ -108,6 +108,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
         _LOGGER.debug("Calling config_entry_first_refresh")
         await coordinator.async_config_entry_first_refresh()
+        await coordinator.async_load_drafts()
         migrate_legacy_device_identifiers(
             device_registry.async_get(hass), config_entry.entry_id
         )
