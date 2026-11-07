@@ -22,7 +22,7 @@ def _reading_request(meter_number: str = "00123") -> dict[str, object]:
     """Create a fictional water-meter reading request."""
     return {
         "openReading": True,
-        "readingNumber": "00000000001",
+        "readingNumber": "99999999991",
         "readingStartDate": "2026-10-25T00:00:00.0000000Z",
         "readingDate": "2026-11-21T00:00:00.0000000Z",
         "readingReason": 1,
@@ -65,7 +65,7 @@ class TestReadingValues(unittest.TestCase):
         """Decode each supported field using its correct Home Assistant state type."""
         request = _reading_request()
         values = {
-            "reading_number": "00000000001",
+            "reading_number": "99999999991",
             "reading_start_date": datetime(2026, 10, 25, tzinfo=timezone.utc),
             "reading_date": datetime(2026, 11, 21, tzinfo=timezone.utc),
             "reading_reason": 1,
@@ -104,7 +104,7 @@ class TestReadingValues(unittest.TestCase):
         """Never select an arbitrary meter when the API returns duplicates."""
         request = _reading_request()
         other_request = _reading_request()
-        other_request["readingNumber"] = "00000000002"
+        other_request["readingNumber"] = "99999999992"
         self.assertIsNone(_get_request_for_meter({}, "00123"))
         self.assertIsNone(_get_request_for_meter({DATA_READING_REQUESTS: []}, "00123"))
         self.assertIsNone(
@@ -133,7 +133,7 @@ class TestReadingEntities(unittest.TestCase):
             coordinator, entry, "00123", descriptions["reading_number"]
         )
         self.assertTrue(entity.available)
-        self.assertEqual(entity.native_value, "00000000001")
+        self.assertEqual(entity.native_value, "99999999991")
         self.assertEqual(
             entity.unique_id,
             "synthetic-account_reading_meter_00123_reading_number",
