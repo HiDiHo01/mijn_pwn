@@ -967,7 +967,8 @@ class PWNSensor(CoordinatorEntity, SensorEntity):
             #                                self.entity_description.key)
             return value
         except Exception as error:
-            _LOGGER.error(
+            # Upstream exceptions can contain account data; never log traceback.
+            _LOGGER.warning(
                 "Failed to retrieve sensor %s (exception type: %s)",
                 self.entity_description.key,
                 type(error).__name__,
