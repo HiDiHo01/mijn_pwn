@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, patch
 from homeassistant.components.number import NumberMode
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import DATA_READING_REQUESTS
-from .number import PWNReadingDraftNumber, format_meter_reading
+from .const import DATA_READING_REQUESTS, DOMAIN
+from .number import PWNReadingDraftNumber, async_setup_entry, format_meter_reading
 
 
 def _reading_request(
@@ -62,6 +62,42 @@ class TestReadingDraftNumber(unittest.IsolatedAsyncioTestCase):
             with self.subTest(value=value, wheel_count=wheel_count):
                 with self.assertRaises(ValueError):
                     format_meter_reading(value, wheel_count)
+
+    async def test_number_platform_discovers_new_meters(self) -> None:
+        """Add a translated input for each meter without duplicating entities."""
+        entity, coordinator = _make_number()
+        hass = MagicMock()
+        config_entry = MagicMock()
+        config_entry.unique_id = "synthetic-account"
+        config_entry.entry_id = "synthetic-entry"
+        hass.data = {DOMAIN: {config_entry.entry_id: coordinator}}
+        added: list[PWNReadingDraftNumber] = []
+
+        def _add_entities(entities: list[PWNReadingDraftNumber]) -> None:
+            """Collect entities added by the number platform."""
+            added.extend(entities)
+
+        await async_setup_entry(hass, config_entry, _add_entities)
+        self.assertEqual(len(added), 1)
+        self.assertEqual(added[0].unique_id, entity.unique_id)
+
+        callback = coordinator.async_add_listener.call_args.args[0]
+        coordinator.data = {
+            DATA_READING_REQUESTS: [
+                _reading_request(),
+                _reading_request(
+                    meter_number="00054321", reading_number="01234567890"
+                ),
+            ]
+        }
+        callback()
+        self.assertEqual(len(added), 2)
+        self.assertEqual(
+            added[1].unique_id,
+            "synthetic-account_reading_meter_00054321_meter_reading_draft",
+        )
+        callback()
+        self.assertEqual(len(added), 2)
 
     async def test_local_number_input_does_not_send_post(self) -> None:
         """Store a draft without calling the PWN client or any HTTP request."""
