@@ -104,9 +104,7 @@ def _get_request_for_meter(
     if requests is None:
         return None
     matches = [
-        request
-        for request in requests
-        if request.get("meterNumber") == meter_number
+        request for request in requests if request.get("meterNumber") == meter_number
     ]
     if len(matches) == 1:
         return matches[0]
@@ -163,14 +161,22 @@ def _reading_value(
     }.get(description_key)
 
     if description_key in ("reading_start_date", "reading_date"):
-        key = "readingStartDate" if description_key == "reading_start_date" else "readingDate"
+        key = (
+            "readingStartDate"
+            if description_key == "reading_start_date"
+            else "readingDate"
+        )
         return _parse_timestamp(request.get(key))
     if description_key == "reading_address":
         return _reading_address(request)
     if source_key is None:
         return None
     value = request.get(source_key)
-    if description_key in ("reading_reason", "reading_wheel_count", "reading_contract_status"):
+    if description_key in (
+        "reading_reason",
+        "reading_wheel_count",
+        "reading_contract_status",
+    ):
         return value if type(value) is int else None
     return value if isinstance(value, str) and value.strip() else None
 
