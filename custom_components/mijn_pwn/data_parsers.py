@@ -1,7 +1,6 @@
 """Validated, privacy-preserving summaries of optional Mijn PWN API payloads."""
 
 from datetime import date
-from math import isfinite
 
 
 def get_notification_count(payload: object) -> int | None:
@@ -43,19 +42,6 @@ def _last_actual_reading(
         readings.append((parsed_date, item))
 
     return max(readings, key=lambda reading: reading[0]) if readings else None
-
-
-def get_last_reported_meter_reading(payload: object) -> int | float | None:
-    """Return the latest actual meter reading reported by the PWN API."""
-    reading = _last_actual_reading(payload)
-    if reading is None:
-        return None
-    value = reading[1].get("meterReading")
-    if type(value) is int:
-        return value if value >= 0 else None
-    if type(value) is float:
-        return value if isfinite(value) and value >= 0 else None
-    return None
 
 
 def get_last_meter_reading_date(payload: object) -> date | None:
