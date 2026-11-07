@@ -42,12 +42,11 @@ class PWNReadingActionButton(CoordinatorEntity, ButtonEntity):
     def available(self) -> bool:
         """Permit actions only for a complete, not-yet-submitted draft."""
         details = self._current_details()
-        confirmed = self.coordinator.last_confirmed_meter_reading
         return (
             super().available
             and details is not None
-            and (
-                confirmed is None or confirmed.reading_number != details.reading_number
+            and not self.coordinator.was_reading_submitted(
+                details.meter_number, details.reading_number
             )
         )
 
