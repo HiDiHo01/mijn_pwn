@@ -135,12 +135,8 @@ class TestConfirmedReading(unittest.IsolatedAsyncioTestCase):
     def test_failed_retry_preserves_previous_confirmed_reading(self) -> None:
         """Keep the last confirmed value and timestamp when a later POST fails."""
         coordinator = _make_coordinator()
-        reading_sensor = _make_sensor(
-            coordinator, "last_submitted_meter_reading"
-        )
-        date_sensor = _make_sensor(
-            coordinator, "last_submitted_meter_reading_date"
-        )
+        reading_sensor = _make_sensor(coordinator, "last_submitted_meter_reading")
+        date_sensor = _make_sensor(coordinator, "last_submitted_meter_reading_date")
         PWNDataUpdateCoordinator.record_confirmed_meter_submission(
             coordinator,
             status_code=204,
