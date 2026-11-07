@@ -159,6 +159,11 @@
       "reading_requests_open": {
         "name": "Any open reading requests"
       }
+    },
+    "number": {
+      "meter_reading_draft": {
+        "name": "Meter reading (draft, not sent) ({meter_number})"
+      }
     }
   }
 }
