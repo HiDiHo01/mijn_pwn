@@ -61,7 +61,8 @@ class TestConfirmedReading(unittest.IsolatedAsyncioTestCase):
         date_sensor = _make_sensor(coordinator, "last_submitted_meter_reading_date")
         self.assertEqual(date_sensor.device_class, SensorDeviceClass.TIMESTAMP)
         numeric_description = next(
-            item for item in CONFIRMED_READING_DESCRIPTIONS
+            item
+            for item in CONFIRMED_READING_DESCRIPTIONS
             if item.key == "last_submitted_meter_reading"
         )
         self.assertIsNone(numeric_description.state_class)
