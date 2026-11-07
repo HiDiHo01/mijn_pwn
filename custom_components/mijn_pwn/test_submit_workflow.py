@@ -106,6 +106,18 @@ def _coordinator() -> MagicMock:
     coordinator._confirmed_storage_payload.side_effect = lambda: (
         PWNDataUpdateCoordinator._confirmed_storage_payload(coordinator)
     )
+    coordinator._find_open_meter_request.side_effect = (
+        PWNDataUpdateCoordinator._find_open_meter_request
+    )
+    coordinator._valid_draft_for_request.side_effect = (
+        PWNDataUpdateCoordinator._valid_draft_for_request
+    )
+    coordinator._extract_relation_number.side_effect = (
+        PWNDataUpdateCoordinator._extract_relation_number
+    )
+    coordinator._valid_meter_address.side_effect = (
+        PWNDataUpdateCoordinator._valid_meter_address
+    )
     coordinator.current_submission_details.side_effect = _details
     coordinator.is_prepared_submission.side_effect = _is_prepared
     coordinator.invalidate_prepared_submission.side_effect = _invalidate
