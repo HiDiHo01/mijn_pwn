@@ -72,6 +72,8 @@ class TestPlausibleReadingURL(unittest.TestCase):
 
     def test_meter_reading_bounds_and_boolean_rejection(self) -> None:
         """Reject values outside the wheel range without converting inputs."""
+        reading_date = date(2026, 11, 7)
+        address = self._address()
         for meter_reading, wheel_count in (
             (-1, 5),
             (100000, 5),
@@ -87,23 +89,24 @@ class TestPlausibleReadingURL(unittest.TestCase):
             ):
                 with self.assertRaisesRegex(ValueError, "Invalid meter"):
                     PWNAPI._build_plausible_reading_payload(
-                        meter_reading, date(2026, 11, 7), self._address(), wheel_count
+                        meter_reading, reading_date, address, wheel_count
                     )
         self.assertEqual(
             PWNAPI._build_plausible_reading_payload(
-                0, date(2026, 11, 7), self._address(), 5
+                0, reading_date, address, 5
             )["meterReading"],
             0,
         )
         self.assertEqual(
             PWNAPI._build_plausible_reading_payload(
-                99999, date(2026, 11, 7), self._address(), 5
+                99999, reading_date, address, 5
             )["meterReading"],
             99999,
         )
 
     def test_reading_date_must_be_a_date_not_timestamp_or_text(self) -> None:
         """Prevent accidental timezone conversion or unvalidated date strings."""
+        address = self._address()
         invalid_dates: tuple[object, ...] = (
             None,
             "2026-11-07",
@@ -114,12 +117,13 @@ class TestPlausibleReadingURL(unittest.TestCase):
             with self.subTest(date_type=type(reading_date).__name__):
                 with self.assertRaisesRegex(ValueError, "Invalid reading date"):
                     PWNAPI._build_plausible_reading_payload(
-                        165, reading_date, self._address(), 5
+                        165, reading_date, address, 5
                     )
 
     def test_plausibility_payload_address_validation(self) -> None:
         """Reject missing or malformed fields before they reach an HTTP request."""
         address = self._address()
+        reading_date = date(2026, 11, 7)
         invalid_addresses: tuple[object, ...] = (
             None,
             [],
@@ -133,7 +137,7 @@ class TestPlausibleReadingURL(unittest.TestCase):
             with self.subTest(address_type=type(invalid_address).__name__):
                 with self.assertRaisesRegex(ValueError, "Invalid plausibility address"):
                     PWNAPI._build_plausible_reading_payload(
-                        165, date(2026, 11, 7), invalid_address, 5
+                        165, reading_date, invalid_address, 5
                     )
 
     def test_reject_invalid_opname_numbers(self) -> None:
@@ -287,6 +291,8 @@ class TestPlausibilityAPI(unittest.IsolatedAsyncioTestCase):
         from .coordinator import PWNDataUpdateCoordinator
 
         api = self._make_client()
+        reading_date = date(2026, 11, 7)
+        address = self._address()
         responses = (
             {"isPlausible": False, "minReading": None, "maxReading": None},
             {"isPlausible": False, "minReading": 160, "maxReading": 200},
@@ -306,8 +312,8 @@ class TestPlausibilityAPI(unittest.IsolatedAsyncioTestCase):
                             "01234567890",
                             "0012345",
                             165,
-                            date(2026, 11, 7),
-                            self._address(),
+                            reading_date,
+                            address,
                             5,
                         )
                     self.assertEqual(
@@ -327,6 +333,8 @@ class TestPlausibilityAPI(unittest.IsolatedAsyncioTestCase):
         from .coordinator import PWNDataUpdateCoordinator
 
         api = self._make_client()
+        reading_date = date(2026, 11, 7)
+        address = self._address()
         invalid_responses = (
             {"isPlausible": "false", "minReading": None, "maxReading": None},
             {"isPlausible": True, "minReading": 10},
@@ -347,8 +355,8 @@ class TestPlausibilityAPI(unittest.IsolatedAsyncioTestCase):
                             "01234567890",
                             "0012345",
                             165,
-                            date(2026, 11, 7),
-                            self._address(),
+                            reading_date,
+                            address,
                             5,
                         )
 
@@ -357,6 +365,8 @@ class TestPlausibilityAPI(unittest.IsolatedAsyncioTestCase):
     async def test_upstream_error_redacts_private_data(self) -> None:
         """Strip PWN error responses that might contain account identifiers."""
         api = self._make_client()
+        reading_date = date(2026, 11, 7)
+        address = self._address()
         with patch.object(
             api,
             "_request",
@@ -367,25 +377,27 @@ class TestPlausibilityAPI(unittest.IsolatedAsyncioTestCase):
                 UpdateFailed, "Unable to validate meter-reading plausibility"
             ) as error:
                 await api.validate_plausible_reading(
-                    "01234567890", "0012345", 165, date(2026, 11, 7), self._address(), 5
+                    "01234567890", "0012345", 165, reading_date, address, 5
                 )
         self.assertNotIn("private address", str(error.exception))
 
     async def test_invalid_inputs_never_trigger_post(self) -> None:
         """Validate URL identifiers and JSON fields before network requests."""
         api = self._make_client()
+        reading_date = date(2026, 11, 7)
+        address = self._address()
         with patch.object(api, "_request", new_callable=AsyncMock) as mock_request:
             with self.assertRaises(ValueError):
                 await api.validate_plausible_reading(
-                    "bad-id", "0012345", 165, date(2026, 11, 7), self._address(), 5
+                    "bad-id", "0012345", 165, reading_date, address, 5
                 )
             with self.assertRaises(ValueError):
                 await api.validate_plausible_reading(
                     "01234567890",
                     "0012345",
                     100000,
-                    date(2026, 11, 7),
-                    self._address(),
+                    reading_date,
+                    address,
                     5,
                 )
             mock_request.assert_not_awaited()
